@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contact &amp; Get a Quote – Superior 3D and Laser</title>
+  <meta name="description" content="Get a free quote for your 3D printing or laser cutting project. We respond within one business day." />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+<!-- ── Nav ── -->
+<nav>
+  <div class="container nav-inner">
+    <a href="index.html" class="logo">
+      <svg class="logo-icon" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="36" height="36" rx="8" fill="#f97316" fill-opacity=".15"/>
+        <polygon points="18,6 30,13 30,25 18,32 6,25 6,13" stroke="#f97316" stroke-width="1.5" fill="none"/>
+        <line x1="18" y1="6" x2="18" y2="19" stroke="#f97316" stroke-width="1.5"/>
+        <line x1="6" y1="13" x2="18" y2="19" stroke="#f97316" stroke-width="1.5"/>
+        <line x1="30" y1="13" x2="18" y2="19" stroke="#f97316" stroke-width="1.5"/>
+        <line x1="26" y1="10" x2="22" y2="16" stroke="#38bdf8" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="26" cy="10" r="2" fill="#38bdf8"/>
+      </svg>
+      Superior <span>3D</span>&amp;Laser
+    </a>
+
+    <button class="nav-toggle" aria-label="Toggle menu" onclick="this.classList.toggle('open');document.getElementById('navLinks').classList.toggle('open')">
+      <span></span><span></span><span></span>
+    </button>
+
+    <ul class="nav-links" id="navLinks">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="services.html">Services</a></li>
+      <li><a href="contact.html" class="active nav-cta">Get a Quote</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- ── Page Hero ── -->
+<section class="page-hero">
+  <div class="container">
+    <div class="tag">Let's Talk</div>
+    <h1 class="section-title" style="margin-bottom:.75rem">Get in Touch</h1>
+    <p class="section-sub" style="margin:0 auto">Fill out the form below and we'll respond with a quote within one business day. No commitment required.</p>
+  </div>
+</section>
+
+<!-- ── Contact Layout ── -->
+<div class="container">
+  <div class="contact-layout">
+
+    <!-- Left: Info -->
+    <div class="contact-info">
+      <h2>How to Reach Us</h2>
+      <p>Whether you have a finished file ready to go or just a rough idea, we're happy to talk through your project and help you figure out the best path forward.</p>
+
+      <div class="contact-items">
+        <div class="contact-item">
+          <div class="ci-icon">📧</div>
+          <div>
+            <div class="ci-label">Email</div>
+            <div class="ci-val">blake@superior3dandlaser.com</div>
+          </div>
+        </div>
+        <div class="contact-item">
+          <div class="ci-icon">📞</div>
+          <div>
+            <div class="ci-label">Phone</div>
+            <div class="ci-val">(810) 441-9045</div>
+          </div>
+        </div>
+        <div class="contact-item">
+          <div class="ci-icon">📍</div>
+          <div>
+            <div class="ci-label">Location</div>
+            <div class="ci-val">Powell, TN — local pickup available, contact us for address details</div>
+          </div>
+        </div>
+        <div class="contact-item">
+          <div class="ci-icon">🕐</div>
+          <div>
+            <div class="ci-label">Business Hours</div>
+            <div class="ci-val">Mon – Fri: 9am – 6pm<br>Sat: 10am – 3pm</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:2rem;padding:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius)">
+        <div class="tag" style="margin-bottom:.5rem">File Formats Accepted</div>
+        <p style="color:var(--muted);font-size:.9rem;margin-bottom:.75rem">Send your files directly by email after submitting this form. We accept:</p>
+        <div style="display:flex;flex-wrap:wrap;gap:.5rem">
+          <span style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.25rem .6rem;font-size:.8rem;color:var(--muted)">STL</span>
+          <span style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.25rem .6rem;font-size:.8rem;color:var(--muted)">OBJ</span>
+          <span style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.25rem .6rem;font-size:.8rem;color:var(--muted)">3MF</span>
+          <span style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.25rem .6rem;font-size:.8rem;color:var(--muted)">SVG</span>
+          <span style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.25rem .6rem;font-size:.8rem;color:var(--muted)">DXF</span>
+          <span style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.25rem .6rem;font-size:.8rem;color:var(--muted)">AI</span>
+          <span style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.25rem .6rem;font-size:.8rem;color:var(--muted)">PDF</span>
+          <span style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.25rem .6rem;font-size:.8rem;color:var(--muted)">PNG / JPG</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Form -->
+    <div class="contact-form-wrap">
+      <h3>Request a Free Quote</h3>
+
+      <form id="contactForm" name="contact" method="POST" data-netlify="true" netlify-honeypot="bot-field" novalidate>
+        <input type="hidden" name="form-name" value="contact" />
+        <p style="display:none"><input name="bot-field" /></p>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="firstName">First Name <span style="color:var(--accent)">*</span></label>
+            <input type="text" id="firstName" name="firstName" placeholder="Jane" required />
+          </div>
+          <div class="form-group">
+            <label for="lastName">Last Name <span style="color:var(--accent)">*</span></label>
+            <input type="text" id="lastName" name="lastName" placeholder="Smith" required />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="email">Email Address <span style="color:var(--accent)">*</span></label>
+            <input type="email" id="email" name="email" placeholder="jane@example.com" required />
+          </div>
+          <div class="form-group">
+            <label for="phone">Phone Number</label>
+            <input type="tel" id="phone" name="phone" placeholder="(555) 000-0000" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="service">Service Needed <span style="color:var(--accent)">*</span></label>
+          <select id="service" name="service" required>
+            <option value="" disabled selected>Select a service…</option>
+            <option value="fdm">FDM 3D Printing</option>
+            <option value="laser-cutting">Laser Cutting</option>
+            <option value="laser-engraving">Laser Engraving</option>
+            <option value="design">Design / File Assistance</option>
+            <option value="multiple">Multiple Services</option>
+            <option value="unsure">Not Sure – Need Guidance</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="quantity">Quantity</label>
+            <input type="number" id="quantity" name="quantity" placeholder="e.g. 10" min="1" />
+          </div>
+          <div class="form-group">
+            <label for="timeline">Timeline</label>
+            <select id="timeline" name="timeline">
+              <option value="" disabled selected>Select timeline…</option>
+              <option value="rush">Rush (24 hours)</option>
+              <option value="standard">Standard (3–5 business days)</option>
+              <option value="flexible">Flexible (1–2 weeks)</option>
+              <option value="unknown">Not sure yet</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="material">Preferred Material / Finish</label>
+          <input type="text" id="material" name="material" placeholder="e.g. PETG, clear acrylic, black anodized aluminum…" />
+        </div>
+
+        <div class="form-group">
+          <label for="message">Project Description <span style="color:var(--accent)">*</span></label>
+          <textarea id="message" name="message" placeholder="Describe your project — dimensions, purpose, any special requirements. The more detail you provide, the faster we can quote you accurately." required></textarea>
+        </div>
+
+        <div class="form-group" style="display:flex;align-items:flex-start;gap:.6rem;margin-bottom:.25rem">
+          <input type="checkbox" id="hasFiles" name="hasFiles" style="width:auto;margin-top:.2rem;accent-color:var(--accent)" />
+          <label for="hasFiles" style="margin:0;font-size:.9rem;color:var(--muted);font-weight:400;cursor:pointer">I have files ready to attach (I'll send them by email after submitting)</label>
+        </div>
+
+        <div class="form-submit">
+          <button type="submit" class="btn btn-primary">Send Quote Request</button>
+        </div>
+        <p class="form-note">We'll respond within 1 business day. No spam, ever.</p>
+      </form>
+
+      <!-- Success State -->
+      <div class="form-success" id="formSuccess">
+        <div class="success-icon">✅</div>
+        <h4>Message Sent!</h4>
+        <p>Thanks for reaching out. We'll review your project and get back to you within one business day.</p>
+        <div style="margin-top:1.5rem">
+          <a href="index.html" class="btn btn-outline">Back to Home</a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── FAQ ── -->
+<section style="padding:4rem 0;background:var(--bg-light);margin-top:4rem;border-top:1px solid var(--border)">
+  <div class="container">
+    <div class="tag">FAQ</div>
+    <h2 class="section-title" style="margin-bottom:2rem">Common Questions</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem">
+
+      <div style="padding:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius)">
+        <h4 style="font-weight:700;margin-bottom:.5rem">What file formats do you accept?</h4>
+        <p style="color:var(--muted);font-size:.9rem">For 3D printing: STL, OBJ, 3MF, STEP. For laser work: SVG, DXF, AI, PDF, CorelDRAW CDR. Images (PNG, JPG) are accepted for engraving. We can also help convert or clean up files.</p>
+      </div>
+
+      <div style="padding:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius)">
+        <h4 style="font-weight:700;margin-bottom:.5rem">How long will my order take?</h4>
+        <p style="color:var(--muted);font-size:.9rem">Standard turnaround is 3–5 business days from order approval. Rush orders (24-hour) are available for an additional fee, subject to current capacity. We'll confirm timing on your quote.</p>
+      </div>
+
+      <div style="padding:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius)">
+        <h4 style="font-weight:700;margin-bottom:.5rem">How do I pay?</h4>
+        <p style="color:var(--muted);font-size:.9rem">We accept all major credit/debit cards and PayPal. Payment is due upon order confirmation. For larger orders, we may request a deposit upfront.</p>
+      </div>
+
+      <div style="padding:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius)">
+        <h4 style="font-weight:700;margin-bottom:.5rem">Can you do large production runs?</h4>
+        <p style="color:var(--muted);font-size:.9rem">Yes — we handle small to medium production quantities. For large volumes, reach out and we'll discuss lead times and volume pricing that makes sense for your project.</p>
+      </div>
+
+      <div style="padding:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius)">
+        <h4 style="font-weight:700;margin-bottom:.5rem">Do you ship orders?</h4>
+        <p style="color:var(--muted);font-size:.9rem">Yes — we ship anywhere in the US via USPS, UPS, or FedEx. Shipping cost is calculated at checkout. Local pickup is also available at no charge.</p>
+      </div>
+
+      <div style="padding:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius)">
+        <h4 style="font-weight:700;margin-bottom:.5rem">What if I don't have a design file?</h4>
+        <p style="color:var(--muted);font-size:.9rem">No worries! Describe your project and we can help with design. We offer CAD modeling and artwork services to get your idea into a print-ready file.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ── -->
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a href="index.html" class="logo" style="margin-bottom:.5rem">
+          Superior <span>3D</span>&amp;Laser
+        </a>
+        <p>Professional 3D printing and laser cutting &amp; engraving services. Precision results for makers, businesses, and everyone in between.</p>
+      </div>
+      <div class="footer-col">
+        <h5>Services</h5>
+        <ul>
+          <li><a href="services.html#fdm">FDM 3D Printing</a></li>
+          <li><a href="services.html#resin">Resin Printing</a></li>
+          <li><a href="services.html#cutting">Laser Cutting</a></li>
+          <li><a href="services.html#engraving">Laser Engraving</a></li>
+          <li><a href="services.html#design">Design Assistance</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h5>Company</h5>
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="services.html">Services</a></li>
+          <li><a href="contact.html">Contact</a></li>
+          <li><a href="contact.html">Get a Quote</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>&copy; 2026 Superior 3D and Laser. All rights reserved.</span>
+      <span>Superior3DandLaser.com</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  const form = document.getElementById('contactForm');
+  const successEl = document.getElementById('formSuccess');
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    // Basic validation
+    const required = form.querySelectorAll('[required]');
+    let valid = true;
+    required.forEach(field => {
+      field.style.borderColor = '';
+      if (!field.value.trim()) {
+        field.style.borderColor = '#ef4444';
+        valid = false;
+      }
+    });
+    if (!valid) {
+      form.querySelector('[style*="border-color"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
+    const btn = form.querySelector('[type="submit"]');
+    btn.textContent = 'Sending…';
+    btn.disabled = true;
+
+    const data = new FormData(form);
+
+    fetch('/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams(data).toString()
+    })
+    .then(() => {
+      form.style.display = 'none';
+      successEl.style.display = 'block';
+      successEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    })
+    .catch(() => {
+      btn.textContent = 'Send Quote Request';
+      btn.disabled = false;
+      alert('Something went wrong. Please email us directly at blake@superior3dandlaser.com');
+    });
+  });
+
+  form.querySelectorAll('input, select, textarea').forEach(el => {
+    el.addEventListener('input', () => { el.style.borderColor = ''; });
+  });
+</script>
+
+</body>
+</html>

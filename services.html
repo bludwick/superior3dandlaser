@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Services – Superior 3D and Laser</title>
+  <meta name="description" content="FDM & resin 3D printing, laser cutting, and laser engraving services. View our full capabilities, materials, and process." />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+<!-- ── Nav ── -->
+<nav>
+  <div class="container nav-inner">
+    <a href="index.html" class="logo">
+      <svg class="logo-icon" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="36" height="36" rx="8" fill="#f97316" fill-opacity=".15"/>
+        <polygon points="18,6 30,13 30,25 18,32 6,25 6,13" stroke="#f97316" stroke-width="1.5" fill="none"/>
+        <line x1="18" y1="6" x2="18" y2="19" stroke="#f97316" stroke-width="1.5"/>
+        <line x1="6" y1="13" x2="18" y2="19" stroke="#f97316" stroke-width="1.5"/>
+        <line x1="30" y1="13" x2="18" y2="19" stroke="#f97316" stroke-width="1.5"/>
+        <line x1="26" y1="10" x2="22" y2="16" stroke="#38bdf8" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="26" cy="10" r="2" fill="#38bdf8"/>
+      </svg>
+      Superior <span>3D</span>&amp;Laser
+    </a>
+
+    <button class="nav-toggle" aria-label="Toggle menu" onclick="this.classList.toggle('open');document.getElementById('navLinks').classList.toggle('open')">
+      <span></span><span></span><span></span>
+    </button>
+
+    <ul class="nav-links" id="navLinks">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="services.html" class="active">Services</a></li>
+      <li><a href="contact.html" class="nav-cta">Get a Quote</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- ── Page Hero ── -->
+<section class="page-hero">
+  <div class="container">
+    <div class="tag">Our Capabilities</div>
+    <h1 class="section-title" style="margin-bottom:.75rem">Services &amp; Capabilities</h1>
+    <p class="section-sub" style="margin:0 auto">From single prototypes to production batches — here's everything we offer and how we can help bring your project to life.</p>
+  </div>
+</section>
+
+<!-- ── FDM 3D Printing ── -->
+<section class="services-section" id="fdm">
+  <div class="container">
+    <div class="service-detail">
+      <div class="service-detail-visual">
+        <span style="font-size:6rem;position:relative;z-index:1">🖨️</span>
+      </div>
+      <div class="service-detail-text">
+        <div class="tag">3D Printing</div>
+        <h2>FDM 3D Printing</h2>
+        <p>Fused Deposition Modeling (FDM) is the workhorse of 3D printing — great for functional parts, structural prototypes, enclosures, jigs, and anything that needs to be strong and cost-effective. We print on the <strong style="color:var(--text)">Bambu Lab H2D</strong>, a next-generation enclosed, heated-chamber machine built for speed, precision, and reliability.</p>
+        <ul class="feature-list">
+          <li>Layer resolution down to 0.1 mm</li>
+          <li>Build volume up to 350 × 320 × 325 mm</li>
+          <li>Multi-color and multi-material via Bambu AMS</li>
+          <li>PLA, ABS, PETG, ASA, TPU, Nylon, and more</li>
+          <li>Post-processing: sanding, priming, painting available</li>
+          <li>Tolerances to ±0.2 mm on typical geometries</li>
+        </ul>
+        <a href="contact.html" class="btn btn-primary">Request a Quote</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Resin Printing ── -->
+<section class="services-section" id="resin" style="opacity:.65">
+  <div class="container">
+    <div class="service-detail reverse">
+      <div class="service-detail-visual">
+        <span style="font-size:6rem;position:relative;z-index:1">✨</span>
+      </div>
+      <div class="service-detail-text">
+        <div class="tag">Coming Soon</div>
+        <h2>Resin (SLA / MSLA) Printing</h2>
+        <p>We're expanding into high-resolution resin printing for detailed miniatures, jewelry prototypes, dental models, and display-quality parts with ultra-smooth surface finish. Stay tuned — or contact us to be notified when this service launches.</p>
+        <ul class="feature-list">
+          <li>Ultra-fine detail — down to 0.05 mm layer height</li>
+          <li>Smooth, mold-ready surface quality</li>
+          <li>Standard, ABS-Like, Flexible, and Castable resins</li>
+          <li>Wash &amp; cure included with every print</li>
+        </ul>
+        <a href="contact.html" class="btn btn-outline">Notify Me When Available</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Laser Cutting ── -->
+<section class="services-section" id="cutting">
+  <div class="container">
+    <div class="service-detail">
+      <div class="service-detail-visual">
+        <span style="font-size:6rem;position:relative;z-index:1">⚡</span>
+      </div>
+      <div class="service-detail-text">
+        <div class="tag">Laser Services</div>
+        <h2>Laser Cutting</h2>
+        <p>Our <strong style="color:var(--text)">Bambu Lab H2D</strong> laser module delivers clean, precise cuts through a wide range of non-metallic materials. Whether you need one-off pieces or a batch of parts, we can cut intricate shapes with speed and consistency that manual methods can't touch.</p>
+        <ul class="feature-list">
+          <li>Cutting area up to 350 × 320 mm</li>
+          <li>Materials: wood, plywood, MDF, acrylic, leather, fabric, cardboard, rubber</li>
+          <li>Clean edges — often require no post-processing</li>
+          <li>File formats accepted: SVG, DXF, AI, PDF, CorelDRAW</li>
+          <li>Batch cutting for production quantities</li>
+          <li>Nesting optimization to reduce material waste</li>
+        </ul>
+        <a href="contact.html" class="btn btn-primary">Request a Quote</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Laser Engraving ── -->
+<section class="services-section" id="engraving">
+  <div class="container">
+    <div class="service-detail reverse">
+      <div class="service-detail-visual">
+        <span style="font-size:6rem;position:relative;z-index:1">🔷</span>
+      </div>
+      <div class="service-detail-text">
+        <div class="tag">Laser Services</div>
+        <h2>Laser Engraving</h2>
+        <p>Permanent, precise engraving powered by the <strong style="color:var(--text)">Bambu Lab H2D</strong> laser module — handling everything from logos and photos to intricate patterns on a huge variety of materials. Great for corporate gifts, awards, product marking, and custom signage.</p>
+        <ul class="feature-list">
+          <li>Photo engraving on wood, slate, leather, and more</li>
+          <li>Deep engraving on wood and acrylic</li>
+          <li>Anodized aluminum and coated metal marking</li>
+          <li>Glass surface etching</li>
+          <li>Vector and raster artwork supported</li>
+          <li>Bring your own item for custom engraving</li>
+        </ul>
+        <a href="contact.html" class="btn btn-primary">Request a Quote</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Design Assistance ── -->
+<section class="services-section" id="design">
+  <div class="container">
+    <div class="service-detail">
+      <div class="service-detail-visual">
+        <span style="font-size:6rem;position:relative;z-index:1">📐</span>
+      </div>
+      <div class="service-detail-text">
+        <div class="tag">Add-On Service</div>
+        <h2>Design &amp; File Preparation</h2>
+        <p>Don't have a ready-to-print file? No problem. Our team can help turn your idea — a sketch, a reference photo, or a rough concept — into a production-ready 3D model or laser-cut file. We also fix and optimize existing files that aren't quite print-ready.</p>
+        <ul class="feature-list">
+          <li>3D modeling from scratch (CAD/organic)</li>
+          <li>Reverse engineering from reference photos</li>
+          <li>STL repair and mesh healing</li>
+          <li>Vectorizing logos and artwork for laser</li>
+          <li>Slicing optimization for strength and print quality</li>
+          <li>Free file review with every order</li>
+        </ul>
+        <a href="contact.html" class="btn btn-primary">Discuss Your Project</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Applications ── -->
+<section class="applications">
+  <div class="container">
+    <div class="tag">Who We Work With</div>
+    <h2 class="section-title">Applications &amp; Industries</h2>
+    <p class="section-sub">Our services fit a wide range of use cases across industries.</p>
+    <div class="app-grid">
+      <div class="app-card">
+        <div class="app-icon">🎮</div>
+        <p>Miniatures &amp; Tabletop</p>
+      </div>
+      <div class="app-card">
+        <div class="app-icon">🔩</div>
+        <p>Engineering Prototypes</p>
+      </div>
+      <div class="app-card">
+        <div class="app-icon">🏠</div>
+        <p>Home &amp; Décor</p>
+      </div>
+      <div class="app-card">
+        <div class="app-icon">🎁</div>
+        <p>Personalized Gifts</p>
+      </div>
+      <div class="app-card">
+        <div class="app-icon">🏆</div>
+        <p>Awards &amp; Trophies</p>
+      </div>
+      <div class="app-card">
+        <div class="app-icon">🔬</div>
+        <p>Medical &amp; Dental</p>
+      </div>
+      <div class="app-card">
+        <div class="app-icon">📸</div>
+        <p>Photography Props</p>
+      </div>
+      <div class="app-card">
+        <div class="app-icon">🏗️</div>
+        <p>Architecture Models</p>
+      </div>
+      <div class="app-card">
+        <div class="app-icon">💍</div>
+        <p>Jewelry &amp; Fashion</p>
+      </div>
+      <div class="app-card">
+        <div class="app-icon">📦</div>
+        <p>Custom Packaging</p>
+      </div>
+      <div class="app-card">
+        <div class="app-icon">🚗</div>
+        <p>Automotive Parts</p>
+      </div>
+      <div class="app-card">
+        <div class="app-icon">🎨</div>
+        <p>Art &amp; Signage</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Process ── -->
+<section class="process">
+  <div class="container">
+    <div class="tag">How It Works</div>
+    <h2 class="section-title">Our Simple Process</h2>
+    <div class="process-steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h4>Send Your Files</h4>
+        <p>Upload your STL, SVG, DXF, or describe your project via our contact form. We accept most common formats.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h4>Get a Quote</h4>
+        <p>We review your files and respond with a transparent quote — material options, lead time, and pricing — within one business day.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h4>We Build It</h4>
+        <p>Once approved, we start production. You'll receive a status update and preview before shipping when applicable.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <h4>Pickup or Ship</h4>
+        <p>Local pickup is available, or we can ship your order anywhere. Orders are packaged carefully to arrive in perfect condition.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA ── -->
+<section class="cta-band">
+  <div class="container">
+    <h2>Let's Build Something Together</h2>
+    <p>Have a project in mind? Reach out — we'd love to help you make it happen.</p>
+    <a href="contact.html" class="btn btn-primary">Get a Free Quote</a>
+  </div>
+</section>
+
+<!-- ── Footer ── -->
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a href="index.html" class="logo" style="margin-bottom:.5rem">
+          Superior <span>3D</span>&amp;Laser
+        </a>
+        <p>Professional 3D printing and laser cutting &amp; engraving services. Precision results for makers, businesses, and everyone in between.</p>
+      </div>
+      <div class="footer-col">
+        <h5>Services</h5>
+        <ul>
+          <li><a href="#fdm">FDM 3D Printing</a></li>
+          <li><a href="#resin">Resin Printing</a></li>
+          <li><a href="#cutting">Laser Cutting</a></li>
+          <li><a href="#engraving">Laser Engraving</a></li>
+          <li><a href="#design">Design Assistance</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h5>Company</h5>
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="services.html">Services</a></li>
+          <li><a href="contact.html">Contact</a></li>
+          <li><a href="contact.html">Get a Quote</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>&copy; 2026 Superior 3D and Laser. All rights reserved.</span>
+      <span>Superior3DandLaser.com</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
