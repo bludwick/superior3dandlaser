@@ -16,7 +16,7 @@
 <nav>
   <div class="container nav-inner">
     <a href="index.html" class="logo">
-      <img src="Black and Red Online Store Logo.png" alt="Superior 3D and Laser" style="height:42px;width:auto;" />
+      <img src="logoheader_transparent.png" alt="Superior 3D and Laser" style="height:44px;width:auto;" />
     </a>
 
     <button class="nav-toggle" aria-label="Toggle menu" onclick="this.classList.toggle('open');document.getElementById('navLinks').classList.toggle('open')">
@@ -93,9 +93,7 @@
     <div class="contact-form-wrap">
       <h3>Request a Free Quote</h3>
 
-      <form id="contactForm" name="contact" method="POST" data-netlify="true" netlify-honeypot="bot-field" enctype="multipart/form-data" novalidate>
-        <input type="hidden" name="form-name" value="contact" />
-        <p style="display:none"><input name="bot-field" /></p>
+      <form id="contactForm" enctype="multipart/form-data" novalidate>
         <div class="form-row">
           <div class="form-group">
             <label for="firstName">First Name <span style="color:var(--accent)">*</span></label>
@@ -174,8 +172,8 @@
       <!-- Success State -->
       <div class="form-success" id="formSuccess">
         <div class="success-icon">✅</div>
-        <h4>Message Sent!</h4>
-        <p>Thanks for reaching out. We'll review your project and get back to you within one business day.</p>
+        <h4>Thanks! We'll have your quote ready within 24 hours.</h4>
+        <p>We've received your request and will be in touch shortly at the email you provided.</p>
         <div style="margin-top:1.5rem">
           <a href="index.html" class="btn btn-outline">Back to Home</a>
         </div>
@@ -232,7 +230,7 @@
     <div class="footer-grid">
       <div class="footer-brand">
         <a href="index.html" class="logo" style="margin-bottom:.5rem">
-          <img src="Black and Red Online Store Logo.png" alt="Superior 3D and Laser" style="height:42px;width:auto;" />
+          <img src="logoheader_transparent.png" alt="Superior 3D and Laser" style="height:44px;width:auto;" />
         </a>
         <p>Professional 3D printing and laser cutting &amp; engraving services. Precision results for makers, businesses, and everyone in between.</p>
       </div>
@@ -291,11 +289,12 @@
 
     const data = new FormData(form);
 
-    fetch('/', {
+    fetch('/.netlify/functions/submit-quote', {
       method: 'POST',
       body: data
     })
-    .then(() => {
+    .then(async (res) => {
+      if (!res.ok) throw new Error('Server error');
       form.style.display = 'none';
       successEl.style.display = 'block';
       successEl.scrollIntoView({ behavior: 'smooth', block: 'center' });

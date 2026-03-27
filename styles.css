@@ -3,17 +3,17 @@
    ============================= */
 
 :root {
-  --bg:        #0d0f14;
-  --bg-card:   #141720;
-  --bg-light:  #1a1e2a;
+  --bg:        #ffffff;
+  --bg-card:   #f8f8f8;
+  --bg-light:  #f1f1f1;
   --accent:    #b91c1c;
   --accent-lt: #dc2626;
-  --blue:      #38bdf8;
-  --text:      #e2e8f0;
-  --muted:     #94a3b8;
-  --border:    #2a2f3e;
+  --blue:      #1d4ed8;
+  --text:      #111111;
+  --muted:     #555555;
+  --border:    #e0e0e0;
   --radius:    10px;
-  --shadow:    0 4px 24px rgba(0,0,0,.5);
+  --shadow:    0 4px 24px rgba(0,0,0,.08);
   --font:      'Inter', 'Segoe UI', system-ui, sans-serif;
 }
 
@@ -80,7 +80,7 @@ nav {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(13,15,20,.92);
+  background: rgba(255,255,255,.95);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
 }
