@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contact Us – Superior 3D and Laser</title>
+  <meta name="description" content="Get in touch with Superior 3D and Laser. Email, phone, or fill out the form and we'll get back to you." />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+<!-- ── Nav ── -->
+<nav>
+  <div class="container nav-inner">
+    <a href="index.html" class="logo">
+      <img src="logoheader_transparent.png" alt="Superior 3D and Laser" style="height:44px;width:auto;" />
+    </a>
+
+    <button class="nav-toggle" aria-label="Toggle menu" onclick="this.classList.toggle('open');document.getElementById('navLinks').classList.toggle('open')">
+      <span></span><span></span><span></span>
+    </button>
+
+    <ul class="nav-links" id="navLinks">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="services.html">Services</a></li>
+      <li><a href="contact-us.html" class="active">Contact</a></li>
+      <li><a href="contact.html" class="nav-cta">Get a Quote</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- ── Page Hero ── -->
+<section class="page-hero">
+  <div class="container">
+    <div class="tag">Get in Touch</div>
+    <h1 class="section-title" style="margin-bottom:.75rem">Contact Us</h1>
+    <p class="section-sub" style="margin:0 auto">Have a question or want to discuss a project? Reach out and we'll get back to you as soon as possible.</p>
+  </div>
+</section>
+
+<!-- ── Contact Layout ── -->
+<div class="container">
+  <div class="contact-layout">
+
+    <!-- Left: Info -->
+    <div class="contact-info">
+      <h2>How to Reach Us</h2>
+      <p>Whether you have a finished file ready to go or just a rough idea, we're happy to talk through your project and help you figure out the best path forward.</p>
+
+      <div class="contact-items">
+        <div class="contact-item">
+          <div class="ci-icon">📧</div>
+          <div>
+            <div class="ci-label">Email</div>
+            <div class="ci-val">blake@superior3dandlaser.com</div>
+          </div>
+        </div>
+        <div class="contact-item">
+          <div class="ci-icon">📞</div>
+          <div>
+            <div class="ci-label">Phone</div>
+            <div class="ci-val">(810) 441-9045</div>
+          </div>
+        </div>
+        <div class="contact-item">
+          <div class="ci-icon">📍</div>
+          <div>
+            <div class="ci-label">Location</div>
+            <div class="ci-val">Powell, TN — local pickup available, contact us for address details</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right: Form -->
+    <div class="contact-form-wrap">
+      <h3>Send Us a Message</h3>
+
+      <form id="contactForm" enctype="multipart/form-data" novalidate>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="firstName">First Name <span style="color:var(--accent)">*</span></label>
+            <input type="text" id="firstName" name="firstName" placeholder="Jane" required />
+          </div>
+          <div class="form-group">
+            <label for="lastName">Last Name <span style="color:var(--accent)">*</span></label>
+            <input type="text" id="lastName" name="lastName" placeholder="Smith" required />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="email">Email Address <span style="color:var(--accent)">*</span></label>
+            <input type="email" id="email" name="email" placeholder="jane@example.com" required />
+          </div>
+          <div class="form-group">
+            <label for="phone">Phone Number</label>
+            <input type="tel" id="phone" name="phone" placeholder="(555) 000-0000" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="service">Service Interested In</label>
+          <select id="service" name="service">
+            <option value="" disabled selected>Select a service…</option>
+            <option value="fdm">FDM 3D Printing</option>
+            <option value="laser-cutting" disabled>Laser Cutting (Coming Soon)</option>
+            <option value="laser-engraving" disabled>Laser Engraving (Coming Soon)</option>
+            <option value="design">Design / File Assistance</option>
+            <option value="multiple">Multiple Services</option>
+            <option value="unsure">Not Sure – Need Guidance</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="message">Message <span style="color:var(--accent)">*</span></label>
+          <textarea id="message" name="message" placeholder="How can we help?" required></textarea>
+        </div>
+
+
+        <div class="form-submit">
+          <button type="submit" class="btn btn-primary">Send Message</button>
+        </div>
+        <p class="form-note">We'll get back to you as soon as possible. No spam, ever.</p>
+      </form>
+
+      <!-- Success State -->
+      <div class="form-success" id="formSuccess">
+        <div class="success-icon">✅</div>
+        <h4>Thanks! We'll have your quote ready within 24 hours.</h4>
+        <p>We've received your message and will be in touch shortly at the email you provided.</p>
+        <div style="margin-top:1.5rem">
+          <a href="index.html" class="btn btn-outline">Back to Home</a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Footer ── -->
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a href="index.html" class="logo" style="margin-bottom:.5rem">
+          <img src="logoheader_transparent.png" alt="Superior 3D and Laser" style="height:44px;width:auto;" />
+        </a>
+        <p>Professional 3D printing and laser cutting &amp; engraving services. Precision results for makers, businesses, and everyone in between.</p>
+      </div>
+      <div class="footer-col">
+        <h5>Services</h5>
+        <ul>
+          <li><a href="services.html#fdm">FDM 3D Printing</a></li>
+          <li><a href="services.html#resin">Resin Printing</a></li>
+          <li><a href="services.html#cutting">Laser Cutting</a></li>
+          <li><a href="services.html#engraving">Laser Engraving</a></li>
+          <li><a href="services.html#design">Design Assistance</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h5>Company</h5>
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="services.html">Services</a></li>
+          <li><a href="contact-us.html">Contact</a></li>
+          <li><a href="contact.html">Get a Quote</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>&copy; 2026 Superior 3D and Laser. All rights reserved.</span>
+      <span>Superior3DandLaser.com</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  const form = document.getElementById('contactForm');
+  const successEl = document.getElementById('formSuccess');
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const required = form.querySelectorAll('[required]');
+    let valid = true;
+    required.forEach(field => {
+      field.style.borderColor = '';
+      if (!field.value.trim()) {
+        field.style.borderColor = '#ef4444';
+        valid = false;
+      }
+    });
+    if (!valid) {
+      form.querySelector('[style*="border-color"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
+    const btn = form.querySelector('[type="submit"]');
+    btn.textContent = 'Sending…';
+    btn.disabled = true;
+
+    fetch('/.netlify/functions/submit-quote', {
+      method: 'POST',
+      body: new FormData(form)
+    })
+    .then(async (res) => {
+      if (!res.ok) throw new Error('Server error');
+      form.style.display = 'none';
+      successEl.style.display = 'block';
+      successEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    })
+    .catch(() => {
+      btn.textContent = 'Send Message';
+      btn.disabled = false;
+      alert('Something went wrong. Please email us directly at blake@superior3dandlaser.com');
+    });
+  });
+
+  form.querySelectorAll('input, select, textarea').forEach(el => {
+    el.addEventListener('input', () => { el.style.borderColor = ''; });
+  });
+</script>
+
+</body>
+</html>
