@@ -313,6 +313,14 @@
   .site-nav-links a.snav-cta:hover { color:var(--accent-lt); background:rgba(185,28,28,.06); }
   .site-nav-links a.snav-active { color:var(--text); }
   @media (max-width:600px) { .site-nav-links { gap:0; } .site-nav-links a { padding:6px 8px; font-size:12px; } }
+
+  /* ADMIN VISIBILITY — hidden from customers by default */
+  body:not(.admin-mode) .admin-only { display: none; }
+  .admin-lock-btn { background:none; border:1px solid var(--border); border-radius:6px; padding:5px 10px; font-family:var(--font); font-size:11px; font-weight:600; color:var(--muted); cursor:pointer; letter-spacing:.04em; transition:all .15s; white-space:nowrap; }
+  .admin-lock-btn:hover { border-color:var(--accent); color:var(--accent); }
+  body.admin-mode .admin-lock-btn { border-color:var(--accent); color:var(--accent); background:rgba(185,28,28,.06); }
+  .admin-banner { display:none; background:rgba(185,28,28,.07); border:1px solid rgba(185,28,28,.2); border-radius:8px; padding:8px 14px; font-size:11px; font-weight:700; color:var(--accent); letter-spacing:.05em; margin-bottom:16px; }
+  body.admin-mode .admin-banner { display:block; }
 </style>
 </head>
 <body>
@@ -339,16 +347,18 @@
     </div>
     <div class="header-right">
       <span class="brand-tag">Superior 3D and Laser</span>
+      <button class="admin-lock-btn" id="adminToggleBtn" onclick="toggleAdmin()">🔒 Admin</button>
       <div class="tabs">
         <button class="tab active" onclick="switchTab('calculator')">Calculator</button>
-        <button class="tab" onclick="switchTab('batch')">Batch</button>
-        <button class="tab" onclick="switchTab('rates')">Rates &amp; Ref</button>
+        <button class="tab admin-only" onclick="switchTab('batch')">Batch</button>
+        <button class="tab admin-only" onclick="switchTab('rates')">Rates &amp; Ref</button>
       </div>
     </div>
   </header>
 
   <!-- CALCULATOR -->
   <div id="panel-calculator" class="panel active">
+    <div class="admin-banner">🔓 Admin mode — internal fields visible</div>
 
     <div class="section-card">
       <div class="section-header" onclick="toggleSection(this)">
@@ -432,7 +442,7 @@
       <div class="section-header" onclick="toggleSection(this)">
         <div class="section-icon">🧱</div>
         <span class="section-title">Section 1 — Material</span>
-        <span class="section-result" id="res-material">$0.00</span>
+        <span class="section-result admin-only" id="res-material">$0.00</span>
         <span class="chevron">▾</span>
       </div>
       <div class="section-body">
@@ -452,7 +462,7 @@
               <option value="custom">Custom…</option>
             </select>
           </div>
-          <div class="field">
+          <div class="field admin-only">
             <label>Material Cost per kg</label>
             <div class="input-wrap"><input type="number" id="matCostKg" value="75" step="0.5" oninput="calc()"><span class="unit-tag">$/kg</span></div>
             <span class="hint" id="matHint">⚡ Auto-set from material selection</span>
@@ -462,7 +472,7 @@
             <div class="input-wrap"><input type="number" id="materialGrams" value="50" step="1" oninput="calc()"><span class="unit-tag">g</span></div>
             <span class="hint">From slicer estimate</span>
           </div>
-          <div class="field">
+          <div class="field admin-only">
             <label>Waste / Support Factor</label>
             <div class="input-wrap"><input type="number" id="wasteFactor" value="1.10" step="0.01" oninput="calc()"><span class="unit-tag">×</span></div>
             <span class="hint">1.10 = 10% waste</span>
@@ -475,7 +485,7 @@
       <div class="section-header" onclick="toggleSection(this)">
         <div class="section-icon">⏱</div>
         <span class="section-title">Section 2 — Print Time</span>
-        <span class="section-result" id="res-print">$0.00</span>
+        <span class="section-result admin-only" id="res-print">$0.00</span>
         <span class="chevron">▾</span>
       </div>
       <div class="section-body">
@@ -485,12 +495,12 @@
             <div class="input-wrap"><input type="number" id="printHours" value="4.5" step="0.5" oninput="calc()"><span class="unit-tag">hrs</span></div>
             <span class="hint">From slicer estimate</span>
           </div>
-          <div class="field">
+          <div class="field admin-only">
             <label>Printer Operating Cost</label>
             <div class="input-wrap"><input type="number" id="printerCost" value="0.15" step="0.01" oninput="calc()"><span class="unit-tag">$/hr</span></div>
             <span class="hint">Electricity + depreciation</span>
           </div>
-          <div class="field full">
+          <div class="field full admin-only">
             <label>Printer Failure Rate (contingency)</label>
             <div class="input-wrap"><input type="number" id="failureRate" value="0.05" step="0.01" oninput="calc()"><span class="unit-tag">%</span></div>
             <span class="hint">0.05 = 5% contingency</span>
@@ -503,7 +513,7 @@
       <div class="section-header" onclick="toggleSection(this)">
         <div class="section-icon">🔧</div>
         <span class="section-title">Section 3 — Post-Processing</span>
-        <span class="section-result" id="res-post">$0.00</span>
+        <span class="section-result admin-only" id="res-post">$0.00</span>
         <span class="chevron">▾</span>
       </div>
       <div class="section-body">
@@ -520,11 +530,11 @@
             <label>Support Removal</label>
             <div class="input-wrap"><input type="number" id="supportHrs" value="0" step="0.1" oninput="calc()"><span class="unit-tag">hrs</span></div>
           </div>
-          <div class="field">
+          <div class="field admin-only">
             <label>Labour Rate</label>
             <div class="input-wrap"><input type="number" id="labourRate" value="25" step="1" oninput="calc()"><span class="unit-tag">$/hr</span></div>
           </div>
-          <div class="field full">
+          <div class="field full admin-only">
             <label>Consumables (spray, sandpaper…)</label>
             <div class="input-wrap"><input type="number" id="consumables" value="2" step="0.5" oninput="calc()"><span class="unit-tag">$</span></div>
           </div>
@@ -536,7 +546,7 @@
       <div class="section-header" onclick="toggleSection(this)">
         <div class="section-icon">🔩</div>
         <span class="section-title">Section 4 — Heat Inserts</span>
-        <span class="section-result" id="res-inserts">$0.00</span>
+        <span class="section-result admin-only" id="res-inserts">$0.00</span>
         <span class="chevron">▾</span>
       </div>
       <div class="section-body">
@@ -546,17 +556,17 @@
             <div class="input-wrap"><input type="number" id="insertCount" value="4" step="1" oninput="calc()"><span class="unit-tag">pcs</span></div>
             <span class="hint">Count per part</span>
           </div>
-          <div class="field">
+          <div class="field admin-only">
             <label>Cost per Insert</label>
             <div class="input-wrap"><input type="number" id="insertCost" value="0.12" step="0.01" oninput="calc()"><span class="unit-tag">$/pc</span></div>
             <span class="hint">M3 brass ~$0.10–$0.15</span>
           </div>
-          <div class="field">
+          <div class="field admin-only">
             <label>Install Time per Insert</label>
             <div class="input-wrap"><input type="number" id="insertTime" value="0.05" step="0.01" oninput="calc()"><span class="unit-tag">hrs</span></div>
             <span class="hint">~3 min each</span>
           </div>
-          <div class="field">
+          <div class="field admin-only">
             <label>Labour Rate (Inserts)</label>
             <div class="input-wrap"><input type="number" id="insertLabour" value="25" step="1" oninput="calc()"><span class="unit-tag">$/hr</span></div>
           </div>
@@ -568,7 +578,7 @@
       <div class="section-header" onclick="toggleSection(this)">
         <div class="section-icon">📦</div>
         <span class="section-title">Section 5 — Assembly</span>
-        <span class="section-result" id="res-assembly">$0.00</span>
+        <span class="section-result admin-only" id="res-assembly">$0.00</span>
         <span class="chevron">▾</span>
       </div>
       <div class="section-body">
@@ -577,11 +587,11 @@
             <label>Assembly Time</label>
             <div class="input-wrap"><input type="number" id="assemblyHrs" value="0.1" step="0.1" oninput="calc()"><span class="unit-tag">hrs</span></div>
           </div>
-          <div class="field">
+          <div class="field admin-only">
             <label>Labour Rate (Assembly)</label>
             <div class="input-wrap"><input type="number" id="assemblyLabour" value="25" step="1" oninput="calc()"><span class="unit-tag">$/hr</span></div>
           </div>
-          <div class="field">
+          <div class="field admin-only">
             <label>Fasteners &amp; Hardware Cost</label>
             <div class="input-wrap"><input type="number" id="hardware" value="1.5" step="0.5" oninput="calc()"><span class="unit-tag">$</span></div>
           </div>
@@ -593,7 +603,7 @@
       </div>
     </div>
 
-    <div class="section-card">
+    <div class="section-card admin-only">
       <div class="section-header" onclick="toggleSection(this)">
         <div class="section-icon">📊</div>
         <span class="section-title">Section 6 — Overhead &amp; Profit Margin</span>
@@ -621,7 +631,7 @@
         <span class="section-title" style="color:var(--accent);">Pricing Summary</span>
       </div>
       <div class="section-body">
-        <div class="summary-grid">
+        <div class="summary-grid admin-only">
           <div class="summary-row"><span class="label">Material Cost</span><span class="val" id="s-material">$0.00</span></div>
           <div class="summary-row"><span class="label">Print Time Cost</span><span class="val" id="s-print">$0.00</span></div>
           <div class="summary-row"><span class="label">Post-Processing</span><span class="val" id="s-post">$0.00</span></div>
@@ -640,7 +650,7 @@
           </div>
         </div>
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="addToBatch()">+ Add to Batch</button>
+          <button class="btn btn-primary admin-only" onclick="addToBatch()">+ Add to Batch</button>
           <button class="btn btn-secondary" onclick="resetCalc()">↺ Reset</button>
         </div>
       </div>
@@ -648,7 +658,7 @@
   </div><!-- /calculator -->
 
   <!-- BATCH -->
-  <div id="panel-batch" class="panel">
+  <div id="panel-batch" class="panel admin-only">
     <div class="section-card">
       <div class="section-header" style="cursor:default;">
         <div class="section-icon">📋</div>
@@ -694,7 +704,7 @@
   </div>
 
   <!-- RATES -->
-  <div id="panel-rates" class="panel">
+  <div id="panel-rates" class="panel admin-only">
     <div class="rates-full-grid">
       <div class="rates-section">
         <div class="rates-table-wrap">
@@ -1208,6 +1218,37 @@ function resetCalc() {
   document.getElementById('profitMargin').value  = 0.25;
   calc();
   showToast('Calculator reset to defaults');
+}
+
+const ADMIN_PASS = 'Leeagles41!';
+function toggleAdmin() {
+  if (document.body.classList.contains('admin-mode')) {
+    document.body.classList.remove('admin-mode');
+    localStorage.removeItem('3dp_admin');
+    document.getElementById('adminToggleBtn').textContent = '🔒 Admin';
+    // Switch away from admin-only tabs if active
+    const activePanels = ['batch','rates'];
+    if (activePanels.some(t => document.getElementById('panel-'+t)?.classList.contains('active'))) {
+      switchTab('calculator');
+    }
+  } else {
+    const pw = prompt('Admin password:');
+    if (!pw) return;
+    if (pw === ADMIN_PASS) {
+      document.body.classList.add('admin-mode');
+      localStorage.setItem('3dp_admin', '1');
+      document.getElementById('adminToggleBtn').textContent = '🔓 Admin';
+    } else {
+      alert('Incorrect password.');
+    }
+  }
+}
+// Restore admin mode on page load
+if (localStorage.getItem('3dp_admin') === '1') {
+  document.body.classList.add('admin-mode');
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('adminToggleBtn').textContent = '🔓 Admin';
+  });
 }
 
 function showToast(msg) {
