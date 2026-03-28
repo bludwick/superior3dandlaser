@@ -384,8 +384,8 @@
     <div class="section-card">
       <div class="section-header" onclick="toggleSection(this)">
         <div class="section-icon">📐</div>
-        <span class="section-title">STL Auto-Slicer</span>
-        <span class="section-result" id="res-slicer" style="font-size:11px;color:var(--muted);font-weight:600;">Upload STL to auto-fill</span>
+        <span class="section-title">STL Estimator</span>
+        <span class="section-result" id="res-slicer" style="font-size:11px;color:var(--muted);font-weight:600;">Upload STL to estimate</span>
         <span class="chevron">▾</span>
       </div>
       <div class="section-body">
@@ -430,7 +430,7 @@
             <div class="slicer-chip"><span class="chip-label">Print Time</span><span class="chip-val" id="slicerTimeDisp">—</span></div>
             <div class="slicer-chip"><span class="chip-label">Filament Weight</span><span class="chip-val" id="slicerWeightDisp">—</span></div>
           </div>
-          <div class="slicer-ok-note">✓ Material Used and Print Time updated automatically</div>
+          <div class="slicer-ok-note">✓ Volume-based estimate — actual values may vary ±20%</div>
         </div>
         <div id="slicerError" style="display:none;" class="slicer-err-box">
           We couldn't estimate this file automatically. Please <a href="contact.html">submit it for a manual quote</a>.
@@ -1248,19 +1248,16 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 <script>
-// ── Kiri:Moto background slicer ──────────────────────────────────────────────
+// ── STL geometry estimator ────────────────────────────────────────────────────
+// Kiri:Moto's engine loads wasm/manifold.wasm via a relative path, which
+// resolves to the current domain rather than grid.space — unfixable cross-origin
+// limitation. We parse the STL directly instead: instant, no network, no CORS.
 (function () {
-  // g/cm³ density per material — used to convert extruded filament mm → grams
   const DENSITY = {
     'PLA': 1.24, 'PETG': 1.27, 'ABS': 1.04, 'ASA': 1.07,
     'TPU (95A)': 1.21, 'Nylon PA12': 1.01, 'CF-Nylon': 1.15,
     'RESIN (std)': 1.12, 'RESIN (ABS-like)': 1.18,
   };
-
-  // π × r² × length_mm / 1000 cm³ × density = grams  (r = 1.75/2 mm)
-  function filamentToGrams(mm, material) {
-    return Math.PI * 0.875 * 0.875 * mm / 1000 * (DENSITY[material] || 1.24);
-  }
 
   function slicerState(state) {
     document.getElementById('slicerSpinner').style.display = state === 'slicing' ? 'flex'  : 'none';
@@ -1268,165 +1265,106 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('slicerError').style.display   = state === 'error'   ? 'block' : 'none';
   }
 
-  function slicerFail(label) {
-    slicerState('error');
-    document.getElementById('res-slicer').textContent = label;
-    document.getElementById('res-slicer').style.color = '#dc2626';
+  // Signed-tetrahedra mesh volume (mm³) from binary STL ArrayBuffer
+  function parseBinarySTL(buffer) {
+    const view = new DataView(buffer);
+    const n = view.getUint32(80, true);
+    if (Math.abs(84 + n * 50 - buffer.byteLength) > 80) throw new Error('ascii-stl');
+    let vol = 0;
+    for (let i = 0; i < n; i++) {
+      const b = 84 + i * 50;
+      const ax = view.getFloat32(b+12,true), ay = view.getFloat32(b+16,true), az = view.getFloat32(b+20,true);
+      const bx = view.getFloat32(b+24,true), by = view.getFloat32(b+28,true), bz = view.getFloat32(b+32,true);
+      const cx = view.getFloat32(b+36,true), cy = view.getFloat32(b+40,true), cz = view.getFloat32(b+44,true);
+      vol += (ax*(by*cz - bz*cy) + ay*(bz*cx - bx*cz) + az*(bx*cy - by*cx)) / 6;
+    }
+    console.log('[STL Estimator] Binary STL — triangles:', n, '  mesh volume:', Math.abs(vol).toFixed(1), 'mm³');
+    return Math.abs(vol);
+  }
+
+  // Signed-tetrahedra mesh volume from ASCII STL
+  function parseASCIISTL(buffer) {
+    const text = new TextDecoder().decode(buffer);
+    const verts = [];
+    const re = /vertex\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)\s+([\d.eE+\-]+)/g;
+    let m;
+    while ((m = re.exec(text)) !== null) verts.push([+m[1], +m[2], +m[3]]);
+    if (verts.length === 0 || verts.length % 3 !== 0) throw new Error('bad-stl');
+    let vol = 0;
+    for (let i = 0; i < verts.length; i += 3) {
+      const [ax,ay,az]=verts[i], [bx,by,bz]=verts[i+1], [cx,cy,cz]=verts[i+2];
+      vol += (ax*(by*cz - bz*cy) + ay*(bz*cx - bx*cz) + az*(bx*cy - by*cx)) / 6;
+    }
+    console.log('[STL Estimator] ASCII STL — triangles:', verts.length/3, '  mesh volume:', Math.abs(vol).toFixed(1), 'mm³');
+    return Math.abs(vol);
+  }
+
+  function estimate(meshMM3, infill, supportType, material) {
+    // Perimeter shells ~35% of solid volume; infill fills the remaining 65%
+    const fill = 0.35 + 0.65 * infill;
+    // Supports add ~10% material when enabled
+    const supportMult = supportType === 'auto' ? 1.10 : 1.0;
+    const matMM3 = meshMM3 * fill * supportMult;
+    const weightG = (matMM3 / 1000) * (DENSITY[material] || 1.24);
+    // ~25 mm³/s average deposition; +20% for travel moves, warmup, retracts
+    const hrs = (matMM3 / 25 * 1.2) / 3600;
+    console.log('[STL Estimator] fill:', (fill*100).toFixed(0)+'%',
+      ' matVol:', matMM3.toFixed(0)+'mm³',
+      ' weight:', weightG.toFixed(1)+'g',
+      ' time:', hrs.toFixed(2)+'hrs');
+    return { weightG, hrs };
   }
 
   window.handleSTLUpload = async function (file) {
     if (!file) return;
     document.getElementById('stlFileName').textContent = file.name;
     slicerState('slicing');
-    document.getElementById('res-slicer').textContent = 'Slicing…';
+    document.getElementById('res-slicer').textContent = 'Estimating…';
     document.getElementById('res-slicer').style.color = 'var(--muted)';
 
     const infill      = parseFloat(document.getElementById('slicerInfill').value);
     const supportType = document.getElementById('slicerSupport').value;
     const material    = document.getElementById('materialType').value;
 
-    // ── Step 1: import the Kiri:Moto engine module ──────────────────────────
-    console.log('[Kiri:Moto] Step 1 — importing engine module from grid.space…');
-    let Engine;
     try {
-      ({ Engine } = await import('https://grid.space/lib/kiri/run/engine.js'));
-      console.log('[Kiri:Moto] Step 1 ✓ Engine module loaded. Constructor:', typeof Engine);
-    } catch (e) {
-      console.error('[Kiri:Moto] Step 1 ✗ Engine import failed:', e);
-      slicerFail('Slicer unavailable');
-      return;
-    }
+      console.log('[STL Estimator] Reading:', file.name, file.size, 'bytes');
+      const buffer = await file.arrayBuffer();
 
-    // ── Step 2: read the STL into an ArrayBuffer ─────────────────────────────
-    console.log('[Kiri:Moto] Step 2 — reading STL file buffer…');
-    const buf = await file.arrayBuffer();
-    console.log('[Kiri:Moto] Step 2 ✓ Buffer ready:', buf.byteLength, 'bytes');
-
-    // ── 90-second timeout (Promise.race) ─────────────────────────────────────
-    let timeoutId;
-    const timeout$ = new Promise((_, reject) => {
-      timeoutId = setTimeout(() => {
-        console.warn('[Kiri:Moto] ⚠ 90-second timeout reached — aborting');
-        reject(new Error('timed-out'));
-      }, 90_000);
-    });
-
-    try {
-      // ── Step 3: create Engine instance and attach listener ─────────────────
-      console.log('[Kiri:Moto] Step 3 — creating Engine instance and attaching listener…');
-      const engine = new Engine();
-
-      // setListener receives progress objects throughout the operation.
-      // Logging every message lets us see the worker-ready signal and each phase.
-      engine.setListener((msg) => {
-        if (msg === null || msg === undefined) {
-          console.log('[Kiri:Moto] listener: (null — step complete)');
-        } else {
-          const keys = Object.keys(msg);
-          console.log('[Kiri:Moto] listener:', JSON.stringify(msg));
-          // Watch for engine-ready or init signals
-          if (msg.type === 'ready' || msg.ready || msg.init || keys.includes('ready') || keys.includes('init')) {
-            console.log('[Kiri:Moto] ✓ engine signals ready/init');
-          }
-        }
-      });
-      console.log('[Kiri:Moto] Step 3 ✓ Engine instance created, listener attached');
-
-      // ── Step 4 onwards: promise chain ─────────────────────────────────────
-      console.log('[Kiri:Moto] Step 4 — calling parse() with STL buffer…');
-
-      const slice$ = engine
-        .parse(buf)
-        .then(e => {
-          console.log('[Kiri:Moto] Step 5 ✓ parse() resolved — setting process params…');
-          return e.setProcess({
-            sliceHeight:       0.2,
-            firstSliceHeight:  0.2,
-            sliceShells:       3,
-            sliceTopLayers:    3,
-            sliceBottomLayers: 3,
-            sliceFillSparse:   infill,
-            sliceFillType:     'hex',
-            sliceSupportType:  supportType,
-            sliceSupportAngle: 50,
-            outputFeedrate:    50,
-            outputSeekrate:    80,
-          });
-        })
-        .then(e => {
-          console.log('[Kiri:Moto] Step 6 ✓ setProcess() resolved — setting FDM device profile…');
-          // Device profile aligned with official FDM demo (engine.html on grid.space)
-          return e.setDevice({
-            bedWidth:  256,
-            bedDepth:  256,
-            maxHeight: 256,
-            extruders: [{ extFilament: 1.75, extNozzle: 0.4, extOffsetX: 0, extOffsetY: 0 }],
-            gcodePre:  ['M82 ; absolute extrusion', 'M104 S200 ; preheat nozzle', 'M140 S60 ; preheat bed'],
-            gcodePost: ['M104 S0', 'M140 S0', 'M107 ; fan off'],
-          });
-        })
-        .then(e => {
-          console.log('[Kiri:Moto] Step 7 ✓ setDevice() resolved — calling slice()…');
-          return e.slice();
-        })
-        .then(e => {
-          console.log('[Kiri:Moto] Step 8 ✓ slice() resolved — calling prepare()…');
-          return e.prepare();
-        })
-        .then(e => {
-          console.log('[Kiri:Moto] Step 9 ✓ prepare() resolved — calling export()…');
-          return e.export();
-        });
-
-      const gcode = await Promise.race([slice$, timeout$]);
-      clearTimeout(timeoutId);
-
-      // ── Step 10: parse the G-code comments for time + filament ────────────
-      const gcodeStr = String(gcode);
-      console.log('[Kiri:Moto] Step 10 ✓ export() resolved. Type:', typeof gcode, '  Length:', gcodeStr.length, 'chars');
-      console.log('[Kiri:Moto] G-code header (first 800 chars):\n' + gcodeStr.substring(0, 800));
-
-      const tMatch = gcodeStr.match(/;\s*---\s*print time:\s*(\d+)s\s*---/i);
-      const fMatch = gcodeStr.match(/;\s*---\s*filament used:\s*([\d.]+)\s*mm\s*---/i);
-      console.log('[Kiri:Moto] print-time match:', tMatch ? tMatch[0] : 'NOT FOUND');
-      console.log('[Kiri:Moto] filament match:',   fMatch ? fMatch[0] : 'NOT FOUND');
-
-      if (!tMatch || !fMatch) {
-        // Dump more context so we can find the actual comment format
-        console.warn('[Kiri:Moto] Expected markers not found. Extended header dump (2000 chars):\n' + gcodeStr.substring(0, 2000));
-        throw new Error('no-markers');
+      let meshMM3;
+      try {
+        meshMM3 = parseBinarySTL(buffer);
+      } catch (e) {
+        if (e.message === 'ascii-stl') {
+          console.log('[STL Estimator] Retrying as ASCII STL…');
+          meshMM3 = parseASCIISTL(buffer);
+        } else { throw e; }
       }
 
-      const timeSec = parseInt(tMatch[1]);
-      const grams   = filamentToGrams(parseFloat(fMatch[1]), material);
-      const hrs     = timeSec / 3600;
+      if (meshMM3 <= 0) throw new Error('zero-volume');
 
-      document.getElementById('materialGrams').value = grams.toFixed(1);
+      const { weightG, hrs } = estimate(meshMM3, infill, supportType, material);
+
+      document.getElementById('materialGrams').value = weightG.toFixed(1);
       document.getElementById('printHours').value    = hrs.toFixed(2);
-      document.getElementById('materialGrams').closest('.field').querySelector('.hint').textContent = '✓ Auto-filled by slicer';
-      document.getElementById('printHours').closest('.field').querySelector('.hint').textContent    = '✓ Auto-filled by slicer';
+      document.getElementById('materialGrams').closest('.field').querySelector('.hint').textContent = '✓ Estimated from STL geometry';
+      document.getElementById('printHours').closest('.field').querySelector('.hint').textContent    = '✓ Estimated from STL geometry';
       if (typeof calc === 'function') calc();
 
       const h = Math.floor(hrs), m = Math.round((hrs - h) * 60);
       const timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
       document.getElementById('slicerTimeDisp').textContent   = timeStr;
-      document.getElementById('slicerWeightDisp').textContent = grams.toFixed(1) + ' g';
-      document.getElementById('res-slicer').textContent       = `${timeStr} · ${grams.toFixed(1)} g`;
+      document.getElementById('slicerWeightDisp').textContent = weightG.toFixed(1) + ' g';
+      document.getElementById('res-slicer').textContent       = `~${timeStr} · ~${weightG.toFixed(1)} g`;
       document.getElementById('res-slicer').style.color       = 'var(--accent)';
       slicerState('done');
-      console.log('[Kiri:Moto] ✓ Done —', timeStr, '·', grams.toFixed(1), 'g');
-      if (typeof showToast === 'function') showToast(`Sliced: ${timeStr} · ${grams.toFixed(1)} g`);
+      console.log('[STL Estimator] ✓', timeStr, '·', weightG.toFixed(1), 'g');
+      if (typeof showToast === 'function') showToast(`Estimated: ~${timeStr} · ~${weightG.toFixed(1)} g`);
 
     } catch (err) {
-      clearTimeout(timeoutId);
-      console.error('[Kiri:Moto] Error:', err.message, err);
-      if (err.message === 'timed-out') {
-        slicerFail('Slicing timed out');
-      } else if (err.message === 'no-markers') {
-        slicerFail('Slicing failed — check console');
-      } else {
-        slicerFail('Slicing failed');
-      }
+      console.error('[STL Estimator] Error:', err.message, err);
+      slicerState('error');
+      document.getElementById('res-slicer').textContent = 'Estimation failed';
+      document.getElementById('res-slicer').style.color = '#dc2626';
     }
   };
 }());
