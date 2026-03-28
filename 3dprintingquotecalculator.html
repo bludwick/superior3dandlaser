@@ -1265,21 +1265,27 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('slicerError').style.display   = state === 'error'   ? 'block' : 'none';
   }
 
-  // Signed-tetrahedra mesh volume (mm³) from binary STL ArrayBuffer
+  // Signed-tetrahedra mesh volume (mm³) from binary STL ArrayBuffer.
+  // Also tracks bounding box as a fallback for meshes with winding issues.
   function parseBinarySTL(buffer) {
     const view = new DataView(buffer);
     const n = view.getUint32(80, true);
-    if (Math.abs(84 + n * 50 - buffer.byteLength) > 80) throw new Error('ascii-stl');
+    // Strict size check (4-byte tolerance): rejects ASCII files that accidentally
+    // pass a looser check by producing a plausible-looking triangle count.
+    if (n === 0 || Math.abs(84 + n * 50 - buffer.byteLength) > 4) throw new Error('ascii-stl');
     let vol = 0;
+    let xMin=Infinity, yMin=Infinity, zMin=Infinity, xMax=-Infinity, yMax=-Infinity, zMax=-Infinity;
     for (let i = 0; i < n; i++) {
       const b = 84 + i * 50;
-      const ax = view.getFloat32(b+12,true), ay = view.getFloat32(b+16,true), az = view.getFloat32(b+20,true);
-      const bx = view.getFloat32(b+24,true), by = view.getFloat32(b+28,true), bz = view.getFloat32(b+32,true);
-      const cx = view.getFloat32(b+36,true), cy = view.getFloat32(b+40,true), cz = view.getFloat32(b+44,true);
-      vol += (ax*(by*cz - bz*cy) + ay*(bz*cx - bx*cz) + az*(bx*cy - by*cx)) / 6;
+      const ax=view.getFloat32(b+12,true), ay=view.getFloat32(b+16,true), az=view.getFloat32(b+20,true);
+      const bx=view.getFloat32(b+24,true), by=view.getFloat32(b+28,true), bz=view.getFloat32(b+32,true);
+      const cx=view.getFloat32(b+36,true), cy=view.getFloat32(b+40,true), cz=view.getFloat32(b+44,true);
+      xMin=Math.min(xMin,ax,bx,cx); xMax=Math.max(xMax,ax,bx,cx);
+      yMin=Math.min(yMin,ay,by,cy); yMax=Math.max(yMax,ay,by,cy);
+      zMin=Math.min(zMin,az,bz,cz); zMax=Math.max(zMax,az,bz,cz);
+      vol += (ax*(by*cz-bz*cy) + ay*(bz*cx-bx*cz) + az*(bx*cy-by*cx)) / 6;
     }
-    console.log('[STL Estimator] Binary STL — triangles:', n, '  mesh volume:', Math.abs(vol).toFixed(1), 'mm³');
-    return Math.abs(vol);
+    return resolveVolume(Math.abs(vol), (xMax-xMin)*(yMax-yMin)*(zMax-zMin), n);
   }
 
   // Signed-tetrahedra mesh volume from ASCII STL
@@ -1291,12 +1297,28 @@ document.addEventListener('DOMContentLoaded', () => {
     while ((m = re.exec(text)) !== null) verts.push([+m[1], +m[2], +m[3]]);
     if (verts.length === 0 || verts.length % 3 !== 0) throw new Error('bad-stl');
     let vol = 0;
+    let xMin=Infinity, yMin=Infinity, zMin=Infinity, xMax=-Infinity, yMax=-Infinity, zMax=-Infinity;
     for (let i = 0; i < verts.length; i += 3) {
       const [ax,ay,az]=verts[i], [bx,by,bz]=verts[i+1], [cx,cy,cz]=verts[i+2];
-      vol += (ax*(by*cz - bz*cy) + ay*(bz*cx - bx*cz) + az*(bx*cy - by*cx)) / 6;
+      xMin=Math.min(xMin,ax,bx,cx); xMax=Math.max(xMax,ax,bx,cx);
+      yMin=Math.min(yMin,ay,by,cy); yMax=Math.max(yMax,ay,by,cy);
+      zMin=Math.min(zMin,az,bz,cz); zMax=Math.max(zMax,az,bz,cz);
+      vol += (ax*(by*cz-bz*cy) + ay*(bz*cx-bx*cz) + az*(bx*cy-by*cx)) / 6;
     }
-    console.log('[STL Estimator] ASCII STL — triangles:', verts.length/3, '  mesh volume:', Math.abs(vol).toFixed(1), 'mm³');
-    return Math.abs(vol);
+    return resolveVolume(Math.abs(vol), (xMax-xMin)*(yMax-yMin)*(zMax-zMin), verts.length/3);
+  }
+
+  // If the signed-tetrahedra result is implausibly small (< 2% of bounding box),
+  // the mesh has inconsistent winding — positive and negative tetrahedra cancelled.
+  // Fall back to bbox × 0.35, a conservative fill ratio for typical solid parts.
+  function resolveVolume(signedVol, bboxVol, triCount) {
+    const useSigned = signedVol > bboxVol * 0.02;
+    const meshVol   = useSigned ? signedVol : bboxVol * 0.35;
+    console.log('[STL Estimator] triangles:', triCount,
+      '  signed vol:', signedVol.toFixed(1)+'mm³',
+      '  bbox vol:',   bboxVol.toFixed(1)+'mm³',
+      useSigned ? '→ signed vol used' : '→ winding inconsistent, bbox×0.35 = '+meshVol.toFixed(1)+'mm³');
+    return meshVol;
   }
 
   function estimate(meshMM3, infill, supportType, material) {
