@@ -400,7 +400,7 @@
           </div>
           <div class="field">
             <label>Infill Density</label>
-            <select id="slicerInfill">
+            <select id="slicerInfill" onchange="reestimate()">
               <option value="0.10">10% — Minimal</option>
               <option value="0.15">15%</option>
               <option value="0.20" selected>20% — Standard</option>
@@ -410,15 +410,15 @@
               <option value="0.75">75%</option>
               <option value="1.00">100% — Solid</option>
             </select>
-            <span class="hint">Used when slicing your file</span>
+            <span class="hint">Used when estimating your file</span>
           </div>
           <div class="field">
             <label>Supports</label>
-            <select id="slicerSupport">
+            <select id="slicerSupport" onchange="reestimate()">
               <option value="disabled">None</option>
               <option value="auto">Auto (where needed)</option>
             </select>
-            <span class="hint">Used when slicing your file</span>
+            <span class="hint">Used when estimating your file</span>
           </div>
         </div>
         <div id="slicerSpinner" style="display:none;" class="slicer-spinner">
@@ -965,6 +965,7 @@ function onMaterialChange() {
   } else if (mat === 'custom') {
     document.getElementById('matHint').textContent = 'Enter your custom price above';
   }
+  if (typeof reestimate === 'function') reestimate();
   calc();
 }
 
@@ -1337,6 +1338,33 @@ document.addEventListener('DOMContentLoaded', () => {
     return { weightG, hrs };
   }
 
+  let _cachedMeshMM3 = null; // persists across infill/support changes
+
+  function applyEstimate(meshMM3) {
+    const infill      = parseFloat(document.getElementById('slicerInfill').value);
+    const supportType = document.getElementById('slicerSupport').value;
+    const material    = document.getElementById('materialType').value;
+    const { weightG, hrs } = estimate(meshMM3, infill, supportType, material);
+
+    document.getElementById('materialGrams').value = weightG.toFixed(1);
+    document.getElementById('printHours').value    = hrs.toFixed(2);
+    document.getElementById('materialGrams').closest('.field').querySelector('.hint').textContent = '✓ Estimated from STL geometry';
+    document.getElementById('printHours').closest('.field').querySelector('.hint').textContent    = '✓ Estimated from STL geometry';
+    if (typeof calc === 'function') calc();
+
+    const h = Math.floor(hrs), m = Math.round((hrs - h) * 60);
+    const timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+    document.getElementById('slicerTimeDisp').textContent   = timeStr;
+    document.getElementById('slicerWeightDisp').textContent = weightG.toFixed(1) + ' g';
+    document.getElementById('res-slicer').textContent       = `~${timeStr} · ~${weightG.toFixed(1)} g`;
+    document.getElementById('res-slicer').style.color       = 'var(--accent)';
+  }
+
+  window.reestimate = function () {
+    if (_cachedMeshMM3 === null) return; // no file uploaded yet
+    applyEstimate(_cachedMeshMM3);
+  };
+
   window.handleSTLUpload = async function (file) {
     if (!file) return;
     document.getElementById('stlFileName').textContent = file.name;
@@ -1364,23 +1392,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (meshMM3 <= 0) throw new Error('zero-volume');
 
-      const { weightG, hrs } = estimate(meshMM3, infill, supportType, material);
-
-      document.getElementById('materialGrams').value = weightG.toFixed(1);
-      document.getElementById('printHours').value    = hrs.toFixed(2);
-      document.getElementById('materialGrams').closest('.field').querySelector('.hint').textContent = '✓ Estimated from STL geometry';
-      document.getElementById('printHours').closest('.field').querySelector('.hint').textContent    = '✓ Estimated from STL geometry';
-      if (typeof calc === 'function') calc();
-
-      const h = Math.floor(hrs), m = Math.round((hrs - h) * 60);
-      const timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
-      document.getElementById('slicerTimeDisp').textContent   = timeStr;
-      document.getElementById('slicerWeightDisp').textContent = weightG.toFixed(1) + ' g';
-      document.getElementById('res-slicer').textContent       = `~${timeStr} · ~${weightG.toFixed(1)} g`;
-      document.getElementById('res-slicer').style.color       = 'var(--accent)';
+      _cachedMeshMM3 = meshMM3;
+      applyEstimate(meshMM3);
       slicerState('done');
-      console.log('[STL Estimator] ✓', timeStr, '·', weightG.toFixed(1), 'g');
-      if (typeof showToast === 'function') showToast(`Estimated: ~${timeStr} · ~${weightG.toFixed(1)} g`);
+      const w = document.getElementById('slicerWeightDisp').textContent;
+      const t = document.getElementById('slicerTimeDisp').textContent;
+      console.log('[STL Estimator] ✓', t, '·', w);
+      if (typeof showToast === 'function') showToast(`Estimated: ~${t} · ~${w}`);
 
     } catch (err) {
       console.error('[STL Estimator] Error:', err.message, err);
