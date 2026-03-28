@@ -509,100 +509,6 @@
       </div>
     </div>
 
-    <div class="section-card">
-      <div class="section-header" onclick="toggleSection(this)">
-        <div class="section-icon">🔧</div>
-        <span class="section-title">Section 3 — Post-Processing</span>
-        <span class="section-result admin-only" id="res-post">$0.00</span>
-        <span class="chevron">▾</span>
-      </div>
-      <div class="section-body">
-        <div class="fields">
-          <div class="field">
-            <label>Sanding / Finishing</label>
-            <div class="input-wrap"><input type="number" id="sandingHrs" value="0.1" step="0.1" oninput="calc()"><span class="unit-tag">hrs</span></div>
-          </div>
-          <div class="field">
-            <label>Painting / Coating</label>
-            <div class="input-wrap"><input type="number" id="paintingHrs" value="0" step="0.1" oninput="calc()"><span class="unit-tag">hrs</span></div>
-          </div>
-          <div class="field">
-            <label>Support Removal</label>
-            <div class="input-wrap"><input type="number" id="supportHrs" value="0" step="0.1" oninput="calc()"><span class="unit-tag">hrs</span></div>
-          </div>
-          <div class="field admin-only">
-            <label>Labour Rate</label>
-            <div class="input-wrap"><input type="number" id="labourRate" value="25" step="1" oninput="calc()"><span class="unit-tag">$/hr</span></div>
-          </div>
-          <div class="field full admin-only">
-            <label>Consumables (spray, sandpaper…)</label>
-            <div class="input-wrap"><input type="number" id="consumables" value="2" step="0.5" oninput="calc()"><span class="unit-tag">$</span></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="section-card">
-      <div class="section-header" onclick="toggleSection(this)">
-        <div class="section-icon">🔩</div>
-        <span class="section-title">Section 4 — Heat Inserts</span>
-        <span class="section-result admin-only" id="res-inserts">$0.00</span>
-        <span class="chevron">▾</span>
-      </div>
-      <div class="section-body">
-        <div class="fields">
-          <div class="field">
-            <label>Number of Heat Inserts</label>
-            <div class="input-wrap"><input type="number" id="insertCount" value="4" step="1" oninput="calc()"><span class="unit-tag">pcs</span></div>
-            <span class="hint">Count per part</span>
-          </div>
-          <div class="field admin-only">
-            <label>Cost per Insert</label>
-            <div class="input-wrap"><input type="number" id="insertCost" value="0.12" step="0.01" oninput="calc()"><span class="unit-tag">$/pc</span></div>
-            <span class="hint">M3 brass ~$0.10–$0.15</span>
-          </div>
-          <div class="field admin-only">
-            <label>Install Time per Insert</label>
-            <div class="input-wrap"><input type="number" id="insertTime" value="0.05" step="0.01" oninput="calc()"><span class="unit-tag">hrs</span></div>
-            <span class="hint">~3 min each</span>
-          </div>
-          <div class="field admin-only">
-            <label>Labour Rate (Inserts)</label>
-            <div class="input-wrap"><input type="number" id="insertLabour" value="25" step="1" oninput="calc()"><span class="unit-tag">$/hr</span></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="section-card">
-      <div class="section-header" onclick="toggleSection(this)">
-        <div class="section-icon">📦</div>
-        <span class="section-title">Section 5 — Assembly</span>
-        <span class="section-result admin-only" id="res-assembly">$0.00</span>
-        <span class="chevron">▾</span>
-      </div>
-      <div class="section-body">
-        <div class="fields">
-          <div class="field">
-            <label>Assembly Time</label>
-            <div class="input-wrap"><input type="number" id="assemblyHrs" value="0.1" step="0.1" oninput="calc()"><span class="unit-tag">hrs</span></div>
-          </div>
-          <div class="field admin-only">
-            <label>Labour Rate (Assembly)</label>
-            <div class="input-wrap"><input type="number" id="assemblyLabour" value="25" step="1" oninput="calc()"><span class="unit-tag">$/hr</span></div>
-          </div>
-          <div class="field admin-only">
-            <label>Fasteners &amp; Hardware Cost</label>
-            <div class="input-wrap"><input type="number" id="hardware" value="1.5" step="0.5" oninput="calc()"><span class="unit-tag">$</span></div>
-          </div>
-          <div class="field">
-            <label>Quality Check Time</label>
-            <div class="input-wrap"><input type="number" id="qcHrs" value="0.1" step="0.05" oninput="calc()"><span class="unit-tag">hrs</span></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <div class="section-card admin-only">
       <div class="section-header" onclick="toggleSection(this)">
         <div class="section-icon">📊</div>
@@ -634,9 +540,6 @@
         <div class="summary-grid admin-only">
           <div class="summary-row"><span class="label">Material Cost</span><span class="val" id="s-material">$0.00</span></div>
           <div class="summary-row"><span class="label">Print Time Cost</span><span class="val" id="s-print">$0.00</span></div>
-          <div class="summary-row"><span class="label">Post-Processing</span><span class="val" id="s-post">$0.00</span></div>
-          <div class="summary-row"><span class="label">Heat Inserts</span><span class="val" id="s-inserts">$0.00</span></div>
-          <div class="summary-row"><span class="label">Assembly</span><span class="val" id="s-assembly">$0.00</span></div>
           <div class="summary-row"><span class="label">Overhead</span><span class="val" id="s-overhead">$0.00</span></div>
         </div>
         <div class="total-box">
@@ -681,14 +584,13 @@
             <thead>
               <tr>
                 <th>Part Name</th><th>Qty</th><th>Mat (g)</th><th>Print (hrs)</th>
-                <th>Post (hrs)</th><th>Inserts</th><th>Assembly (hrs)</th><th>Mat $/kg</th>
-                <th>Unit Price</th><th></th>
+                <th>Mat $/kg</th><th>Unit Price</th><th></th>
               </tr>
             </thead>
             <tbody id="batchBody"></tbody>
             <tfoot>
               <tr>
-                <td colspan="8" style="color:var(--label);font-size:11px;letter-spacing:.07em;text-transform:uppercase;">Batch Total</td>
+                <td colspan="5" style="color:var(--label);font-size:11px;letter-spacing:.07em;text-transform:uppercase;">Batch Total</td>
                 <td id="batchTotal" class="price-col">$0.00</td>
                 <td></td>
               </tr>
@@ -797,8 +699,6 @@
               <th style="padding:8px 10px;text-align:right;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">Qty</th>
               <th style="padding:8px 10px;text-align:right;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">Mat (g)</th>
               <th style="padding:8px 10px;text-align:right;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">Print (h)</th>
-              <th style="padding:8px 10px;text-align:right;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">Post (h)</th>
-              <th style="padding:8px 10px;text-align:right;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">Inserts</th>
               <th style="padding:8px 10px;text-align:right;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">Unit $</th>
               <th style="padding:8px 10px;text-align:right;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">Line Total</th>
             </tr>
@@ -806,7 +706,7 @@
           <tbody id="pp-tbody"></tbody>
           <tfoot>
             <tr style="background:#f9f9f9;">
-              <td colspan="7" style="padding:10px;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-top:2px solid #b91c1c;">TOTAL</td>
+              <td colspan="5" style="padding:10px;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-top:2px solid #b91c1c;">TOTAL</td>
               <td style="border-top:2px solid #b91c1c;"></td>
               <td id="pp-total-foot" style="padding:10px;text-align:right;font-size:14px;font-weight:800;color:#b91c1c;border-top:2px solid #b91c1c;"></td>
             </tr>
@@ -866,8 +766,6 @@
               <th style="padding:9px 12px;text-align:left;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">Description</th>
               <th style="padding:9px 12px;text-align:right;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">Qty</th>
               <th style="padding:9px 12px;text-align:right;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">Print Time</th>
-              <th style="padding:9px 12px;text-align:right;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">Finishing</th>
-              <th style="padding:9px 12px;text-align:right;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">Assembly</th>
               <th style="padding:9px 12px;text-align:right;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">Unit Price</th>
               <th style="padding:9px 12px;text-align:right;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">Total</th>
             </tr>
@@ -875,7 +773,7 @@
           <tbody id="qp-tbody"></tbody>
           <tfoot>
             <tr>
-              <td colspan="6" style="padding:12px;border-top:2px solid #b91c1c;"></td>
+              <td colspan="4" style="padding:12px;border-top:2px solid #b91c1c;"></td>
               <td style="padding:12px;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-top:2px solid #b91c1c;text-align:right;">TOTAL</td>
               <td id="qp-total-foot" style="padding:12px;text-align:right;font-size:16px;font-weight:800;color:#b91c1c;border-top:2px solid #b91c1c;"></td>
             </tr>
@@ -1071,34 +969,24 @@ function onMaterialChange() {
 }
 
 function calc() {
-  const matCost     = (g('matCostKg') / 1000) * g('materialGrams') * g('wasteFactor');
-  const printBase   = g('printHours') * g('printerCost');
-  const printCost   = printBase * (1 + g('failureRate'));
-  const postHrs     = g('sandingHrs') + g('paintingHrs') + g('supportHrs');
-  const postCost    = postHrs * g('labourRate') + g('consumables');
-  const insertCost  = g('insertCount') * g('insertCost') + g('insertCount') * g('insertTime') * g('insertLabour');
-  const assemblyCost= (g('assemblyHrs') + g('qcHrs')) * g('assemblyLabour') + g('hardware');
-  const directCost  = matCost + printCost + postCost + insertCost + assemblyCost;
-  const overhead    = directCost * g('overheadRate');
-  const unitPrice   = (directCost + overhead) * (1 + g('profitMargin'));
-  const qty         = Math.max(1, g('qty'));
-  const total       = unitPrice * qty;
+  const matCost   = (g('matCostKg') / 1000) * g('materialGrams') * g('wasteFactor');
+  const printBase = g('printHours') * g('printerCost');
+  const printCost = printBase * (1 + g('failureRate'));
+  const directCost = matCost + printCost;
+  const overhead   = directCost * g('overheadRate');
+  const unitPrice  = (directCost + overhead) * (1 + g('profitMargin'));
+  const qty        = Math.max(1, g('qty'));
+  const total      = unitPrice * qty;
 
   document.getElementById('res-material').textContent = fmt(matCost);
   document.getElementById('res-print').textContent    = fmt(printCost);
-  document.getElementById('res-post').textContent     = fmt(postCost);
-  document.getElementById('res-inserts').textContent  = fmt(insertCost);
-  document.getElementById('res-assembly').textContent = fmt(assemblyCost);
   document.getElementById('s-material').textContent   = fmt(matCost);
   document.getElementById('s-print').textContent      = fmt(printCost);
-  document.getElementById('s-post').textContent       = fmt(postCost);
-  document.getElementById('s-inserts').textContent    = fmt(insertCost);
-  document.getElementById('s-assembly').textContent   = fmt(assemblyCost);
   document.getElementById('s-overhead').textContent   = fmt(overhead);
   document.getElementById('t-unit').textContent       = fmt(unitPrice);
   document.getElementById('t-qty').textContent        = qty;
   document.getElementById('t-total').textContent      = fmt(total);
-  window._lastCalc = { matCost, printCost, postCost, insertCost, assemblyCost, overhead, unitPrice, qty, total };
+  window._lastCalc = { matCost, printCost, overhead, unitPrice, qty, total };
 }
 
 let batchRows = [];
@@ -1112,9 +1000,6 @@ function addToBatch() {
     qty: g('qty') || 1,
     matG: g('materialGrams'),
     printHrs: g('printHours'),
-    postHrs: g('sandingHrs') + g('paintingHrs') + g('supportHrs'),
-    inserts: g('insertCount'),
-    assemblyHrs: g('assemblyHrs') + g('qcHrs'),
     matKg: g('matCostKg'),
     unitPrice: r.unitPrice
   };
@@ -1125,7 +1010,7 @@ function addToBatch() {
 }
 
 function addEmptyBatchRow() {
-  batchRows.push({ id: Date.now(), name: 'New Part', qty: 1, matG: 50, printHrs: 2, postHrs: 0.5, inserts: 0, assemblyHrs: 0.5, matKg: 25, unitPrice: 0 });
+  batchRows.push({ id: Date.now(), name: 'New Part', qty: 1, matG: 50, printHrs: 2, matKg: 25, unitPrice: 0 });
   renderBatch();
   recalcBatchRow(batchRows.length - 1);
 }
@@ -1150,9 +1035,6 @@ function renderBatch() {
       <td><input class="batch-input" type="number" value="${r.qty}" min="1" style="width:50px" onchange="batchRows[${i}].qty=+this.value; recalcBatchRow(${i})"></td>
       <td><input class="batch-input" type="number" value="${r.matG}" step="1" style="width:60px" onchange="batchRows[${i}].matG=+this.value; recalcBatchRow(${i})"></td>
       <td><input class="batch-input" type="number" value="${r.printHrs}" step="0.5" style="width:60px" onchange="batchRows[${i}].printHrs=+this.value; recalcBatchRow(${i})"></td>
-      <td><input class="batch-input" type="number" value="${r.postHrs}" step="0.1" style="width:60px" onchange="batchRows[${i}].postHrs=+this.value; recalcBatchRow(${i})"></td>
-      <td><input class="batch-input" type="number" value="${r.inserts}" step="1" style="width:50px" onchange="batchRows[${i}].inserts=+this.value; recalcBatchRow(${i})"></td>
-      <td><input class="batch-input" type="number" value="${r.assemblyHrs}" step="0.1" style="width:60px" onchange="batchRows[${i}].assemblyHrs=+this.value; recalcBatchRow(${i})"></td>
       <td><input class="batch-input" type="number" value="${r.matKg}" step="0.5" style="width:60px" onchange="batchRows[${i}].matKg=+this.value; recalcBatchRow(${i})"></td>
       <td class="price-col" id="bp-${r.id}">${fmt(r.unitPrice * r.qty)}</td>
       <td><button class="batch-del" onclick="deleteBatchRow(${r.id})">✕</button></td>
@@ -1164,12 +1046,9 @@ function renderBatch() {
 
 function recalcBatchRow(i) {
   const r = batchRows[i];
-  const matCost    = (r.matKg / 1000) * r.matG * 1.1;
-  const printCost  = r.printHrs * 0.15 * 1.05;
-  const postCost   = r.postHrs * 25 + 2;
-  const insertCost = r.inserts * 0.12 + r.inserts * 0.05 * 25;
-  const asmCost    = r.assemblyHrs * 25 + 1.5;
-  const direct     = matCost + printCost + postCost + insertCost + asmCost;
+  const matCost   = (r.matKg / 1000) * r.matG * 1.1;
+  const printCost = r.printHrs * 0.15 * 1.05;
+  const direct    = matCost + printCost;
   r.unitPrice = direct * (1 + 0.15) * (1 + 0.25);
   const el = document.getElementById('bp-' + r.id);
   if (el) el.textContent = fmt(r.unitPrice * r.qty);
@@ -1201,19 +1080,6 @@ function resetCalc() {
   document.getElementById('printHours').value    = 4.5;
   document.getElementById('printerCost').value   = 0.15;
   document.getElementById('failureRate').value   = 0.05;
-  document.getElementById('sandingHrs').value    = 0.1;
-  document.getElementById('paintingHrs').value   = 0;
-  document.getElementById('supportHrs').value    = 0;
-  document.getElementById('labourRate').value    = 25;
-  document.getElementById('consumables').value   = 2;
-  document.getElementById('insertCount').value   = 4;
-  document.getElementById('insertCost').value    = 0.12;
-  document.getElementById('insertTime').value    = 0.05;
-  document.getElementById('insertLabour').value  = 25;
-  document.getElementById('assemblyHrs').value   = 0.1;
-  document.getElementById('assemblyLabour').value= 25;
-  document.getElementById('hardware').value      = 1.5;
-  document.getElementById('qcHrs').value         = 0.1;
   document.getElementById('overheadRate').value  = 0.15;
   document.getElementById('profitMargin').value  = 0.25;
   calc();
@@ -1269,8 +1135,6 @@ function openPrintPreview(mode) {
   const prepBy         = document.getElementById('preparedBy').value || '—';
   const totalQty       = batchRows.reduce((s,r) => s + r.qty, 0);
   const totalPrintHrs  = batchRows.reduce((s,r) => s + r.printHrs * r.qty, 0);
-  const totalPostHrs   = batchRows.reduce((s,r) => s + r.postHrs  * r.qty, 0);
-  const totalAsmHrs    = batchRows.reduce((s,r) => s + r.assemblyHrs * r.qty, 0);
 
   const isQuote = mode === 'quote';
   document.getElementById('printPage').style.display  = isQuote ? 'none' : 'block';
@@ -1302,31 +1166,25 @@ function openPrintPreview(mode) {
         <td style="padding:7px 10px;text-align:right;border-bottom:1px solid #f0f0f0;">${r.qty}</td>
         <td style="padding:7px 10px;text-align:right;border-bottom:1px solid #f0f0f0;">${r.matG}g</td>
         <td style="padding:7px 10px;text-align:right;border-bottom:1px solid #f0f0f0;">${r.printHrs}</td>
-        <td style="padding:7px 10px;text-align:right;border-bottom:1px solid #f0f0f0;">${r.postHrs}</td>
-        <td style="padding:7px 10px;text-align:right;border-bottom:1px solid #f0f0f0;">${r.inserts}</td>
         <td style="padding:7px 10px;text-align:right;border-bottom:1px solid #f0f0f0;">${fmt(r.unitPrice)}</td>
         <td style="padding:7px 10px;text-align:right;font-weight:700;border-bottom:1px solid #f0f0f0;">${fmt(lineTotal)}</td>
       </tr>`;
     }).join('');
     document.getElementById('pp-total-foot').textContent = fmt(grandTotal);
 
-    let totMat=0, totPrint=0, totPost=0, totInsert=0, totAssembly=0, totOverhead=0;
+    let totMat=0, totPrint=0, totOverhead=0;
     batchRows.forEach(r => {
-      const matC=(r.matKg/1000)*r.matG*1.1*r.qty, prtC=r.printHrs*0.15*1.05*r.qty,
-            posC=(r.postHrs*25+2)*r.qty, insC=(r.inserts*0.12+r.inserts*0.05*25)*r.qty,
-            asmC=(r.assemblyHrs*25+1.5)*r.qty, dir=matC+prtC+posC+insC+asmC;
-      totMat+=matC; totPrint+=prtC; totPost+=posC; totInsert+=insC; totAssembly+=asmC; totOverhead+=dir*0.15;
+      const matC=(r.matKg/1000)*r.matG*1.1*r.qty, prtC=r.printHrs*0.15*1.05*r.qty, dir=matC+prtC;
+      totMat+=matC; totPrint+=prtC; totOverhead+=dir*0.15;
     });
     document.getElementById('pp-breakdown').innerHTML = [
-      {label:'Material',value:totMat},{label:'Print Time',value:totPrint},{label:'Post-Process',value:totPost},
-      {label:'Heat Inserts',value:totInsert},{label:'Assembly',value:totAssembly},{label:'Overhead',value:totOverhead}
+      {label:'Material',value:totMat},{label:'Print Time',value:totPrint},{label:'Overhead',value:totOverhead}
     ].map(b=>`<div style="background:#f1f1f1;border-radius:6px;padding:10px 12px;text-align:center;border:1px solid #e0e0e0;">
       <div style="font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#888;margin-bottom:4px;">${b.label}</div>
       <div style="font-size:13px;font-weight:700;color:#111;">${fmt(b.value)}</div></div>`).join('');
     document.getElementById('pp-assumptions').innerHTML = [
       {label:'Overhead Rate', value:(g('overheadRate')*100).toFixed(0)+'%'},
       {label:'Profit Margin', value:(g('profitMargin')*100).toFixed(0)+'%'},
-      {label:'Labour Rate',   value:'$'+g('labourRate')+'/hr'},
       {label:'Printer Cost',  value:'$'+g('printerCost')+'/hr'}
     ].map(a=>`<div style="background:#f1f1f1;border-radius:6px;padding:10px 12px;border:1px solid #e0e0e0;">
       <div style="font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#888;margin-bottom:4px;">${a.label}</div>
@@ -1353,8 +1211,6 @@ function openPrintPreview(mode) {
         <td style="padding:8px 12px;font-weight:700;color:#111;border-bottom:1px solid #f0f0f0;">${r.name}</td>
         <td style="padding:8px 12px;text-align:right;border-bottom:1px solid #f0f0f0;font-size:11px;">${r.qty}</td>
         <td style="padding:8px 12px;text-align:right;border-bottom:1px solid #f0f0f0;font-size:11px;">${(r.printHrs * r.qty).toFixed(1)}h</td>
-        <td style="padding:8px 12px;text-align:right;border-bottom:1px solid #f0f0f0;font-size:11px;">${r.postHrs > 0 ? (r.postHrs*r.qty).toFixed(1)+'h' : '—'}</td>
-        <td style="padding:8px 12px;text-align:right;border-bottom:1px solid #f0f0f0;font-size:11px;">${r.assemblyHrs > 0 ? (r.assemblyHrs*r.qty).toFixed(1)+'h' : '—'}</td>
         <td style="padding:8px 12px;text-align:right;border-bottom:1px solid #f0f0f0;font-size:11px;">${fmt(r.unitPrice)}</td>
         <td style="padding:8px 12px;text-align:right;font-weight:800;color:#111;border-bottom:1px solid #f0f0f0;font-size:12px;">${fmt(lineTotal)}</td>
       </tr>`;
@@ -1362,10 +1218,8 @@ function openPrintPreview(mode) {
     document.getElementById('qp-total-foot').textContent = fmt(grandTotal);
 
     document.getElementById('qp-time').innerHTML = [
-      { label: 'Total Print Time',  value: totalPrintHrs.toFixed(1) + ' hrs', note: 'Active machine time' },
-      { label: 'Finishing & Post',  value: totalPostHrs.toFixed(1)  + ' hrs', note: 'Sanding, supports, coating' },
-      { label: 'Assembly',          value: totalAsmHrs.toFixed(1)   + ' hrs', note: 'Fit, hardware, QC' },
-      { label: 'Total Parts',       value: totalQty + ' pcs',                  note: batchRows.length + ' unique SKU' + (batchRows.length !== 1 ? 's' : '') },
+      { label: 'Total Print Time', value: totalPrintHrs.toFixed(1) + ' hrs', note: 'Active machine time' },
+      { label: 'Total Parts',      value: totalQty + ' pcs',                  note: batchRows.length + ' unique SKU' + (batchRows.length !== 1 ? 's' : '') },
     ].map(t => `<div style="background:#f1f1f1;border-radius:8px;padding:14px 16px;border:1px solid #e0e0e0;">
       <div style="font-size:8px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#888;margin-bottom:6px;">${t.label}</div>
       <div style="font-size:20px;font-weight:800;color:#111;letter-spacing:-.5px;margin-bottom:3px;">${t.value}</div>
