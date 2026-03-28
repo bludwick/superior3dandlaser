@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>3D Print Pricing Calculator – Superior 3D and Laser</title>
+<title>Instant Quote – Superior 3D and Laser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -282,9 +282,55 @@
   .section-card:nth-child(5) { animation: fadeIn .3s ease .25s both; }
   .section-card:nth-child(6) { animation: fadeIn .3s ease .30s both; }
   .section-card:nth-child(7) { animation: fadeIn .3s ease .35s both; }
+  .section-card:nth-child(8) { animation: fadeIn .3s ease .40s both; }
+
+  /* SLICER */
+  .stl-upload-zone { display:flex; align-items:center; gap:12px; padding:12px 16px; background:var(--bg-light); border:1.5px dashed var(--border); border-radius:8px; cursor:pointer; transition:border-color .2s,background .2s; }
+  .stl-upload-zone:hover { border-color:var(--accent); background:rgba(185,28,28,.04); }
+  .stl-upload-zone input[type=file] { display:none; }
+  .stl-upload-btn { padding:7px 14px; background:var(--accent); color:#fff; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap; flex-shrink:0; }
+  .stl-file-name { font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .slicer-spinner { display:flex; align-items:center; gap:12px; padding:12px 0 4px; font-size:13px; color:var(--muted); }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .slicer-spin-ring { width:18px; height:18px; border:2.5px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; flex-shrink:0; }
+  .slicer-chips { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+  .slicer-chip { display:flex; flex-direction:column; gap:2px; padding:9px 14px; background:rgba(185,28,28,.06); border:1px solid rgba(185,28,28,.2); border-radius:8px; }
+  .slicer-chip .chip-label { font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+  .slicer-chip .chip-val { font-size:15px; font-weight:800; color:var(--accent); }
+  .slicer-ok-note { font-size:11px; color:var(--accent); font-weight:600; margin-top:8px; }
+  .slicer-err-box { margin-top:10px; padding:11px 14px; background:rgba(220,38,38,.05); border:1px solid rgba(220,38,38,.2); border-radius:8px; font-size:12px; color:var(--muted); line-height:1.5; }
+  .slicer-err-box a { color:var(--accent); font-weight:600; text-decoration:none; }
+  .slicer-err-box a:hover { text-decoration:underline; }
+
+  /* SITE NAV */
+  .site-nav { position:sticky; top:0; z-index:50; background:rgba(255,255,255,.96); backdrop-filter:blur(8px); border-bottom:1px solid var(--border); }
+  .site-nav-inner { max-width:1100px; margin:0 auto; padding:0 20px; display:flex; align-items:center; justify-content:space-between; height:58px; gap:16px; }
+  .site-nav-logo img { height:38px; width:auto; display:block; }
+  .site-nav-links { display:flex; align-items:center; gap:2px; list-style:none; margin:0; padding:0; }
+  .site-nav-links a { font-size:13px; font-weight:600; color:var(--muted); text-decoration:none; padding:6px 12px; border-radius:6px; transition:color .15s,background .15s; letter-spacing:.01em; }
+  .site-nav-links a:hover { color:var(--text); background:var(--bg-light); }
+  .site-nav-links a.snav-cta { color:var(--accent); }
+  .site-nav-links a.snav-cta:hover { color:var(--accent-lt); background:rgba(185,28,28,.06); }
+  .site-nav-links a.snav-active { color:var(--text); }
+  @media (max-width:600px) { .site-nav-links { gap:0; } .site-nav-links a { padding:6px 8px; font-size:12px; } }
 </style>
 </head>
 <body>
+<nav class="site-nav">
+  <div class="site-nav-inner">
+    <a href="index.html" class="site-nav-logo">
+      <img src="logoheader_transparent.png" alt="Superior 3D and Laser">
+    </a>
+    <ul class="site-nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="services.html">Services</a></li>
+      <li><a href="contact-us.html">Contact</a></li>
+      <li><a href="3dprintingquotecalculator.html" class="snav-cta snav-active">Instant Quote</a></li>
+      <li><a href="contact.html" class="snav-cta">Custom Quote</a></li>
+    </ul>
+  </div>
+</nav>
+
 <div class="app">
   <header>
     <div class="logo-area">
@@ -321,6 +367,63 @@
           </div>
           <div class="field"><label>Date</label><input type="date" id="date"></div>
           <div class="field"><label>Prepared By</label><input type="text" id="preparedBy" placeholder="Your name"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header" onclick="toggleSection(this)">
+        <div class="section-icon">📐</div>
+        <span class="section-title">STL Auto-Slicer</span>
+        <span class="section-result" id="res-slicer" style="font-size:11px;color:var(--muted);font-weight:600;">Upload STL to auto-fill</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="section-body">
+        <div class="fields">
+          <div class="field full">
+            <label>STL File</label>
+            <div class="stl-upload-zone" onclick="document.getElementById('stlInput').click()">
+              <input type="file" id="stlInput" accept=".stl" onchange="handleSTLUpload(this.files[0])">
+              <span class="stl-upload-btn">Choose STL…</span>
+              <span class="stl-file-name" id="stlFileName">No file selected · Slicing will auto-fill Material Used and Print Time</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Infill Density</label>
+            <select id="slicerInfill">
+              <option value="0.10">10% — Minimal</option>
+              <option value="0.15">15%</option>
+              <option value="0.20" selected>20% — Standard</option>
+              <option value="0.25">25%</option>
+              <option value="0.40">40%</option>
+              <option value="0.50">50% — Dense</option>
+              <option value="0.75">75%</option>
+              <option value="1.00">100% — Solid</option>
+            </select>
+            <span class="hint">Used when slicing your file</span>
+          </div>
+          <div class="field">
+            <label>Supports</label>
+            <select id="slicerSupport">
+              <option value="disabled">None</option>
+              <option value="auto">Auto (where needed)</option>
+            </select>
+            <span class="hint">Used when slicing your file</span>
+          </div>
+        </div>
+        <div id="slicerSpinner" style="display:none;" class="slicer-spinner">
+          <div class="slicer-spin-ring"></div>
+          <span>Slicing your file… this may take up to a minute</span>
+        </div>
+        <div id="slicerResults" style="display:none;">
+          <div class="slicer-chips">
+            <div class="slicer-chip"><span class="chip-label">Print Time</span><span class="chip-val" id="slicerTimeDisp">—</span></div>
+            <div class="slicer-chip"><span class="chip-label">Filament Weight</span><span class="chip-val" id="slicerWeightDisp">—</span></div>
+          </div>
+          <div class="slicer-ok-note">✓ Material Used and Print Time updated automatically</div>
+        </div>
+        <div id="slicerError" style="display:none;" class="slicer-err-box">
+          We couldn't estimate this file automatically. Please <a href="contact.html">submit it for a manual quote</a>.
         </div>
       </div>
     </div>
@@ -1247,6 +1350,113 @@ document.addEventListener('DOMContentLoaded', () => {
   if (cfIdx >= 0) sel.value = 'CF-Nylon';
   onMaterialChange(); calc(); renderBatch();
 });
+</script>
+
+<script>
+// ── Kiri:Moto silent background slicer ───────────────────────────────────────
+(function () {
+  // g/cm³ density per material — used to convert extruded filament mm → grams
+  const DENSITY = {
+    'PLA': 1.24, 'PETG': 1.27, 'ABS': 1.04, 'ASA': 1.07,
+    'TPU (95A)': 1.21, 'Nylon PA12': 1.01, 'CF-Nylon': 1.15,
+    'RESIN (std)': 1.12, 'RESIN (ABS-like)': 1.18,
+  };
+
+  // π × r² × length_mm / 1000 cm³ × density = grams  (r = 1.75/2 mm)
+  function filamentToGrams(mm, material) {
+    return Math.PI * 0.875 * 0.875 * mm / 1000 * (DENSITY[material] || 1.24);
+  }
+
+  function slicerState(state) {
+    document.getElementById('slicerSpinner').style.display = state === 'slicing' ? 'flex'  : 'none';
+    document.getElementById('slicerResults').style.display = state === 'done'    ? 'block' : 'none';
+    document.getElementById('slicerError').style.display   = state === 'error'   ? 'block' : 'none';
+  }
+
+  window.handleSTLUpload = async function (file) {
+    if (!file) return;
+    document.getElementById('stlFileName').textContent = file.name;
+    slicerState('slicing');
+    document.getElementById('res-slicer').textContent = 'Slicing…';
+    document.getElementById('res-slicer').style.color = 'var(--muted)';
+
+    const infill      = parseFloat(document.getElementById('slicerInfill').value);
+    const supportType = document.getElementById('slicerSupport').value;
+    const material    = document.getElementById('materialType').value;
+
+    // Dynamically import the Kiri:Moto engine (ES module, loaded on demand)
+    let Engine;
+    try {
+      ({ Engine } = await import('https://grid.space/lib/kiri/run/engine.js'));
+    } catch (e) {
+      console.error('[Kiri:Moto] Engine failed to load:', e);
+      slicerState('error');
+      document.getElementById('res-slicer').textContent = 'Slicer unavailable';
+      document.getElementById('res-slicer').style.color = '#dc2626';
+      return;
+    }
+
+    try {
+      const buf = await file.arrayBuffer();
+
+      const gcode = await new Engine()
+        .setListener(() => {})          // silent — no Kiri:Moto UI shown
+        .parse(buf)
+        .then(e => e.setProcess({
+          sliceHeight:       0.2,
+          firstSliceHeight:  0.2,
+          sliceShells:       3,
+          sliceTopLayers:    3,
+          sliceBottomLayers: 3,
+          sliceFillSparse:   infill,    // matches customer's infill selection
+          sliceFillType:     'hex',
+          sliceSupportType:  supportType, // matches customer's support selection
+          sliceSupportAngle: 50,
+          outputFeedrate:    50,
+          outputSeekrate:    80,
+        }))
+        .then(e => e.setDevice({
+          bedWidth: 256, bedDepth: 256, maxHeight: 256,
+          extruders: [{ extFilament: 1.75, extNozzle: 0.4, extOffsetX: 0, extOffsetY: 0 }],
+        }))
+        .then(e => e.slice())
+        .then(e => e.prepare())
+        .then(e => e.export());
+
+      // Kiri:Moto embeds results as G-code comments
+      const tMatch = gcode.match(/;\s*---\s*print time:\s*(\d+)s\s*---/i);
+      const fMatch = gcode.match(/;\s*---\s*filament used:\s*([\d.]+)\s*mm\s*---/i);
+      if (!tMatch || !fMatch) throw new Error('Slicer returned no usable output');
+
+      const timeSec = parseInt(tMatch[1]);
+      const grams   = filamentToGrams(parseFloat(fMatch[1]), material);
+      const hrs     = timeSec / 3600;
+
+      // Populate the existing calculator fields (triggers pricing recalc)
+      document.getElementById('materialGrams').value = grams.toFixed(1);
+      document.getElementById('printHours').value    = hrs.toFixed(2);
+      document.getElementById('materialGrams').closest('.field').querySelector('.hint').textContent = '✓ Auto-filled by slicer';
+      document.getElementById('printHours').closest('.field').querySelector('.hint').textContent    = '✓ Auto-filled by slicer';
+      if (typeof calc === 'function') calc();
+
+      // Show result chips
+      const h = Math.floor(hrs), m = Math.round((hrs - h) * 60);
+      const timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+      document.getElementById('slicerTimeDisp').textContent   = timeStr;
+      document.getElementById('slicerWeightDisp').textContent = grams.toFixed(1) + ' g';
+      document.getElementById('res-slicer').textContent       = `${timeStr} · ${grams.toFixed(1)} g`;
+      document.getElementById('res-slicer').style.color       = 'var(--accent)';
+      slicerState('done');
+      if (typeof showToast === 'function') showToast(`Sliced: ${timeStr} · ${grams.toFixed(1)} g`);
+
+    } catch (err) {
+      console.error('[Kiri:Moto]', err);
+      slicerState('error');
+      document.getElementById('res-slicer').textContent = 'Slicing failed';
+      document.getElementById('res-slicer').style.color = '#dc2626';
+    }
+  };
+}());
 </script>
 </body>
 </html>

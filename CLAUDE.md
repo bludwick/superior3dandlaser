@@ -38,6 +38,9 @@ The function requires two env vars set in Netlify's dashboard (not in the repo):
 | `services.html` | Full service details + process steps | — |
 | `contact.html` | "Get a Quote" — full form with file upload | `/.netlify/functions/submit-quote` |
 | `contact-us.html` | General contact — simplified form, no file upload | `/.netlify/functions/submit-quote` |
+| `3dprintingquotecalculator.html` | Interactive pricing calculator (estimate only, no form submit) | — |
+
+`3dprintingquotecalculator.html` uses self-contained inline CSS with its own `:root` variables — it does **not** share `styles.css`. Keep changes to this page self-contained.
 
 ## Navigation Convention
 
