@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D Print Pricing Calculator – Superior 3D and Laser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #ffffff;
+    --bg-card:   #f8f8f8;
+    --bg-light:  #f1f1f1;
+    --border:    #e0e0e0;
+    --accent:    #b91c1c;
+    --accent-lt: #dc2626;
+    --text:      #111111;
+    --muted:     #555555;
+    --label:     #777777;
+    --input-bg:  #ffffff;
+    --radius:    10px;
+    --shadow:    0 4px 24px rgba(0,0,0,.08);
+    --font:      'Inter', 'Segoe UI', system-ui, sans-serif;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 48px 48px;
+    opacity: .2;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 32px 20px 80px; }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 40px;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .logo-area { display: flex; flex-direction: column; gap: 6px; }
+  .logo-tag {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+  }
+  h1 {
+    font-size: clamp(26px, 4vw, 40px);
+    font-weight: 900;
+    line-height: 1.1;
+    letter-spacing: -.02em;
+  }
+  h1 span { color: var(--accent); }
+
+  .header-right { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .brand-tag { font-size: 12px; font-weight: 700; color: var(--accent); letter-spacing: .08em; text-transform: uppercase; }
+
+  .tabs {
+    display: flex;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .tab {
+    padding: 10px 22px;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    background: none;
+    border: none;
+    color: var(--muted);
+    transition: all .2s;
+    letter-spacing: .02em;
+  }
+  .tab.active { background: var(--accent); color: #fff; }
+  .tab:hover:not(.active) { color: var(--text); background: var(--bg-light); }
+
+  /* PANELS */
+  .panel { display: none; animation: fadeIn .25s ease; }
+  .panel.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  /* SECTION CARDS */
+  .section-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 16px;
+    overflow: hidden;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .section-card:focus-within { border-color: rgba(185,28,28,.4); box-shadow: 0 0 0 3px rgba(185,28,28,.06); }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    background: var(--bg-light);
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+  }
+  .section-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: rgba(185,28,28,.1);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .section-title { font-size: 12px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--label); flex: 1; }
+  .section-result { font-size: 14px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .chevron { color: var(--muted); font-size: 12px; transition: transform .2s; }
+  .section-card.collapsed .chevron { transform: rotate(-90deg); }
+  .section-card.collapsed .section-body { display: none; }
+
+  .section-body { padding: 20px; }
+
+  /* FIELDS */
+  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 600px) { .fields { grid-template-columns: 1fr; } }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field.full { grid-column: 1/-1; }
+  label { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--label); }
+  .input-wrap { position: relative; display: flex; align-items: center; }
+  .unit-tag { position: absolute; right: 10px; font-size: 11px; color: var(--muted); pointer-events: none; }
+  input, select {
+    width: 100%;
+    padding: 9px 40px 9px 12px;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 13px;
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+    -webkit-appearance: none;
+  }
+  input:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(185,28,28,.12);
+  }
+  select {
+    padding-right: 32px; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23555' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center;
+  }
+  input[type=text], input[type=date] { padding-right: 12px; }
+  .hint { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+  .project-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 600px) { .project-grid { grid-template-columns: 1fr; } }
+
+  /* SUMMARY */
+  .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  @media (max-width: 600px) { .summary-grid { grid-template-columns: 1fr; } }
+  .summary-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 13px 16px;
+    background: var(--bg-light);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .summary-row .label { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--label); }
+  .summary-row .val { font-size: 14px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+
+  .total-box {
+    background: var(--bg-light);
+    border: 2px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 28px 32px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 20px;
+    box-shadow: 0 4px 24px rgba(185,28,28,.12);
+    flex-wrap: wrap;
+  }
+  .total-left .t-label { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; font-weight: 600; }
+  .total-left .t-val { font-size: clamp(32px, 5vw, 48px); font-weight: 900; letter-spacing: -.03em; color: var(--accent); line-height: 1; }
+  .total-right { text-align: right; }
+  .total-right .unit-price { font-size: 13px; color: var(--label); margin-bottom: 6px; }
+  .total-right .qty-label { font-size: 11px; color: var(--muted); }
+
+  /* BUTTONS */
+  .btn-row { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+  .btn {
+    padding: 11px 22px;
+    border-radius: 8px;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    letter-spacing: .02em;
+    transition: all .2s;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-lt); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(185,28,28,.3); }
+  .btn-secondary { background: var(--bg-light); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-danger { background: transparent; color: #dc2626; border: 1px solid rgba(220,38,38,.3); }
+  .btn-danger:hover { background: rgba(220,38,38,.08); }
+
+  /* BATCH */
+  .batch-controls { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
+  .batch-title { font-size: 13px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--label); }
+  .batch-table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 700px; }
+  thead tr { background: var(--bg-light); }
+  th { padding: 10px 12px; text-align: left; font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); white-space: nowrap; border-bottom: 1px solid var(--border); }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+  .batch-input { background: transparent; border: none; color: var(--text); font-family: var(--font); font-size: 12px; width: 100%; min-width: 60px; padding: 4px; border-radius: 4px; outline: none; }
+  .batch-input:focus { background: var(--bg-light); }
+  td.price-col { color: var(--accent); font-weight: 700; }
+  .batch-del { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 14px; padding: 4px 6px; border-radius: 4px; transition: all .15s; }
+  .batch-del:hover { background: rgba(220,38,38,.1); color: #dc2626; }
+  tfoot td { font-weight: 700; color: var(--accent); border-top: 2px solid var(--accent); padding-top: 12px; font-size: 13px; }
+  .empty-batch { text-align: center; padding: 48px 20px; color: var(--muted); font-size: 13px; }
+  .empty-batch .icon { font-size: 36px; margin-bottom: 12px; }
+
+  /* RATES */
+  .rates-table-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .rates-section { margin-bottom: 20px; }
+  .rates-table-header { padding: 12px 16px; background: var(--bg-light); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .rates-table-header h3 { font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--label); }
+  .add-row-btn { background: none; border: 1px solid var(--border); color: var(--accent); border-radius: 5px; padding: 4px 10px; font-size: 11px; font-family: var(--font); font-weight: 700; cursor: pointer; transition: all .15s; white-space: nowrap; }
+  .add-row-btn:hover { background: rgba(185,28,28,.08); border-color: var(--accent); }
+  .ref-table { width: 100%; border-collapse: collapse; }
+  .ref-table th { padding: 8px 14px; font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); text-align: left; }
+  .ref-table td { padding: 4px 6px; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .ref-table tr:last-child td { border-bottom: none; }
+  .ref-cell { background: transparent; border: 1px solid transparent; color: var(--text); font-family: var(--font); font-size: 12px; padding: 5px 8px; border-radius: 4px; width: 100%; outline: none; transition: all .15s; }
+  .ref-cell:focus { background: var(--bg-light); border-color: var(--accent); }
+  .ref-cell.name-cell { color: var(--text); font-weight: 600; }
+  .ref-cell.price-cell { color: var(--accent); font-weight: 600; }
+  .rates-save-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; background: rgba(185,28,28,.04); border-top: 1px solid rgba(185,28,28,.15); flex-wrap: wrap; }
+  .save-note { font-size: 11px; color: var(--muted); }
+  .save-note.saved { color: var(--accent); }
+  .rates-full-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 700px) { .rates-full-grid { grid-template-columns: 1fr; } }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--bg-card); border: 1px solid var(--accent); border-radius: 10px; padding: 14px 20px; font-size: 13px; font-weight: 600; color: var(--accent); box-shadow: var(--shadow); display: flex; align-items: center; gap: 10px; transform: translateY(80px); opacity: 0; transition: all .3s cubic-bezier(.34,1.56,.64,1); z-index: 100; }
+  .toast.show { transform: none; opacity: 1; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .section-card:nth-child(1) { animation: fadeIn .3s ease .05s both; }
+  .section-card:nth-child(2) { animation: fadeIn .3s ease .10s both; }
+  .section-card:nth-child(3) { animation: fadeIn .3s ease .15s both; }
+  .section-card:nth-child(4) { animation: fadeIn .3s ease .20s both; }
+  .section-card:nth-child(5) { animation: fadeIn .3s ease .25s both; }
+  .section-card:nth-child(6) { animation: fadeIn .3s ease .30s both; }
+  .section-card:nth-child(7) { animation: fadeIn .3s ease .35s both; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo-area">
+      <div class="logo-tag">🖨 FDM / Resin</div>
+      <h1>3D Print <span>Pricer</span></h1>
+    </div>
+    <div class="header-right">
+      <span class="brand-tag">Superior 3D and Laser</span>
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('calculator')">Calculator</button>
+        <button class="tab" onclick="switchTab('batch')">Batch</button>
+        <button class="tab" onclick="switchTab('rates')">Rates &amp; Ref</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- CALCULATOR -->
+  <div id="panel-calculator" class="panel active">
+
+    <div class="section-card">
+      <div class="section-header" onclick="toggleSection(this)">
+        <div class="section-icon">📋</div>
+        <span class="section-title">Project Information</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="section-body">
+        <div class="project-grid">
+          <div class="field"><label>Project Name</label><input type="text" id="projectName" placeholder="My Print Project"></div>
+          <div class="field"><label>Client / Customer</label><input type="text" id="client" placeholder="Client name"></div>
+          <div class="field"><label>Part Name</label><input type="text" id="partName" placeholder="Part A" oninput="calc()"></div>
+          <div class="field">
+            <label>Quantity of Parts</label>
+            <div class="input-wrap"><input type="number" id="qty" value="3" min="1" oninput="calc()"><span class="unit-tag">pcs</span></div>
+          </div>
+          <div class="field"><label>Date</label><input type="date" id="date"></div>
+          <div class="field"><label>Prepared By</label><input type="text" id="preparedBy" placeholder="Your name"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header" onclick="toggleSection(this)">
+        <div class="section-icon">🧱</div>
+        <span class="section-title">Section 1 — Material</span>
+        <span class="section-result" id="res-material">$0.00</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="section-body">
+        <div class="fields">
+          <div class="field">
+            <label>Material Type</label>
+            <select id="materialType" onchange="onMaterialChange()">
+              <option value="PLA">PLA</option>
+              <option value="PETG">PETG</option>
+              <option value="ABS">ABS</option>
+              <option value="ASA">ASA</option>
+              <option value="TPU (95A)">TPU (95A)</option>
+              <option value="Nylon PA12">Nylon PA12</option>
+              <option value="CF-Nylon" selected>CF-Nylon</option>
+              <option value="RESIN (std)">RESIN (std)</option>
+              <option value="RESIN (ABS-like)">RESIN (ABS-like)</option>
+              <option value="custom">Custom…</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Material Cost per kg</label>
+            <div class="input-wrap"><input type="number" id="matCostKg" value="75" step="0.5" oninput="calc()"><span class="unit-tag">$/kg</span></div>
+            <span class="hint" id="matHint">⚡ Auto-set from material selection</span>
+          </div>
+          <div class="field">
+            <label>Material Used</label>
+            <div class="input-wrap"><input type="number" id="materialGrams" value="50" step="1" oninput="calc()"><span class="unit-tag">g</span></div>
+            <span class="hint">From slicer estimate</span>
+          </div>
+          <div class="field">
+            <label>Waste / Support Factor</label>
+            <div class="input-wrap"><input type="number" id="wasteFactor" value="1.10" step="0.01" oninput="calc()"><span class="unit-tag">×</span></div>
+            <span class="hint">1.10 = 10% waste</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header" onclick="toggleSection(this)">
+        <div class="section-icon">⏱</div>
+        <span class="section-title">Section 2 — Print Time</span>
+        <span class="section-result" id="res-print">$0.00</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="section-body">
+        <div class="fields">
+          <div class="field">
+            <label>Print Time</label>
+            <div class="input-wrap"><input type="number" id="printHours" value="4.5" step="0.5" oninput="calc()"><span class="unit-tag">hrs</span></div>
+            <span class="hint">From slicer estimate</span>
+          </div>
+          <div class="field">
+            <label>Printer Operating Cost</label>
+            <div class="input-wrap"><input type="number" id="printerCost" value="0.15" step="0.01" oninput="calc()"><span class="unit-tag">$/hr</span></div>
+            <span class="hint">Electricity + depreciation</span>
+          </div>
+          <div class="field full">
+            <label>Printer Failure Rate (contingency)</label>
+            <div class="input-wrap"><input type="number" id="failureRate" value="0.05" step="0.01" oninput="calc()"><span class="unit-tag">%</span></div>
+            <span class="hint">0.05 = 5% contingency</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header" onclick="toggleSection(this)">
+        <div class="section-icon">🔧</div>
+        <span class="section-title">Section 3 — Post-Processing</span>
+        <span class="section-result" id="res-post">$0.00</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="section-body">
+        <div class="fields">
+          <div class="field">
+            <label>Sanding / Finishing</label>
+            <div class="input-wrap"><input type="number" id="sandingHrs" value="0.1" step="0.1" oninput="calc()"><span class="unit-tag">hrs</span></div>
+          </div>
+          <div class="field">
+            <label>Painting / Coating</label>
+            <div class="input-wrap"><input type="number" id="paintingHrs" value="0" step="0.1" oninput="calc()"><span class="unit-tag">hrs</span></div>
+          </div>
+          <div class="field">
+            <label>Support Removal</label>
+            <div class="input-wrap"><input type="number" id="supportHrs" value="0" step="0.1" oninput="calc()"><span class="unit-tag">hrs</span></div>
+          </div>
+          <div class="field">
+            <label>Labour Rate</label>
+            <div class="input-wrap"><input type="number" id="labourRate" value="25" step="1" oninput="calc()"><span class="unit-tag">$/hr</span></div>
+          </div>
+          <div class="field full">
+            <label>Consumables (spray, sandpaper…)</label>
+            <div class="input-wrap"><input type="number" id="consumables" value="2" step="0.5" oninput="calc()"><span class="unit-tag">$</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header" onclick="toggleSection(this)">
+        <div class="section-icon">🔩</div>
+        <span class="section-title">Section 4 — Heat Inserts</span>
+        <span class="section-result" id="res-inserts">$0.00</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="section-body">
+        <div class="fields">
+          <div class="field">
+            <label>Number of Heat Inserts</label>
+            <div class="input-wrap"><input type="number" id="insertCount" value="4" step="1" oninput="calc()"><span class="unit-tag">pcs</span></div>
+            <span class="hint">Count per part</span>
+          </div>
+          <div class="field">
+            <label>Cost per Insert</label>
+            <div class="input-wrap"><input type="number" id="insertCost" value="0.12" step="0.01" oninput="calc()"><span class="unit-tag">$/pc</span></div>
+            <span class="hint">M3 brass ~$0.10–$0.15</span>
+          </div>
+          <div class="field">
+            <label>Install Time per Insert</label>
+            <div class="input-wrap"><input type="number" id="insertTime" value="0.05" step="0.01" oninput="calc()"><span class="unit-tag">hrs</span></div>
+            <span class="hint">~3 min each</span>
+          </div>
+          <div class="field">
+            <label>Labour Rate (Inserts)</label>
+            <div class="input-wrap"><input type="number" id="insertLabour" value="25" step="1" oninput="calc()"><span class="unit-tag">$/hr</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header" onclick="toggleSection(this)">
+        <div class="section-icon">📦</div>
+        <span class="section-title">Section 5 — Assembly</span>
+        <span class="section-result" id="res-assembly">$0.00</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="section-body">
+        <div class="fields">
+          <div class="field">
+            <label>Assembly Time</label>
+            <div class="input-wrap"><input type="number" id="assemblyHrs" value="0.1" step="0.1" oninput="calc()"><span class="unit-tag">hrs</span></div>
+          </div>
+          <div class="field">
+            <label>Labour Rate (Assembly)</label>
+            <div class="input-wrap"><input type="number" id="assemblyLabour" value="25" step="1" oninput="calc()"><span class="unit-tag">$/hr</span></div>
+          </div>
+          <div class="field">
+            <label>Fasteners &amp; Hardware Cost</label>
+            <div class="input-wrap"><input type="number" id="hardware" value="1.5" step="0.5" oninput="calc()"><span class="unit-tag">$</span></div>
+          </div>
+          <div class="field">
+            <label>Quality Check Time</label>
+            <div class="input-wrap"><input type="number" id="qcHrs" value="0.1" step="0.05" oninput="calc()"><span class="unit-tag">hrs</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header" onclick="toggleSection(this)">
+        <div class="section-icon">📊</div>
+        <span class="section-title">Section 6 — Overhead &amp; Profit Margin</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="section-body">
+        <div class="fields">
+          <div class="field">
+            <label>Overhead Rate</label>
+            <div class="input-wrap"><input type="number" id="overheadRate" value="0.15" step="0.01" oninput="calc()"><span class="unit-tag">%</span></div>
+            <span class="hint">0.15 = 15% of direct costs</span>
+          </div>
+          <div class="field">
+            <label>Desired Profit Margin</label>
+            <div class="input-wrap"><input type="number" id="profitMargin" value="0.25" step="0.01" oninput="calc()"><span class="unit-tag">%</span></div>
+            <span class="hint">0.25 = 25% mark-up on cost</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card" style="border-color:rgba(185,28,28,.35);">
+      <div class="section-header" style="background:rgba(185,28,28,.05);">
+        <div class="section-icon">💰</div>
+        <span class="section-title" style="color:var(--accent);">Pricing Summary</span>
+      </div>
+      <div class="section-body">
+        <div class="summary-grid">
+          <div class="summary-row"><span class="label">Material Cost</span><span class="val" id="s-material">$0.00</span></div>
+          <div class="summary-row"><span class="label">Print Time Cost</span><span class="val" id="s-print">$0.00</span></div>
+          <div class="summary-row"><span class="label">Post-Processing</span><span class="val" id="s-post">$0.00</span></div>
+          <div class="summary-row"><span class="label">Heat Inserts</span><span class="val" id="s-inserts">$0.00</span></div>
+          <div class="summary-row"><span class="label">Assembly</span><span class="val" id="s-assembly">$0.00</span></div>
+          <div class="summary-row"><span class="label">Overhead</span><span class="val" id="s-overhead">$0.00</span></div>
+        </div>
+        <div class="total-box">
+          <div class="total-left">
+            <div class="t-label">Total Order Price</div>
+            <div class="t-val" id="t-total">$0.00</div>
+          </div>
+          <div class="total-right">
+            <div class="unit-price">Unit Price: <strong id="t-unit">$0.00</strong></div>
+            <div class="qty-label">× <span id="t-qty">1</span> parts</div>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="addToBatch()">+ Add to Batch</button>
+          <button class="btn btn-secondary" onclick="resetCalc()">↺ Reset</button>
+        </div>
+      </div>
+    </div>
+  </div><!-- /calculator -->
+
+  <!-- BATCH -->
+  <div id="panel-batch" class="panel">
+    <div class="section-card">
+      <div class="section-header" style="cursor:default;">
+        <div class="section-icon">📋</div>
+        <span class="section-title">Batch / Multi-Part Estimator</span>
+        <div style="display:flex;gap:8px;margin-left:auto;">
+          <button class="btn btn-secondary" style="padding:7px 16px;font-size:12px;" onclick="openPrintPreview('internal')">🖨 Print Summary</button>
+          <button class="btn btn-primary" style="padding:7px 16px;font-size:12px;" onclick="openPrintPreview('quote')">📄 Customer Quote</button>
+        </div>
+      </div>
+      <div class="section-body">
+        <div class="batch-controls">
+          <span class="batch-title" id="batch-count">0 parts</span>
+          <div class="btn-row" style="margin:0;">
+            <button class="btn btn-secondary" onclick="addEmptyBatchRow()">+ Add Row</button>
+            <button class="btn btn-danger" onclick="clearBatch()">Clear All</button>
+          </div>
+        </div>
+        <div class="batch-table-wrap">
+          <table id="batchTable">
+            <thead>
+              <tr>
+                <th>Part Name</th><th>Qty</th><th>Mat (g)</th><th>Print (hrs)</th>
+                <th>Post (hrs)</th><th>Inserts</th><th>Assembly (hrs)</th><th>Mat $/kg</th>
+                <th>Unit Price</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="batchBody"></tbody>
+            <tfoot>
+              <tr>
+                <td colspan="8" style="color:var(--label);font-size:11px;letter-spacing:.07em;text-transform:uppercase;">Batch Total</td>
+                <td id="batchTotal" class="price-col">$0.00</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <div id="emptyBatch" class="empty-batch">
+          <div class="icon">📦</div>
+          <div>No parts yet. Use <strong>Add to Batch</strong> from the Calculator or add a row manually.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RATES -->
+  <div id="panel-rates" class="panel">
+    <div class="rates-full-grid">
+      <div class="rates-section">
+        <div class="rates-table-wrap">
+          <div class="rates-table-header">
+            <h3>🧱 Material Cost Guide (per kg)</h3>
+            <button class="add-row-btn" onclick="addMaterialRow()">+ Add Material</button>
+          </div>
+          <table class="ref-table">
+            <thead><tr><th>Material</th><th>$/kg (midpoint)</th><th>Range</th><th>Notes</th><th></th></tr></thead>
+            <tbody id="matTableBody"></tbody>
+          </table>
+          <div class="rates-save-bar">
+            <span class="save-note" id="matSaveNote">Changes update the Calculator dropdown automatically</span>
+            <button class="btn btn-secondary" style="padding:6px 14px;font-size:11px;" onclick="resetMaterials()">↺ Reset Defaults</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="rates-section">
+          <div class="rates-table-wrap">
+            <div class="rates-table-header">
+              <h3>👤 Labour Rate Guide</h3>
+              <button class="add-row-btn" onclick="addLabourRow()">+ Add Row</button>
+            </div>
+            <table class="ref-table">
+              <thead><tr><th>Context</th><th>$/hr Range</th><th>Notes</th><th></th></tr></thead>
+              <tbody id="labourTableBody"></tbody>
+            </table>
+            <div class="rates-save-bar">
+              <span class="save-note" id="labourSaveNote">Reference only</span>
+              <button class="btn btn-secondary" style="padding:6px 14px;font-size:11px;" onclick="resetLabour()">↺ Reset Defaults</button>
+            </div>
+          </div>
+        </div>
+        <div class="rates-section">
+          <div class="rates-table-wrap">
+            <div class="rates-table-header">
+              <h3>🔩 Heat Insert Reference</h3>
+              <button class="add-row-btn" onclick="addInsertRow()">+ Add Size</button>
+            </div>
+            <table class="ref-table">
+              <thead><tr><th>Size</th><th>Thread</th><th>OD</th><th>Cost/pc</th><th></th></tr></thead>
+              <tbody id="insertTableBody"></tbody>
+            </table>
+            <div class="rates-save-bar">
+              <span class="save-note" id="insertSaveNote">Reference only</span>
+              <button class="btn btn-secondary" style="padding:6px 14px;font-size:11px;" onclick="resetInserts()">↺ Reset Defaults</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Print Preview Modal -->
+<div id="printModal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);overflow-y:auto;padding:32px 20px;">
+  <div style="max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:12px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+      <span id="previewLabel" style="font-size:13px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#fff;opacity:.8;">Print Preview — 8.5×11"</span>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-primary" onclick="triggerPrint()">🖨 Print / Save PDF</button>
+        <button class="btn btn-secondary" onclick="closePrintPreview()">✕ Close</button>
+      </div>
+    </div>
+
+    <!-- INTERNAL SUMMARY PAGE -->
+    <div id="printPage" style="background:#fff;width:816px;min-height:1056px;margin:0 auto;padding:56px 64px;box-shadow:0 8px 48px rgba(0,0,0,.2);border-radius:4px;font-family:'Inter',sans-serif;color:#111;box-sizing:border-box;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;border-bottom:3px solid #b91c1c;padding-bottom:20px;">
+        <div>
+          <div style="font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#888;margin-bottom:6px;">3D Print Pricing Summary</div>
+          <div id="pp-title" style="font-size:26px;font-weight:800;letter-spacing:-.5px;line-height:1.1;color:#111;">Batch Estimate</div>
+          <div id="pp-subtitle" style="font-size:12px;color:#666;margin-top:4px;"></div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:11px;font-weight:800;color:#b91c1c;letter-spacing:.05em;margin-bottom:8px;">SUPERIOR 3D AND LASER</div>
+          <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:4px;">Total Order Value</div>
+          <div id="pp-grand-total" style="font-size:32px;font-weight:800;letter-spacing:-1px;color:#111;">$0.00</div>
+          <div id="pp-date" style="font-size:10px;color:#888;margin-top:4px;"></div>
+        </div>
+      </div>
+      <div id="pp-meta" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:28px;"></div>
+      <div style="margin-bottom:28px;">
+        <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:10px;border-bottom:1px solid #e0e0e0;padding-bottom:6px;">Line Items</div>
+        <table id="pp-table" style="width:100%;border-collapse:collapse;font-size:11px;">
+          <thead>
+            <tr style="background:#f1f1f1;">
+              <th style="padding:8px 10px;text-align:left;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">#</th>
+              <th style="padding:8px 10px;text-align:left;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">Part Name</th>
+              <th style="padding:8px 10px;text-align:right;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">Qty</th>
+              <th style="padding:8px 10px;text-align:right;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">Mat (g)</th>
+              <th style="padding:8px 10px;text-align:right;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">Print (h)</th>
+              <th style="padding:8px 10px;text-align:right;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">Post (h)</th>
+              <th style="padding:8px 10px;text-align:right;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">Inserts</th>
+              <th style="padding:8px 10px;text-align:right;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">Unit $</th>
+              <th style="padding:8px 10px;text-align:right;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">Line Total</th>
+            </tr>
+          </thead>
+          <tbody id="pp-tbody"></tbody>
+          <tfoot>
+            <tr style="background:#f9f9f9;">
+              <td colspan="7" style="padding:10px;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-top:2px solid #b91c1c;">TOTAL</td>
+              <td style="border-top:2px solid #b91c1c;"></td>
+              <td id="pp-total-foot" style="padding:10px;text-align:right;font-size:14px;font-weight:800;color:#b91c1c;border-top:2px solid #b91c1c;"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <div style="margin-bottom:28px;">
+        <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:10px;border-bottom:1px solid #e0e0e0;padding-bottom:6px;">Cost Breakdown Summary</div>
+        <div id="pp-breakdown" style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;"></div>
+      </div>
+      <div style="margin-bottom:28px;">
+        <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:10px;border-bottom:1px solid #e0e0e0;padding-bottom:6px;">Pricing Assumptions</div>
+        <div id="pp-assumptions" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;"></div>
+      </div>
+      <div style="margin-bottom:20px;">
+        <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:8px;border-bottom:1px solid #e0e0e0;padding-bottom:6px;">Notes</div>
+        <div id="pp-notes-display" style="font-size:11px;color:#444;min-height:48px;white-space:pre-wrap;"></div>
+      </div>
+      <div style="border-top:1px solid #e0e0e0;padding-top:14px;display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:9px;color:#aaa;">Superior 3D and Laser · superior3dandlaser.com</div>
+        <div style="font-size:9px;color:#aaa;" id="pp-footer-date"></div>
+      </div>
+    </div>
+
+    <!-- CUSTOMER QUOTE PAGE -->
+    <div id="quotePage" style="display:none;background:#fff;width:816px;min-height:1056px;margin:0 auto;padding:56px 64px;box-shadow:0 8px 48px rgba(0,0,0,.2);border-radius:4px;font-family:'Inter',sans-serif;color:#111;box-sizing:border-box;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:36px;border-bottom:3px solid #b91c1c;padding-bottom:24px;">
+        <div>
+          <div style="font-size:14px;font-weight:800;color:#b91c1c;letter-spacing:.05em;margin-bottom:6px;">SUPERIOR 3D AND LASER</div>
+          <div style="font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#888;margin-bottom:8px;">Quotation</div>
+          <div id="qp-title" style="font-size:28px;font-weight:800;letter-spacing:-.5px;line-height:1.1;color:#111;"></div>
+          <div id="qp-prepby" style="font-size:11px;color:#666;margin-top:6px;"></div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:4px;">Quote Date</div>
+          <div id="qp-date" style="font-size:13px;font-weight:700;color:#111;"></div>
+          <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#888;margin-top:10px;margin-bottom:4px;">Quote #</div>
+          <div id="qp-num" style="font-size:13px;font-weight:700;color:#111;"></div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px;padding:20px 24px;background:#f8f8f8;border-radius:8px;border:1px solid #e0e0e0;">
+        <div>
+          <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:8px;">Prepared For</div>
+          <div id="qp-client" style="font-size:15px;font-weight:700;color:#111;"></div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:8px;">Prepared By</div>
+          <div id="qp-prepby2" style="font-size:15px;font-weight:700;color:#111;"></div>
+        </div>
+      </div>
+      <div style="margin-bottom:32px;">
+        <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:10px;border-bottom:1px solid #e0e0e0;padding-bottom:6px;">Items</div>
+        <table id="qp-table" style="width:100%;border-collapse:collapse;font-size:11.5px;">
+          <thead>
+            <tr style="background:#f1f1f1;">
+              <th style="padding:9px 12px;text-align:left;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">#</th>
+              <th style="padding:9px 12px;text-align:left;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">Description</th>
+              <th style="padding:9px 12px;text-align:right;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">Qty</th>
+              <th style="padding:9px 12px;text-align:right;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">Print Time</th>
+              <th style="padding:9px 12px;text-align:right;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">Finishing</th>
+              <th style="padding:9px 12px;text-align:right;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">Assembly</th>
+              <th style="padding:9px 12px;text-align:right;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">Unit Price</th>
+              <th style="padding:9px 12px;text-align:right;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:2px solid #ddd;">Total</th>
+            </tr>
+          </thead>
+          <tbody id="qp-tbody"></tbody>
+          <tfoot>
+            <tr>
+              <td colspan="6" style="padding:12px;border-top:2px solid #b91c1c;"></td>
+              <td style="padding:12px;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#555;border-top:2px solid #b91c1c;text-align:right;">TOTAL</td>
+              <td id="qp-total-foot" style="padding:12px;text-align:right;font-size:16px;font-weight:800;color:#b91c1c;border-top:2px solid #b91c1c;"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <div style="margin-bottom:32px;">
+        <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:10px;border-bottom:1px solid #e0e0e0;padding-bottom:6px;">Estimated Time Breakdown</div>
+        <div id="qp-time" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;"></div>
+      </div>
+      <div style="margin-bottom:28px;">
+        <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:8px;border-bottom:1px solid #e0e0e0;padding-bottom:6px;">Notes &amp; Terms</div>
+        <div id="qp-notes-display" style="font-size:11px;color:#444;line-height:1.6;min-height:52px;white-space:pre-wrap;"></div>
+      </div>
+      <div style="background:#b91c1c;border-radius:10px;padding:22px 28px;display:flex;justify-content:space-between;align-items:center;margin-bottom:28px;">
+        <div>
+          <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:4px;">Order Total</div>
+          <div id="qp-grand-total" style="font-size:36px;font-weight:900;letter-spacing:-1.5px;color:#fff;"></div>
+        </div>
+        <div style="text-align:right;">
+          <div id="qp-parts-summary" style="font-size:12px;color:rgba(255,255,255,.75);"></div>
+        </div>
+      </div>
+      <div style="border-top:1px solid #e0e0e0;padding-top:14px;display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:9px;color:#aaa;">This quote is valid for 30 days from the date of issue.</div>
+        <div id="qp-footer-date" style="font-size:9px;color:#aaa;"></div>
+      </div>
+    </div>
+
+    <!-- Notes editor -->
+    <div style="max-width:816px;margin:0 auto;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:16px;">
+      <label style="display:block;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--label);margin-bottom:8px;">Add Notes (visible on print)</label>
+      <textarea id="printNotes" rows="3" placeholder="e.g. Payment terms, lead time, material specs, client instructions…" style="width:100%;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font);font-size:12px;padding:10px;outline:none;resize:vertical;" oninput="document.getElementById('pp-notes-display').textContent=this.value"></textarea>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">✓ <span id="toastMsg"></span></div>
+
+<style>
+@media print {
+  body > * { display: none !important; }
+  #printModal { display:block !important; position:static !important; background:none !important; backdrop-filter:none !important; padding:0 !important; overflow:visible !important; }
+  #printModal > div > div:first-child,
+  #printModal > div > div:last-child { display:none !important; }
+  #printPage, #quotePage { box-shadow:none !important; width:100% !important; margin:0 !important; padding:0.5in 0.75in !important; min-height:auto !important; }
+}
+</style>
+
+<script>
+const DEFAULT_MATERIALS = [
+  { name: 'PLA',              midpoint: 21.5, range: '$18–$25',  notes: 'Easy to print' },
+  { name: 'PETG',             midpoint: 26,   range: '$22–$30',  notes: 'Durable, flexible' },
+  { name: 'ABS',              midpoint: 23,   range: '$18–$28',  notes: 'Heat resistant' },
+  { name: 'ASA',              midpoint: 31.5, range: '$25–$38',  notes: 'UV resistant' },
+  { name: 'TPU (95A)',        midpoint: 34,   range: '$28–$40',  notes: 'Flexible/rubber' },
+  { name: 'Nylon PA12',       midpoint: 55,   range: '$45–$65',  notes: 'High strength' },
+  { name: 'CF-Nylon',         midpoint: 75,   range: '$60–$90',  notes: 'Stiff & light' },
+  { name: 'RESIN (std)',      midpoint: 37.5, range: '$25–$50',  notes: 'High detail' },
+  { name: 'RESIN (ABS-like)', midpoint: 55,   range: '$40–$70',  notes: 'Tougher blend' },
+];
+const DEFAULT_LABOUR = [
+  { context: 'Hobbyist',       rate: '$5–$15',  notes: 'Time cost only' },
+  { context: 'Small Business', rate: '$20–$35', notes: 'Competitive pricing' },
+  { context: 'Professional',   rate: '$40–$75', notes: 'Expert finishing' },
+  { context: 'Commercial',     rate: '$25–$50', notes: 'Volume discount' },
+];
+const DEFAULT_INSERTS = [
+  { size: 'M2', thread: 'M2×0.4', od: '3.2mm', cost: '$0.06–$0.10' },
+  { size: 'M3', thread: 'M3×0.5', od: '4.6mm', cost: '$0.10–$0.15' },
+  { size: 'M4', thread: 'M4×0.7', od: '6.0mm', cost: '$0.12–$0.18' },
+  { size: 'M5', thread: 'M5×0.8', od: '7.0mm', cost: '$0.15–$0.22' },
+];
+
+function load(key, def) {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : JSON.parse(JSON.stringify(def)); }
+  catch(e) { return JSON.parse(JSON.stringify(def)); }
+}
+function save(key, data) {
+  try { localStorage.setItem(key, JSON.stringify(data)); } catch(e) {}
+}
+
+let materials   = load('3dp_materials', DEFAULT_MATERIALS);
+let labourRates = load('3dp_labour',    DEFAULT_LABOUR);
+let insertRef   = load('3dp_inserts',   DEFAULT_INSERTS);
+
+function renderMaterials() {
+  const tbody = document.getElementById('matTableBody');
+  tbody.innerHTML = materials.map((m, i) => `
+    <tr>
+      <td><input class="ref-cell name-cell" value="${esc(m.name)}" oninput="materials[${i}].name=this.value; saveMaterials()" placeholder="Material name"></td>
+      <td><input class="ref-cell price-cell" type="number" value="${m.midpoint}" step="0.5" oninput="materials[${i}].midpoint=+this.value; saveMaterials()" style="width:80px"></td>
+      <td><input class="ref-cell" value="${esc(m.range)}" oninput="materials[${i}].range=this.value; saveMaterials()" placeholder="$xx–$xx" style="width:90px"></td>
+      <td><input class="ref-cell" value="${esc(m.notes)}" oninput="materials[${i}].notes=this.value; saveMaterials()" placeholder="Notes"></td>
+      <td><button class="batch-del" onclick="deleteMaterial(${i})" title="Delete">✕</button></td>
+    </tr>
+  `).join('');
+  rebuildMaterialDropdown();
+}
+
+function renderLabour() {
+  const tbody = document.getElementById('labourTableBody');
+  tbody.innerHTML = labourRates.map((r, i) => `
+    <tr>
+      <td><input class="ref-cell name-cell" value="${esc(r.context)}" oninput="labourRates[${i}].context=this.value; saveLabour()" placeholder="Context"></td>
+      <td><input class="ref-cell price-cell" value="${esc(r.rate)}" oninput="labourRates[${i}].rate=this.value; saveLabour()" placeholder="$xx–$xx" style="width:90px"></td>
+      <td><input class="ref-cell" value="${esc(r.notes)}" oninput="labourRates[${i}].notes=this.value; saveLabour()" placeholder="Notes"></td>
+      <td><button class="batch-del" onclick="deleteLabour(${i})" title="Delete">✕</button></td>
+    </tr>
+  `).join('');
+}
+
+function renderInserts() {
+  const tbody = document.getElementById('insertTableBody');
+  tbody.innerHTML = insertRef.map((r, i) => `
+    <tr>
+      <td><input class="ref-cell name-cell" value="${esc(r.size)}" oninput="insertRef[${i}].size=this.value; saveInserts()" placeholder="M3" style="width:50px"></td>
+      <td><input class="ref-cell" value="${esc(r.thread)}" oninput="insertRef[${i}].thread=this.value; saveInserts()" placeholder="M3×0.5" style="width:70px"></td>
+      <td><input class="ref-cell" value="${esc(r.od)}" oninput="insertRef[${i}].od=this.value; saveInserts()" placeholder="4.6mm" style="width:60px"></td>
+      <td><input class="ref-cell price-cell" value="${esc(r.cost)}" oninput="insertRef[${i}].cost=this.value; saveInserts()" placeholder="$0.10–$0.15" style="width:100px"></td>
+      <td><button class="batch-del" onclick="deleteInsert(${i})" title="Delete">✕</button></td>
+    </tr>
+  `).join('');
+}
+
+function esc(s) { return String(s ?? '').replace(/"/g, '&quot;'); }
+
+function flashNote(id, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = '✓ Saved';
+  el.classList.add('saved');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.textContent = msg; el.classList.remove('saved'); }, 1800);
+}
+
+function saveMaterials() { save('3dp_materials', materials); rebuildMaterialDropdown(); flashNote('matSaveNote', 'Changes update the Calculator dropdown automatically'); }
+function saveLabour()    { save('3dp_labour', labourRates); flashNote('labourSaveNote', 'Reference only'); }
+function saveInserts()   { save('3dp_inserts', insertRef);  flashNote('insertSaveNote', 'Reference only'); }
+
+function addMaterialRow() {
+  materials.push({ name: 'New Material', midpoint: 30, range: '$xx–$xx', notes: '' });
+  renderMaterials(); saveMaterials();
+  const rows = document.querySelectorAll('#matTableBody tr');
+  if (rows.length) rows[rows.length-1].querySelector('input').focus();
+}
+function addLabourRow() { labourRates.push({ context: 'New Context', rate: '$xx–$xx', notes: '' }); renderLabour(); saveLabour(); }
+function addInsertRow() { insertRef.push({ size: 'Mx', thread: 'Mx×x', od: 'x.xmm', cost: '$0.xx–$0.xx' }); renderInserts(); saveInserts(); }
+
+function deleteMaterial(i) { materials.splice(i,1); renderMaterials(); saveMaterials(); }
+function deleteLabour(i)   { labourRates.splice(i,1); renderLabour(); saveLabour(); }
+function deleteInsert(i)   { insertRef.splice(i,1); renderInserts(); saveInserts(); }
+
+function resetMaterials() {
+  if (!confirm('Reset materials to defaults? Your changes will be lost.')) return;
+  materials = JSON.parse(JSON.stringify(DEFAULT_MATERIALS)); save('3dp_materials', materials); renderMaterials(); showToast('Materials reset to defaults');
+}
+function resetLabour() {
+  if (!confirm('Reset labour rates to defaults?')) return;
+  labourRates = JSON.parse(JSON.stringify(DEFAULT_LABOUR)); save('3dp_labour', labourRates); renderLabour(); showToast('Labour rates reset');
+}
+function resetInserts() {
+  if (!confirm('Reset heat insert reference to defaults?')) return;
+  insertRef = JSON.parse(JSON.stringify(DEFAULT_INSERTS)); save('3dp_inserts', insertRef); renderInserts(); showToast('Insert reference reset');
+}
+
+function rebuildMaterialDropdown() {
+  const sel = document.getElementById('materialType');
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = materials.map(m => `<option value="${esc(m.name)}">${esc(m.name)}</option>`).join('') + `<option value="custom">Custom…</option>`;
+  if ([...sel.options].some(o => o.value === current)) sel.value = current;
+}
+
+function getMatPrice(name) {
+  const m = materials.find(m => m.name === name);
+  return m ? m.midpoint : null;
+}
+
+function g(id) { return parseFloat(document.getElementById(id).value) || 0; }
+function fmt(n) { return '$' + n.toFixed(2); }
+
+function onMaterialChange() {
+  const mat = document.getElementById('materialType').value;
+  const price = getMatPrice(mat);
+  if (mat !== 'custom' && price != null) {
+    document.getElementById('matCostKg').value = price;
+    document.getElementById('matHint').textContent = '⚡ Auto-set from material selection';
+  } else if (mat === 'custom') {
+    document.getElementById('matHint').textContent = 'Enter your custom price above';
+  }
+  calc();
+}
+
+function calc() {
+  const matCost     = (g('matCostKg') / 1000) * g('materialGrams') * g('wasteFactor');
+  const printBase   = g('printHours') * g('printerCost');
+  const printCost   = printBase * (1 + g('failureRate'));
+  const postHrs     = g('sandingHrs') + g('paintingHrs') + g('supportHrs');
+  const postCost    = postHrs * g('labourRate') + g('consumables');
+  const insertCost  = g('insertCount') * g('insertCost') + g('insertCount') * g('insertTime') * g('insertLabour');
+  const assemblyCost= (g('assemblyHrs') + g('qcHrs')) * g('assemblyLabour') + g('hardware');
+  const directCost  = matCost + printCost + postCost + insertCost + assemblyCost;
+  const overhead    = directCost * g('overheadRate');
+  const unitPrice   = (directCost + overhead) * (1 + g('profitMargin'));
+  const qty         = Math.max(1, g('qty'));
+  const total       = unitPrice * qty;
+
+  document.getElementById('res-material').textContent = fmt(matCost);
+  document.getElementById('res-print').textContent    = fmt(printCost);
+  document.getElementById('res-post').textContent     = fmt(postCost);
+  document.getElementById('res-inserts').textContent  = fmt(insertCost);
+  document.getElementById('res-assembly').textContent = fmt(assemblyCost);
+  document.getElementById('s-material').textContent   = fmt(matCost);
+  document.getElementById('s-print').textContent      = fmt(printCost);
+  document.getElementById('s-post').textContent       = fmt(postCost);
+  document.getElementById('s-inserts').textContent    = fmt(insertCost);
+  document.getElementById('s-assembly').textContent   = fmt(assemblyCost);
+  document.getElementById('s-overhead').textContent   = fmt(overhead);
+  document.getElementById('t-unit').textContent       = fmt(unitPrice);
+  document.getElementById('t-qty').textContent        = qty;
+  document.getElementById('t-total').textContent      = fmt(total);
+  window._lastCalc = { matCost, printCost, postCost, insertCost, assemblyCost, overhead, unitPrice, qty, total };
+}
+
+let batchRows = [];
+
+function addToBatch() {
+  calc();
+  const r = window._lastCalc;
+  const row = {
+    id: Date.now(),
+    name: document.getElementById('partName').value || 'Unnamed Part',
+    qty: g('qty') || 1,
+    matG: g('materialGrams'),
+    printHrs: g('printHours'),
+    postHrs: g('sandingHrs') + g('paintingHrs') + g('supportHrs'),
+    inserts: g('insertCount'),
+    assemblyHrs: g('assemblyHrs') + g('qcHrs'),
+    matKg: g('matCostKg'),
+    unitPrice: r.unitPrice
+  };
+  batchRows.push(row);
+  renderBatch();
+  switchTab('batch');
+  showToast(`${row.name} (×${row.qty}) → ${fmt(row.unitPrice)}/unit added`);
+}
+
+function addEmptyBatchRow() {
+  batchRows.push({ id: Date.now(), name: 'New Part', qty: 1, matG: 50, printHrs: 2, postHrs: 0.5, inserts: 0, assemblyHrs: 0.5, matKg: 25, unitPrice: 0 });
+  renderBatch();
+  recalcBatchRow(batchRows.length - 1);
+}
+
+function deleteBatchRow(id) { batchRows = batchRows.filter(r => r.id !== id); renderBatch(); }
+function clearBatch()       { if (batchRows.length === 0) return; batchRows = []; renderBatch(); }
+
+function renderBatch() {
+  const tbody = document.getElementById('batchBody');
+  const empty = document.getElementById('emptyBatch');
+  const table = document.getElementById('batchTable');
+  if (batchRows.length === 0) {
+    empty.style.display = 'block'; table.style.display = 'none';
+    document.getElementById('batchTotal').textContent = '$0.00';
+    document.getElementById('batch-count').textContent = '0 parts';
+    return;
+  }
+  empty.style.display = 'none'; table.style.display = 'table';
+  tbody.innerHTML = batchRows.map((r, i) => `
+    <tr>
+      <td><input class="batch-input" value="${esc(r.name)}" onchange="batchRows[${i}].name=this.value"></td>
+      <td><input class="batch-input" type="number" value="${r.qty}" min="1" style="width:50px" onchange="batchRows[${i}].qty=+this.value; recalcBatchRow(${i})"></td>
+      <td><input class="batch-input" type="number" value="${r.matG}" step="1" style="width:60px" onchange="batchRows[${i}].matG=+this.value; recalcBatchRow(${i})"></td>
+      <td><input class="batch-input" type="number" value="${r.printHrs}" step="0.5" style="width:60px" onchange="batchRows[${i}].printHrs=+this.value; recalcBatchRow(${i})"></td>
+      <td><input class="batch-input" type="number" value="${r.postHrs}" step="0.1" style="width:60px" onchange="batchRows[${i}].postHrs=+this.value; recalcBatchRow(${i})"></td>
+      <td><input class="batch-input" type="number" value="${r.inserts}" step="1" style="width:50px" onchange="batchRows[${i}].inserts=+this.value; recalcBatchRow(${i})"></td>
+      <td><input class="batch-input" type="number" value="${r.assemblyHrs}" step="0.1" style="width:60px" onchange="batchRows[${i}].assemblyHrs=+this.value; recalcBatchRow(${i})"></td>
+      <td><input class="batch-input" type="number" value="${r.matKg}" step="0.5" style="width:60px" onchange="batchRows[${i}].matKg=+this.value; recalcBatchRow(${i})"></td>
+      <td class="price-col" id="bp-${r.id}">${fmt(r.unitPrice * r.qty)}</td>
+      <td><button class="batch-del" onclick="deleteBatchRow(${r.id})">✕</button></td>
+    </tr>
+  `).join('');
+  updateBatchTotal();
+  document.getElementById('batch-count').textContent = batchRows.length + (batchRows.length === 1 ? ' part' : ' parts');
+}
+
+function recalcBatchRow(i) {
+  const r = batchRows[i];
+  const matCost    = (r.matKg / 1000) * r.matG * 1.1;
+  const printCost  = r.printHrs * 0.15 * 1.05;
+  const postCost   = r.postHrs * 25 + 2;
+  const insertCost = r.inserts * 0.12 + r.inserts * 0.05 * 25;
+  const asmCost    = r.assemblyHrs * 25 + 1.5;
+  const direct     = matCost + printCost + postCost + insertCost + asmCost;
+  r.unitPrice = direct * (1 + 0.15) * (1 + 0.25);
+  const el = document.getElementById('bp-' + r.id);
+  if (el) el.textContent = fmt(r.unitPrice * r.qty);
+  updateBatchTotal();
+}
+
+function updateBatchTotal() {
+  document.getElementById('batchTotal').textContent = fmt(batchRows.reduce((s, r) => s + r.unitPrice * r.qty, 0));
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  document.querySelectorAll('.tab').forEach(t => {
+    if (t.getAttribute('onclick') && t.getAttribute('onclick').includes(name)) t.classList.add('active');
+  });
+}
+
+function toggleSection(header) { header.closest('.section-card').classList.toggle('collapsed'); }
+
+function resetCalc() {
+  document.getElementById('partName').value = '';
+  document.getElementById('qty').value = 3;
+  const sel = document.getElementById('materialType');
+  if (materials.length) { sel.value = materials[0].name; onMaterialChange(); }
+  document.getElementById('materialGrams').value = 50;
+  document.getElementById('wasteFactor').value   = 1.10;
+  document.getElementById('printHours').value    = 4.5;
+  document.getElementById('printerCost').value   = 0.15;
+  document.getElementById('failureRate').value   = 0.05;
+  document.getElementById('sandingHrs').value    = 0.1;
+  document.getElementById('paintingHrs').value   = 0;
+  document.getElementById('supportHrs').value    = 0;
+  document.getElementById('labourRate').value    = 25;
+  document.getElementById('consumables').value   = 2;
+  document.getElementById('insertCount').value   = 4;
+  document.getElementById('insertCost').value    = 0.12;
+  document.getElementById('insertTime').value    = 0.05;
+  document.getElementById('insertLabour').value  = 25;
+  document.getElementById('assemblyHrs').value   = 0.1;
+  document.getElementById('assemblyLabour').value= 25;
+  document.getElementById('hardware').value      = 1.5;
+  document.getElementById('qcHrs').value         = 0.1;
+  document.getElementById('overheadRate').value  = 0.15;
+  document.getElementById('profitMargin').value  = 0.25;
+  calc();
+  showToast('Calculator reset to defaults');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function openPrintPreview(mode) {
+  if (batchRows.length === 0) { showToast('Add parts to batch before printing'); return; }
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+  const grandTotal     = batchRows.reduce((s, r) => s + r.unitPrice * r.qty, 0);
+  const projectName    = document.getElementById('projectName').value || 'Batch Estimate';
+  const client         = document.getElementById('client').value || '—';
+  const prepBy         = document.getElementById('preparedBy').value || '—';
+  const totalQty       = batchRows.reduce((s,r) => s + r.qty, 0);
+  const totalPrintHrs  = batchRows.reduce((s,r) => s + r.printHrs * r.qty, 0);
+  const totalPostHrs   = batchRows.reduce((s,r) => s + r.postHrs  * r.qty, 0);
+  const totalAsmHrs    = batchRows.reduce((s,r) => s + r.assemblyHrs * r.qty, 0);
+
+  const isQuote = mode === 'quote';
+  document.getElementById('printPage').style.display  = isQuote ? 'none' : 'block';
+  document.getElementById('quotePage').style.display  = isQuote ? 'block' : 'none';
+  document.getElementById('previewLabel').textContent = isQuote ? 'Customer Quote — 8.5×11"' : 'Internal Summary — 8.5×11"';
+
+  if (!isQuote) {
+    document.getElementById('pp-title').textContent    = projectName;
+    document.getElementById('pp-subtitle').textContent = [client !== '—' ? 'Client: ' + client : '', prepBy !== '—' ? 'Prepared by: ' + prepBy : ''].filter(Boolean).join('  ·  ');
+    document.getElementById('pp-grand-total').textContent = fmt(grandTotal);
+    document.getElementById('pp-date').textContent     = dateStr;
+    document.getElementById('pp-footer-date').textContent = dateStr;
+
+    document.getElementById('pp-meta').innerHTML = [
+      { label: 'Total Parts',      value: totalQty + ' pcs' },
+      { label: 'Unique SKUs',      value: batchRows.length },
+      { label: 'Total Print Time', value: totalPrintHrs.toFixed(1) + ' hrs' },
+    ].map(m => `<div style="background:#f1f1f1;border-radius:6px;padding:12px 14px;border:1px solid #e0e0e0;">
+      <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#888;margin-bottom:4px;">${m.label}</div>
+      <div style="font-size:18px;font-weight:800;color:#111;letter-spacing:-.5px;">${m.value}</div>
+    </div>`).join('');
+
+    document.getElementById('pp-tbody').innerHTML = batchRows.map((r, i) => {
+      const lineTotal = r.unitPrice * r.qty;
+      const stripe = i % 2 === 1 ? 'background:#fafafa;' : '';
+      return `<tr style="${stripe}">
+        <td style="padding:7px 10px;color:#aaa;border-bottom:1px solid #f0f0f0;">${i+1}</td>
+        <td style="padding:7px 10px;font-weight:600;color:#111;border-bottom:1px solid #f0f0f0;">${r.name}</td>
+        <td style="padding:7px 10px;text-align:right;border-bottom:1px solid #f0f0f0;">${r.qty}</td>
+        <td style="padding:7px 10px;text-align:right;border-bottom:1px solid #f0f0f0;">${r.matG}g</td>
+        <td style="padding:7px 10px;text-align:right;border-bottom:1px solid #f0f0f0;">${r.printHrs}</td>
+        <td style="padding:7px 10px;text-align:right;border-bottom:1px solid #f0f0f0;">${r.postHrs}</td>
+        <td style="padding:7px 10px;text-align:right;border-bottom:1px solid #f0f0f0;">${r.inserts}</td>
+        <td style="padding:7px 10px;text-align:right;border-bottom:1px solid #f0f0f0;">${fmt(r.unitPrice)}</td>
+        <td style="padding:7px 10px;text-align:right;font-weight:700;border-bottom:1px solid #f0f0f0;">${fmt(lineTotal)}</td>
+      </tr>`;
+    }).join('');
+    document.getElementById('pp-total-foot').textContent = fmt(grandTotal);
+
+    let totMat=0, totPrint=0, totPost=0, totInsert=0, totAssembly=0, totOverhead=0;
+    batchRows.forEach(r => {
+      const matC=(r.matKg/1000)*r.matG*1.1*r.qty, prtC=r.printHrs*0.15*1.05*r.qty,
+            posC=(r.postHrs*25+2)*r.qty, insC=(r.inserts*0.12+r.inserts*0.05*25)*r.qty,
+            asmC=(r.assemblyHrs*25+1.5)*r.qty, dir=matC+prtC+posC+insC+asmC;
+      totMat+=matC; totPrint+=prtC; totPost+=posC; totInsert+=insC; totAssembly+=asmC; totOverhead+=dir*0.15;
+    });
+    document.getElementById('pp-breakdown').innerHTML = [
+      {label:'Material',value:totMat},{label:'Print Time',value:totPrint},{label:'Post-Process',value:totPost},
+      {label:'Heat Inserts',value:totInsert},{label:'Assembly',value:totAssembly},{label:'Overhead',value:totOverhead}
+    ].map(b=>`<div style="background:#f1f1f1;border-radius:6px;padding:10px 12px;text-align:center;border:1px solid #e0e0e0;">
+      <div style="font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#888;margin-bottom:4px;">${b.label}</div>
+      <div style="font-size:13px;font-weight:700;color:#111;">${fmt(b.value)}</div></div>`).join('');
+    document.getElementById('pp-assumptions').innerHTML = [
+      {label:'Overhead Rate', value:(g('overheadRate')*100).toFixed(0)+'%'},
+      {label:'Profit Margin', value:(g('profitMargin')*100).toFixed(0)+'%'},
+      {label:'Labour Rate',   value:'$'+g('labourRate')+'/hr'},
+      {label:'Printer Cost',  value:'$'+g('printerCost')+'/hr'}
+    ].map(a=>`<div style="background:#f1f1f1;border-radius:6px;padding:10px 12px;border:1px solid #e0e0e0;">
+      <div style="font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#888;margin-bottom:4px;">${a.label}</div>
+      <div style="font-size:13px;font-weight:700;color:#111;">${a.value}</div></div>`).join('');
+    document.getElementById('pp-notes-display').textContent = document.getElementById('printNotes')?.value || '';
+
+  } else {
+    const quoteNum = 'Q-' + now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0') + '-' + String(Math.floor(Math.random()*900)+100);
+    document.getElementById('qp-title').textContent        = projectName;
+    document.getElementById('qp-prepby').textContent       = prepBy !== '—' ? 'Prepared by ' + prepBy : '';
+    document.getElementById('qp-date').textContent         = dateStr;
+    document.getElementById('qp-num').textContent          = quoteNum;
+    document.getElementById('qp-client').textContent       = client;
+    document.getElementById('qp-prepby2').textContent      = prepBy;
+    document.getElementById('qp-grand-total').textContent  = fmt(grandTotal);
+    document.getElementById('qp-parts-summary').textContent= totalQty + ' part' + (totalQty !== 1 ? 's' : '') + '  ·  ' + batchRows.length + ' SKU' + (batchRows.length !== 1 ? 's' : '');
+    document.getElementById('qp-footer-date').textContent  = dateStr;
+
+    document.getElementById('qp-tbody').innerHTML = batchRows.map((r, i) => {
+      const lineTotal = r.unitPrice * r.qty;
+      const stripe = i % 2 === 1 ? 'background:#fafafa;' : '';
+      return `<tr style="${stripe}">
+        <td style="padding:8px 12px;color:#aaa;border-bottom:1px solid #f0f0f0;font-size:11px;">${i+1}</td>
+        <td style="padding:8px 12px;font-weight:700;color:#111;border-bottom:1px solid #f0f0f0;">${r.name}</td>
+        <td style="padding:8px 12px;text-align:right;border-bottom:1px solid #f0f0f0;font-size:11px;">${r.qty}</td>
+        <td style="padding:8px 12px;text-align:right;border-bottom:1px solid #f0f0f0;font-size:11px;">${(r.printHrs * r.qty).toFixed(1)}h</td>
+        <td style="padding:8px 12px;text-align:right;border-bottom:1px solid #f0f0f0;font-size:11px;">${r.postHrs > 0 ? (r.postHrs*r.qty).toFixed(1)+'h' : '—'}</td>
+        <td style="padding:8px 12px;text-align:right;border-bottom:1px solid #f0f0f0;font-size:11px;">${r.assemblyHrs > 0 ? (r.assemblyHrs*r.qty).toFixed(1)+'h' : '—'}</td>
+        <td style="padding:8px 12px;text-align:right;border-bottom:1px solid #f0f0f0;font-size:11px;">${fmt(r.unitPrice)}</td>
+        <td style="padding:8px 12px;text-align:right;font-weight:800;color:#111;border-bottom:1px solid #f0f0f0;font-size:12px;">${fmt(lineTotal)}</td>
+      </tr>`;
+    }).join('');
+    document.getElementById('qp-total-foot').textContent = fmt(grandTotal);
+
+    document.getElementById('qp-time').innerHTML = [
+      { label: 'Total Print Time',  value: totalPrintHrs.toFixed(1) + ' hrs', note: 'Active machine time' },
+      { label: 'Finishing & Post',  value: totalPostHrs.toFixed(1)  + ' hrs', note: 'Sanding, supports, coating' },
+      { label: 'Assembly',          value: totalAsmHrs.toFixed(1)   + ' hrs', note: 'Fit, hardware, QC' },
+      { label: 'Total Parts',       value: totalQty + ' pcs',                  note: batchRows.length + ' unique SKU' + (batchRows.length !== 1 ? 's' : '') },
+    ].map(t => `<div style="background:#f1f1f1;border-radius:8px;padding:14px 16px;border:1px solid #e0e0e0;">
+      <div style="font-size:8px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#888;margin-bottom:6px;">${t.label}</div>
+      <div style="font-size:20px;font-weight:800;color:#111;letter-spacing:-.5px;margin-bottom:3px;">${t.value}</div>
+      <div style="font-size:9px;color:#aaa;">${t.note}</div>
+    </div>`).join('');
+
+    document.getElementById('qp-notes-display').textContent = document.getElementById('printNotes')?.value || '';
+  }
+
+  document.getElementById('printModal').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+}
+
+function closePrintPreview() { document.getElementById('printModal').style.display = 'none'; document.body.style.overflow = ''; }
+function triggerPrint() { window.print(); }
+
+document.addEventListener('click', e => { if (e.target.id === 'printModal') closePrintPreview(); });
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('date').value = new Date().toISOString().split('T')[0];
+  renderMaterials(); renderLabour(); renderInserts();
+  const sel = document.getElementById('materialType');
+  const cfIdx = materials.findIndex(m => m.name === 'CF-Nylon');
+  if (cfIdx >= 0) sel.value = 'CF-Nylon';
+  onMaterialChange(); calc(); renderBatch();
+});
+</script>
+</body>
+</html>
