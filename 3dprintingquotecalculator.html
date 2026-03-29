@@ -7,6 +7,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<!-- Three.js for STL preview -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -320,6 +324,47 @@
   .addon-ctrl .input-wrap input { width:90px; }
   .addon-cost { font-size:12px; font-weight:700; color:var(--accent); margin-left:auto; font-variant-numeric:tabular-nums; white-space:nowrap; }
 
+  /* STL 3D VIEWER */
+  .stl-viewer-ph {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    height: 300px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 12px;
+    background: var(--bg-light);
+    user-select: none;
+  }
+  .stl-viewer-ph .ph-icon { font-size: 38px; line-height: 1; }
+  .stl-viewer-canvas {
+    width: 100%;
+    height: 300px;
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-top: 12px;
+    cursor: grab;
+    background: #141414;
+  }
+  .stl-viewer-canvas:active { cursor: grabbing; }
+  .stl-viewer-canvas canvas { display: block; border-radius: var(--radius); }
+  .stl-viewer-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 7px;
+    padding: 0 2px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .stl-viewer-meta .dims { font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+
   /* SITE NAV */
   .site-nav { position:sticky; top:0; z-index:50; background:rgba(255,255,255,.96); backdrop-filter:blur(8px); border-bottom:1px solid var(--border); }
   .site-nav-inner { max-width:1100px; margin:0 auto; padding:0 20px; display:flex; align-items:center; justify-content:space-between; height:58px; gap:16px; }
@@ -437,6 +482,20 @@
             </select>
           </div>
         </div>
+
+        <!-- 3D Model Preview -->
+        <div id="stlViewerPlaceholder" class="stl-viewer-ph">
+          <div class="ph-icon">📦</div>
+          <div>Upload an STL file to preview the 3D model</div>
+        </div>
+        <div id="stlViewerWrap" style="display:none;">
+          <div id="stlViewerContainer" class="stl-viewer-canvas"></div>
+          <div class="stl-viewer-meta">
+            <span class="dims" id="stlDims"></span>
+            <span id="stlFileInfo"></span>
+          </div>
+        </div>
+
         <div id="slicerSpinner" style="display:none;" class="slicer-spinner">
           <div class="slicer-spin-ring"></div>
           <span>Estimating from geometry…</span>
@@ -1195,6 +1254,12 @@ function resetCalc() {
   document.getElementById('postLevel').value = '1.5';
   document.getElementById('assemblyLevel').value = '1.5';
   document.getElementById('insertCount').value = 4;
+  // Reset 3D viewer
+  if (typeof window.disposeSTLViewer === 'function') window.disposeSTLViewer();
+  document.getElementById('stlViewerPlaceholder').style.display = '';
+  document.getElementById('stlViewerWrap').style.display = 'none';
+  document.getElementById('stlInput').value = '';
+  document.getElementById('stlFileName').textContent = 'No file selected';
   calc();
   showToast('Calculator reset to defaults');
 }
@@ -1493,6 +1558,10 @@ document.addEventListener('DOMContentLoaded', () => {
       console.log('[STL Estimator] Reading:', file.name, file.size, 'bytes');
       const buffer = await file.arrayBuffer();
 
+      // Render 3D preview (non-blocking — viewer errors won't abort the estimate)
+      try { window.initSTLViewer(buffer, file.name, file.size); }
+      catch (ve) { console.warn('[STL Viewer]', ve.message); }
+
       let meshMM3;
       try {
         meshMM3 = parseBinarySTL(buffer);
@@ -1519,6 +1588,122 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('res-slicer').textContent = 'Estimation failed';
       document.getElementById('res-slicer').style.color = '#dc2626';
     }
+  };
+}());
+</script>
+
+<script>
+// ── STL 3D Viewer ─────────────────────────────────────────────────────────────
+(function () {
+  var _renderer = null, _raf = null, _ro = null;
+
+  function dispose() {
+    if (_raf) { cancelAnimationFrame(_raf); _raf = null; }
+    if (_ro)  { _ro.disconnect(); _ro = null; }
+    if (_renderer) {
+      _renderer.dispose();
+      var c = _renderer.domElement;
+      if (c.parentNode) c.parentNode.removeChild(c);
+      _renderer = null;
+    }
+  }
+
+  window.disposeSTLViewer = dispose;
+
+  window.initSTLViewer = function (buffer, fileName, fileSize) {
+    if (typeof THREE === 'undefined' || !THREE.STLLoader) {
+      console.warn('[STL Viewer] Three.js not loaded');
+      return;
+    }
+    dispose();
+
+    var placeholder = document.getElementById('stlViewerPlaceholder');
+    var wrap        = document.getElementById('stlViewerWrap');
+    var container   = document.getElementById('stlViewerContainer');
+
+    // ── Parse geometry ────────────────────────────────────────────────────────
+    var geometry = new THREE.STLLoader().parse(buffer);
+    geometry.computeBoundingBox();
+    var bbox   = geometry.boundingBox;
+    var size   = bbox.getSize(new THREE.Vector3());
+    var center = bbox.getCenter(new THREE.Vector3());
+    geometry.translate(-center.x, -center.y, -center.z);
+
+    // ── Scene ─────────────────────────────────────────────────────────────────
+    var scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x141414);
+
+    // ── Renderer ──────────────────────────────────────────────────────────────
+    var H = 300;
+    var W = Math.max(container.offsetWidth || 400, 100);
+    _renderer = new THREE.WebGLRenderer({ antialias: true });
+    _renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    _renderer.setSize(W, H);
+    container.appendChild(_renderer.domElement);
+
+    // ── Camera ────────────────────────────────────────────────────────────────
+    var maxDim = Math.max(size.x, size.y, size.z) || 1;
+    var dist   = (maxDim / (2 * Math.tan((45 * Math.PI / 180) / 2))) * 2.2;
+    var camera = new THREE.PerspectiveCamera(45, W / H, dist * 0.001, dist * 100);
+    camera.position.set(dist * 0.6, dist * 0.35, dist * 0.75);
+    camera.lookAt(0, 0, 0);
+
+    // ── Lights ────────────────────────────────────────────────────────────────
+    scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+    var dl1 = new THREE.DirectionalLight(0xffffff, 0.75);
+    dl1.position.set(1, 2, 2);
+    scene.add(dl1);
+    var dl2 = new THREE.DirectionalLight(0x8090a0, 0.25);
+    dl2.position.set(-2, -1, -1);
+    scene.add(dl2);
+
+    // ── Mesh ──────────────────────────────────────────────────────────────────
+    var mesh = new THREE.Mesh(
+      geometry,
+      new THREE.MeshPhongMaterial({ color: 0xa8a8a8, specular: 0x2a2a2a, shininess: 35 })
+    );
+    scene.add(mesh);
+
+    // ── Orbit controls ────────────────────────────────────────────────────────
+    var controls = new THREE.OrbitControls(camera, _renderer.domElement);
+    controls.enableDamping  = true;
+    controls.dampingFactor  = 0.06;
+    controls.mouseButtons   = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+
+    // ── Render loop ───────────────────────────────────────────────────────────
+    (function loop() {
+      _raf = requestAnimationFrame(loop);
+      controls.update();
+      _renderer.render(scene, camera);
+    }());
+
+    // ── Responsive resize ─────────────────────────────────────────────────────
+    if (typeof ResizeObserver !== 'undefined') {
+      _ro = new ResizeObserver(function () {
+        var w = container.offsetWidth;
+        if (w > 0) {
+          camera.aspect = w / H;
+          camera.updateProjectionMatrix();
+          _renderer.setSize(w, H);
+        }
+      });
+      _ro.observe(container);
+    }
+
+    // ── Reveal ────────────────────────────────────────────────────────────────
+    placeholder.style.display = 'none';
+    wrap.style.display = 'block';
+
+    // ── Metadata ──────────────────────────────────────────────────────────────
+    var L  = size.x.toFixed(1);
+    var Wd = size.y.toFixed(1);
+    var Ht = size.z.toFixed(1);
+    document.getElementById('stlDims').textContent =
+      L + ' \u00d7 ' + Wd + ' \u00d7 ' + Ht + ' mm  (L \u00d7 W \u00d7 H)';
+    var kb = fileSize < 1048576
+      ? (fileSize / 1024).toFixed(1) + ' KB'
+      : (fileSize / 1048576).toFixed(2) + ' MB';
+    document.getElementById('stlFileInfo').textContent = fileName + '  \u00b7  ' + kb;
   };
 }());
 </script>
