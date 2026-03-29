@@ -468,6 +468,21 @@
             <span class="hint" id="res-slicer" style="color:var(--muted);font-weight:600;">Upload an STL to auto-estimate material &amp; time</span>
           </div>
           <div class="field">
+            <label>Material</label>
+            <select id="materialType" onchange="onMaterialChange()">
+              <option value="PLA" selected>PLA</option>
+              <option value="PETG">PETG</option>
+              <option value="ABS">ABS</option>
+              <option value="ASA">ASA</option>
+              <option value="TPU (95A)">TPU (95A)</option>
+              <option value="Nylon PA12">Nylon PA12</option>
+              <option value="CF-Nylon">CF-Nylon</option>
+              <option value="RESIN (std)">RESIN (std)</option>
+              <option value="RESIN (ABS-like)">RESIN (ABS-like)</option>
+              <option value="custom">Custom…</option>
+            </select>
+          </div>
+          <div class="field">
             <label>Infill Density</label>
             <select id="slicerInfill" onchange="reestimate()">
               <option value="0.10">10% — Minimal</option>
@@ -519,24 +534,9 @@
           We couldn't estimate this file automatically. Please <a href="contact.html">submit it for a manual quote</a>.
         </div>
 
-        <!-- Material & Print Time inputs -->
+        <!-- Print Time & admin inputs -->
         <div class="section-divider"></div>
         <div class="fields">
-          <div class="field">
-            <label>Material</label>
-            <select id="materialType" onchange="onMaterialChange()">
-              <option value="PLA" selected>PLA</option>
-              <option value="PETG">PETG</option>
-              <option value="ABS">ABS</option>
-              <option value="ASA">ASA</option>
-              <option value="TPU (95A)">TPU (95A)</option>
-              <option value="Nylon PA12">Nylon PA12</option>
-              <option value="CF-Nylon">CF-Nylon</option>
-              <option value="RESIN (std)">RESIN (std)</option>
-              <option value="RESIN (ABS-like)">RESIN (ABS-like)</option>
-              <option value="custom">Custom…</option>
-            </select>
-          </div>
           <div class="field admin-only">
             <label>Material Cost per kg</label>
             <div class="input-wrap"><input type="number" id="matCostKg" value="75" step="0.5" oninput="calc()"><span class="unit-tag">$/kg</span></div>
