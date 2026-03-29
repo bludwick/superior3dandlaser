@@ -543,11 +543,7 @@
             <span class="hint" id="matHint">⚡ Auto-set from material selection</span>
           </div>
           <input type="hidden" id="materialGrams" value="0">
-          <div class="field">
-            <label>Print Time</label>
-            <div class="input-wrap"><input type="number" id="printHours" value="0" step="0.5" oninput="calc()"><span class="unit-tag">hrs</span></div>
-            <span class="hint">From STL estimate, or enter manually</span>
-          </div>
+          <input type="hidden" id="printHours" value="0">
           <div class="field admin-only">
             <label>Waste / Support Factor</label>
             <div class="input-wrap"><input type="number" id="wasteFactor" value="1.10" step="0.01" oninput="calc()"><span class="unit-tag">×</span></div>
@@ -1536,7 +1532,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('materialGrams').value = weightG.toFixed(1);
     document.getElementById('printHours').value    = hrs.toFixed(2);
-    document.getElementById('printHours').closest('.field').querySelector('.hint').textContent = '✓ Estimated from STL geometry';
     if (typeof calc === 'function') calc();
 
     const h = Math.floor(hrs), m = Math.round((hrs - h) * 60);
