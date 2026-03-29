@@ -649,8 +649,8 @@
           </div>
           <div class="field">
             <label>Desired Profit Margin</label>
-            <div class="input-wrap"><input type="number" id="profitMargin" value="0.25" step="0.01" oninput="calc()"><span class="unit-tag">%</span></div>
-            <span class="hint">0.25 = 25% mark-up on cost</span>
+            <div class="input-wrap"><input type="number" id="profitMargin" value="0.50" step="0.01" oninput="calc()"><span class="unit-tag">%</span></div>
+            <span class="hint">0.50 = 50% mark-up on cost</span>
           </div>
         </div>
       </div>
@@ -1243,7 +1243,7 @@ function resetCalc() {
   document.getElementById('printerCost').value   = 0.15;
   document.getElementById('failureRate').value   = 0.05;
   document.getElementById('overheadRate').value  = 0.15;
-  document.getElementById('profitMargin').value  = 0.25;
+  document.getElementById('profitMargin').value  = 0.50;
   document.getElementById('labourRate').value    = 25;
   document.getElementById('insertUnitCost').value = 0.50;
   // Reset add-ons
