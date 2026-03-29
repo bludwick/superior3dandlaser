@@ -302,6 +302,7 @@
   .slicer-chip .chip-label { font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
   .slicer-chip .chip-val { font-size:15px; font-weight:800; color:var(--accent); }
   .slicer-ok-note { font-size:11px; color:var(--accent); font-weight:600; margin-top:8px; }
+  .slicer-calib-note { font-size:10px; color:var(--muted); margin-top:5px; font-family:monospace; letter-spacing:.01em; }
   .slicer-err-box { margin-top:10px; padding:11px 14px; background:rgba(220,38,38,.05); border:1px solid rgba(220,38,38,.2); border-radius:8px; font-size:12px; color:var(--muted); line-height:1.5; }
   .slicer-err-box a { color:var(--accent); font-weight:600; text-decoration:none; }
   .slicer-err-box a:hover { text-decoration:underline; }
@@ -325,6 +326,12 @@
   .addon-cost { font-size:12px; font-weight:700; color:var(--accent); margin-left:auto; font-variant-numeric:tabular-nums; white-space:nowrap; }
 
   /* STL 3D VIEWER */
+  .stl-viewer-center {
+    max-width: 50%;
+    min-width: 280px;
+    margin: 12px auto 0;
+  }
+  @media (max-width: 600px) { .stl-viewer-center { max-width: 100%; } }
   .stl-viewer-ph {
     border: 2px dashed var(--border);
     border-radius: var(--radius);
@@ -484,15 +491,17 @@
         </div>
 
         <!-- 3D Model Preview -->
-        <div id="stlViewerPlaceholder" class="stl-viewer-ph">
-          <div class="ph-icon">📦</div>
-          <div>Upload an STL file to preview the 3D model</div>
-        </div>
-        <div id="stlViewerWrap" style="display:none;">
-          <div id="stlViewerContainer" class="stl-viewer-canvas"></div>
-          <div class="stl-viewer-meta">
-            <span class="dims" id="stlDims"></span>
-            <span id="stlFileInfo"></span>
+        <div class="stl-viewer-center">
+          <div id="stlViewerPlaceholder" class="stl-viewer-ph">
+            <div class="ph-icon">📦</div>
+            <div>Upload an STL file to preview the 3D model</div>
+          </div>
+          <div id="stlViewerWrap" style="display:none;">
+            <div id="stlViewerContainer" class="stl-viewer-canvas"></div>
+            <div class="stl-viewer-meta">
+              <span class="dims" id="stlDims"></span>
+              <span id="stlFileInfo"></span>
+            </div>
           </div>
         </div>
 
@@ -506,6 +515,7 @@
             <div class="slicer-chip"><span class="chip-label">Filament Weight</span><span class="chip-val" id="slicerWeightDisp">—</span></div>
           </div>
           <div class="slicer-ok-note">✓ Volume-based estimate — actual values may vary ±20%</div>
+          <div id="slicerCalibNote" class="slicer-calib-note" style="display:none;"></div>
         </div>
         <div id="slicerError" style="display:none;" class="slicer-err-box">
           We couldn't estimate this file automatically. Please <a href="contact.html">submit it for a manual quote</a>.
@@ -1431,6 +1441,23 @@ document.addEventListener('DOMContentLoaded', () => {
 // resolves to the current domain rather than grid.space — unfixable cross-origin
 // limitation. We parse the STL directly instead: instant, no network, no CORS.
 (function () {
+  // ╔══════════════════════════════════════════════════════════════════╗
+  // ║  PRINT TIME CALIBRATION — adjust these to match your printer    ║
+  // ╚══════════════════════════════════════════════════════════════════╝
+
+  // Multiplier applied to the raw volume-based time estimate.
+  // The base formula gives a theoretical minimum (pure extrusion time).
+  // Real printers are slower due to acceleration, speed limits, and
+  // print-quality settings. Increase until estimates match your Bambu.
+  // e.g. 3.0 = the raw estimate is tripled.  Start here and tune down.
+  const PRINT_TIME_CALIBRATION = 3.0;
+
+  // Additional multiplier for layer-change overhead: travel moves,
+  // retraction sequences, Z-hop, fan speed ramps, etc.
+  // 1.15 = add 15% on top of PRINT_TIME_CALIBRATION.
+  const LAYER_TIME_OVERHEAD = 1.15;
+
+  // ── Material density lookup (g/cm³) ──────────────────────────────
   const DENSITY = {
     'PLA': 1.24, 'PETG': 1.27, 'ABS': 1.04, 'ASA': 1.07,
     'TPU (95A)': 1.21, 'Nylon PA12': 1.01, 'CF-Nylon': 1.15,
@@ -1504,15 +1531,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const fill = 0.35 + 0.65 * infill;
     // Supports add ~10% material when enabled
     const supportMult = supportType === 'auto' ? 1.10 : 1.0;
-    const matMM3 = meshMM3 * fill * supportMult;
+    const matMM3  = meshMM3 * fill * supportMult;
     const weightG = (matMM3 / 1000) * (DENSITY[material] || 1.24);
-    // ~25 mm³/s average deposition; +20% for travel moves, warmup, retracts
-    const hrs = (matMM3 / 25 * 1.2) / 3600;
-    console.log('[STL Estimator] fill:', (fill*100).toFixed(0)+'%',
+
+    // Raw time: ~25 mm³/s average deposition rate at typical FDM speeds.
+    // Result is in SECONDS before dividing by 3600.
+    const rawSec = (matMM3 / 25) * 1.2;   // seconds (1.2 = base 20% baseline pad)
+    const rawHrs = rawSec / 3600;          // convert to hours
+
+    // Adjusted time: apply both calibration constants on top of raw hours
+    const hrs = rawHrs * PRINT_TIME_CALIBRATION * LAYER_TIME_OVERHEAD;
+
+    console.log(
+      '[STL Estimator] fill:', (fill*100).toFixed(0)+'%',
       ' matVol:', matMM3.toFixed(0)+'mm³',
       ' weight:', weightG.toFixed(1)+'g',
-      ' time:', hrs.toFixed(2)+'hrs');
-    return { weightG, hrs };
+      '\n  raw time:', rawSec.toFixed(0)+'s =', rawHrs.toFixed(4)+'hrs',
+      '→ ×'+PRINT_TIME_CALIBRATION+' (PRINT_TIME_CALIBRATION)',
+      '× ×'+LAYER_TIME_OVERHEAD+' (LAYER_TIME_OVERHEAD)',
+      '= '+hrs.toFixed(4)+'hrs adjusted'
+    );
+    return { weightG, rawHrs, hrs };
   }
 
   let _cachedMeshMM3 = null; // persists across infill/support changes
@@ -1521,7 +1560,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const infill      = parseFloat(document.getElementById('slicerInfill').value);
     const supportType = document.getElementById('slicerSupport').value;
     const material    = document.getElementById('materialType').value;
-    const { weightG, hrs } = estimate(meshMM3, infill, supportType, material);
+    const { weightG, rawHrs, hrs } = estimate(meshMM3, infill, supportType, material);
 
     document.getElementById('materialGrams').value = weightG.toFixed(1);
     document.getElementById('printHours').value    = hrs.toFixed(2);
@@ -1529,12 +1568,24 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('printHours').closest('.field').querySelector('.hint').textContent    = '✓ Estimated from STL geometry';
     if (typeof calc === 'function') calc();
 
-    const h = Math.floor(hrs), m = Math.round((hrs - h) * 60);
-    const timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+    function fmtHrs(h) {
+      const hh = Math.floor(h), mm = Math.round((h - hh) * 60);
+      return hh > 0 ? `${hh}h ${mm}m` : `${mm}m`;
+    }
+    const timeStr = fmtHrs(hrs);
+    const rawStr  = fmtHrs(rawHrs);
+
     document.getElementById('slicerTimeDisp').textContent   = timeStr;
     document.getElementById('slicerWeightDisp').textContent = weightG.toFixed(1) + ' g';
     document.getElementById('res-slicer').textContent       = `~${timeStr} · ~${weightG.toFixed(1)} g`;
     document.getElementById('res-slicer').style.color       = 'var(--accent)';
+
+    // Calibration debug line — remove once multipliers are dialled in
+    const note = document.getElementById('slicerCalibNote');
+    if (note) {
+      note.textContent = `raw: ${rawStr}  ×${PRINT_TIME_CALIBRATION} cal  ×${LAYER_TIME_OVERHEAD} overhead  →  ${timeStr}`;
+      note.style.display = 'block';
+    }
   }
 
   window.reestimate = function () {
