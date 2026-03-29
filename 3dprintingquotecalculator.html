@@ -1434,6 +1434,13 @@ document.addEventListener('DOMContentLoaded', () => {
 // resolves to the current domain rather than grid.space — unfixable cross-origin
 // limitation. We parse the STL directly instead: instant, no network, no CORS.
 (function () {
+  // Multiplier to correct for Bambu printer being slower than the theoretical
+  // deposition-only estimate. Increase if estimates are still too low.
+  const PRINT_TIME_CALIBRATION = 3.0;
+
+  // Extra overhead for travel moves, retractions, acceleration ramps, etc.
+  const LAYER_TIME_OVERHEAD = 1.15;
+
   // ── Material density lookup (g/cm³) ──────────────────────────────
   const DENSITY = {
     'PLA': 1.24, 'PETG': 1.27, 'ABS': 1.04, 'ASA': 1.07,
@@ -1511,8 +1518,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const matMM3  = meshMM3 * fill * supportMult;
     const weightG = (matMM3 / 1000) * (DENSITY[material] || 1.24);
 
-    // ~25 mm³/s average deposition; +20% for travel moves, warmup, retracts
-    const hrs = (matMM3 / 25 * 1.2) / 3600;
+    // ~25 mm³/s average deposition; scaled by calibration constants
+    const hrs = (matMM3 / 25 * 1.2) / 3600 * PRINT_TIME_CALIBRATION * LAYER_TIME_OVERHEAD;
     console.log('[STL Estimator] fill:', (fill*100).toFixed(0)+'%',
       ' matVol:', matMM3.toFixed(0)+'mm³',
       ' weight:', weightG.toFixed(1)+'g',
