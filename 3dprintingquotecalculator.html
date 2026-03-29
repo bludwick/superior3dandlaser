@@ -390,6 +390,237 @@
   body.admin-mode .admin-lock-btn { border-color:var(--accent); color:var(--accent); background:rgba(185,28,28,.06); }
   .admin-banner { display:none; background:rgba(185,28,28,.07); border:1px solid rgba(185,28,28,.2); border-radius:8px; padding:8px 14px; font-size:11px; font-weight:700; color:var(--accent); letter-spacing:.05em; margin-bottom:16px; }
   body.admin-mode .admin-banner { display:block; }
+
+  /* ── CART ICON (NAV) ──────────────────────────────────────────────────── */
+  .cart-nav-btn {
+    position: relative;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 13px;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    color: var(--text);
+    transition: all .2s;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .cart-nav-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(185,28,28,.05); }
+  .cart-badge {
+    background: var(--accent);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+    line-height: 1;
+  }
+
+  /* ── ADD TO CART BUTTON ───────────────────────────────────────────────── */
+  .btn-add-cart {
+    padding: 11px 22px;
+    border-radius: 8px;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    letter-spacing: .02em;
+    transition: all .2s;
+    display: none; /* shown by calc() once total > 0 */
+    align-items: center;
+    gap: 7px;
+    background: #111;
+    color: #fff;
+  }
+  .btn-add-cart:hover { background: #333; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,.2); }
+  .btn-add-cart.added { background: #15803d !important; }
+
+  /* ── CART SLIDE PANEL ─────────────────────────────────────────────────── */
+  .cart-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.45);
+    z-index: 300;
+    opacity: 0; pointer-events: none;
+    transition: opacity .3s;
+  }
+  .cart-overlay.open { opacity: 1; pointer-events: all; }
+
+  .cart-panel {
+    position: fixed; top: 0; right: 0;
+    width: 420px; max-width: 100vw; height: 100vh;
+    background: var(--bg);
+    border-left: 1px solid var(--border);
+    z-index: 301;
+    display: flex; flex-direction: column;
+    transform: translateX(100%);
+    transition: transform .3s cubic-bezier(.4,0,.2,1);
+    box-shadow: -8px 0 40px rgba(0,0,0,.12);
+  }
+  .cart-panel.open { transform: translateX(0); }
+
+  .cart-panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 24px; border-bottom: 1px solid var(--border);
+    background: var(--bg-card); flex-shrink: 0;
+  }
+  .cart-panel-title { font-size: 16px; font-weight: 800; letter-spacing: -.01em; display: flex; align-items: center; gap: 10px; }
+  .cart-panel-close {
+    background: none; border: 1px solid var(--border); border-radius: 6px;
+    width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 14px; color: var(--muted); transition: all .15s;
+  }
+  .cart-panel-close:hover { border-color: var(--accent); color: var(--accent); background: rgba(185,28,28,.06); }
+
+  .cart-items-list { flex: 1; overflow-y: auto; padding: 16px; }
+
+  .cart-empty-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 100%; gap: 12px; color: var(--muted); padding: 40px; text-align: center;
+  }
+  .cart-empty-state .ce-icon { font-size: 48px; line-height: 1; }
+  .cart-empty-state .ce-title { font-size: 15px; font-weight: 700; color: var(--text); }
+  .cart-empty-state .ce-sub { font-size: 12px; }
+
+  .cart-item {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px;
+    transition: border-color .2s;
+  }
+  .cart-item:hover { border-color: rgba(185,28,28,.3); }
+  .cart-item-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cart-item-meta { font-size: 11px; color: var(--muted); margin-bottom: 10px; line-height: 1.6; }
+  .cart-item-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .cart-item-qty { display: flex; align-items: center; gap: 7px; }
+  .cart-qty-btn {
+    width: 26px; height: 26px; border-radius: 5px; border: 1px solid var(--border);
+    background: var(--bg-light); font-size: 15px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; color: var(--text);
+    transition: all .15s; padding: 0; font-family: var(--font); line-height: 1;
+  }
+  .cart-qty-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(185,28,28,.06); }
+  .cart-qty-num { font-size: 14px; font-weight: 700; min-width: 22px; text-align: center; font-variant-numeric: tabular-nums; }
+  .cart-item-price { font-size: 14px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .cart-item-remove { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 13px; padding: 4px 6px; border-radius: 4px; transition: all .15s; }
+  .cart-item-remove:hover { background: rgba(220,38,38,.1); color: #dc2626; }
+
+  .cart-panel-footer { border-top: 1px solid var(--border); padding: 20px 24px; background: var(--bg-card); flex-shrink: 0; }
+  .cart-subtotal-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .cart-subtotal-label { font-size: 13px; font-weight: 600; color: var(--muted); }
+  .cart-subtotal-val { font-size: 18px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+  .cart-footer-btns { display: flex; flex-direction: column; gap: 8px; }
+  .btn-cart-checkout {
+    background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    padding: 13px 22px; font-family: var(--font); font-size: 14px; font-weight: 700;
+    cursor: pointer; width: 100%; transition: all .2s; letter-spacing: .01em;
+  }
+  .btn-cart-checkout:hover { background: var(--accent-lt); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(185,28,28,.3); }
+  .btn-cart-continue {
+    background: none; border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 22px; font-family: var(--font); font-size: 13px; font-weight: 600;
+    cursor: pointer; width: 100%; color: var(--text); transition: all .2s;
+  }
+  .btn-cart-continue:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── CHECKOUT MODAL ───────────────────────────────────────────────────── */
+  .checkout-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.6);
+    z-index: 400; display: none; overflow-y: auto; padding: 32px 20px;
+  }
+  .checkout-overlay.open { display: block; }
+  .checkout-modal {
+    max-width: 760px; margin: 0 auto; background: var(--bg);
+    border-radius: 16px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,.25);
+  }
+  .checkout-header { background: var(--accent); padding: 28px 36px; color: #fff; }
+  .checkout-header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .checkout-header h2 { font-size: 22px; font-weight: 900; letter-spacing: -.02em; margin: 0; }
+  .checkout-header-sub { font-size: 13px; opacity: .75; }
+  .checkout-header-close {
+    background: rgba(255,255,255,.15); border: none; border-radius: 6px;
+    width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 16px; color: #fff; transition: background .15s; flex-shrink: 0;
+  }
+  .checkout-header-close:hover { background: rgba(255,255,255,.28); }
+  .checkout-body { padding: 32px 36px; }
+  @media (max-width: 600px) { .checkout-body { padding: 20px 18px; } .checkout-header { padding: 20px 18px; } }
+
+  .checkout-section-title {
+    font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--label); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  }
+  .co-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
+  .co-table th { font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+  .co-table th:last-child, .co-table td:last-child { text-align: right; }
+  .co-table th:nth-child(2), .co-table th:nth-child(3) { text-align: right; }
+  .co-table td { padding: 11px 10px; font-size: 13px; border-bottom: 1px solid var(--bg-light); vertical-align: top; }
+  .co-table tr:last-child td { border-bottom: none; }
+  .co-item-name { font-weight: 700; color: var(--text); }
+  .co-item-meta { font-size: 11px; color: var(--muted); margin-top: 3px; line-height: 1.5; }
+  .co-item-price { font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .co-pricing { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; margin: 20px 0; }
+  .co-pricing-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; font-size: 13px; }
+  .co-pricing-row .co-pl { color: var(--muted); }
+  .co-pricing-row .co-pv { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .co-pricing-divider { height: 1px; background: var(--border); margin: 8px 0; }
+  .co-pricing-row.total-row .co-pl { font-size: 15px; font-weight: 700; color: var(--text); }
+  .co-pricing-row.total-row .co-pv { font-size: 20px; font-weight: 900; color: var(--accent); }
+
+  .co-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+  @media (max-width: 560px) { .co-form-grid { grid-template-columns: 1fr; } }
+  .co-field { display: flex; flex-direction: column; gap: 5px; }
+  .co-field.full { grid-column: 1 / -1; }
+  .co-label { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--label); }
+  .co-req { color: var(--accent); }
+  .co-input {
+    width: 100%; padding: 10px 12px; background: var(--input-bg);
+    border: 1px solid var(--border); border-radius: 8px; color: var(--text);
+    font-family: var(--font); font-size: 13px; outline: none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .co-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(185,28,28,.1); }
+  textarea.co-input { resize: vertical; min-height: 80px; }
+
+  .btn-place-order {
+    width: 100%; background: var(--accent); color: #fff; border: none;
+    border-radius: 10px; padding: 16px 24px; font-family: var(--font);
+    font-size: 15px; font-weight: 800; cursor: pointer; letter-spacing: .01em;
+    transition: all .2s; margin-top: 8px;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+  }
+  .btn-place-order:hover { background: var(--accent-lt); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(185,28,28,.35); }
+  .btn-place-order:disabled { background: #aaa; cursor: not-allowed; transform: none; box-shadow: none; }
+  .payment-notice { text-align: center; font-size: 11px; color: var(--muted); margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 5px; }
+
+  /* ── ORDER CONFIRMATION ───────────────────────────────────────────────── */
+  .order-confirm-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.6);
+    z-index: 500; display: none; align-items: center; justify-content: center; padding: 20px;
+  }
+  .order-confirm-overlay.open { display: flex; }
+  .order-confirm-box {
+    background: var(--bg); border-radius: 16px; padding: 48px 40px;
+    max-width: 480px; width: 100%; text-align: center;
+    box-shadow: 0 24px 80px rgba(0,0,0,.3); animation: fadeIn .35s ease;
+  }
+  @media (max-width: 500px) { .order-confirm-box { padding: 32px 24px; } }
+  .oc-check { font-size: 56px; line-height: 1; margin-bottom: 20px; }
+  .oc-title { font-size: 22px; font-weight: 900; letter-spacing: -.02em; margin-bottom: 10px; color: var(--text); }
+  .oc-msg { font-size: 14px; color: var(--muted); line-height: 1.6; margin-bottom: 28px; }
+  .oc-msg strong { color: var(--accent); }
+  .btn-oc-back { background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 12px 28px; font-family: var(--font); font-size: 14px; font-weight: 700; cursor: pointer; transition: all .2s; }
+  .btn-oc-back:hover { background: var(--accent-lt); }
 </style>
 </head>
 <body>
@@ -405,6 +636,10 @@
       <li><a href="3dprintingquotecalculator.html" class="snav-cta snav-active">Instant Quote</a></li>
       <li><a href="contact.html" class="snav-cta">Custom Quote</a></li>
     </ul>
+    <button class="cart-nav-btn" id="cartNavBtn" onclick="openCart()">
+      🛒 Cart
+      <span class="cart-badge" id="cartBadge" style="display:none;">0</span>
+    </button>
   </div>
 </nav>
 
@@ -697,6 +932,7 @@
         </div>
         <div class="btn-row">
           <button class="btn btn-primary admin-only" onclick="addToBatch()">+ Add to Batch</button>
+          <button class="btn-add-cart" id="addToCartBtn" onclick="addToCart()">🛒 Add to Cart</button>
           <button class="btn btn-secondary" onclick="resetCalc()">↺ Reset</button>
         </div>
       </div>
@@ -956,6 +1192,123 @@
 
 <div class="toast" id="toast">✓ <span id="toastMsg"></span></div>
 
+<!-- ── CART SLIDE PANEL ────────────────────────────────────────────────────── -->
+<div class="cart-overlay" id="cartOverlay" onclick="closeCart()"></div>
+<div class="cart-panel" id="cartPanel">
+  <div class="cart-panel-header">
+    <div class="cart-panel-title">
+      🛒 Your Cart
+      <span class="cart-badge" id="cartPanelBadge" style="display:none;background:rgba(185,28,28,.12);color:var(--accent);">0</span>
+    </div>
+    <button class="cart-panel-close" onclick="closeCart()">✕</button>
+  </div>
+  <div class="cart-items-list" id="cartItemsList">
+    <!-- populated by renderCart() -->
+  </div>
+  <div class="cart-panel-footer" id="cartPanelFooter" style="display:none;">
+    <div class="cart-subtotal-row">
+      <span class="cart-subtotal-label">Subtotal</span>
+      <span class="cart-subtotal-val" id="cartSubtotal">$0.00</span>
+    </div>
+    <div class="cart-footer-btns">
+      <button class="btn-cart-checkout" onclick="openCheckout()">Proceed to Checkout →</button>
+      <button class="btn-cart-continue" onclick="closeCart()">← Continue Shopping</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CHECKOUT MODAL ─────────────────────────────────────────────────────── -->
+<div class="checkout-overlay" id="checkoutOverlay">
+  <div class="checkout-modal">
+    <div class="checkout-header">
+      <div class="checkout-header-top">
+        <h2>Checkout</h2>
+        <button class="checkout-header-close" onclick="closeCheckout()">✕</button>
+      </div>
+      <div class="checkout-header-sub">Superior 3D and Laser · Order Request</div>
+    </div>
+    <div class="checkout-body">
+
+      <!-- Order Summary -->
+      <div class="checkout-section-title">Order Summary</div>
+      <table class="co-table">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th style="text-align:right;">Qty</th>
+            <th style="text-align:right;">Unit Price</th>
+            <th style="text-align:right;">Total</th>
+          </tr>
+        </thead>
+        <tbody id="coTableBody"></tbody>
+      </table>
+
+      <!-- Pricing Breakdown -->
+      <div class="co-pricing">
+        <div class="co-pricing-row">
+          <span class="co-pl">Subtotal</span>
+          <span class="co-pv" id="coPricingSubtotal">$0.00</span>
+        </div>
+        <div class="co-pricing-row">
+          <span class="co-pl">TN Sales Tax (8.5%)</span>
+          <span class="co-pv" id="coPricingTax">$0.00</span>
+        </div>
+        <div class="co-pricing-divider"></div>
+        <div class="co-pricing-row total-row">
+          <span class="co-pl">Order Total</span>
+          <span class="co-pv" id="coPricingTotal">$0.00</span>
+        </div>
+      </div>
+
+      <!-- Customer Info -->
+      <div class="checkout-section-title" style="margin-top:28px;">Your Information</div>
+      <div class="co-form-grid">
+        <div class="co-field">
+          <label class="co-label">Full Name <span class="co-req">*</span></label>
+          <input class="co-input" type="text" id="coName" placeholder="Jane Smith" autocomplete="name">
+        </div>
+        <div class="co-field">
+          <label class="co-label">Email Address <span class="co-req">*</span></label>
+          <input class="co-input" type="email" id="coEmail" placeholder="jane@example.com" autocomplete="email">
+        </div>
+        <div class="co-field">
+          <label class="co-label">Phone Number</label>
+          <input class="co-input" type="tel" id="coPhone" placeholder="(615) 555-0123" autocomplete="tel">
+        </div>
+        <div class="co-field full">
+          <label class="co-label">Shipping Address <span class="co-req">*</span></label>
+          <input class="co-input" type="text" id="coAddress" placeholder="123 Main St, Nashville, TN 37201" autocomplete="street-address">
+        </div>
+        <div class="co-field full">
+          <label class="co-label">Order Notes</label>
+          <textarea class="co-input" id="coNotes" placeholder="Special instructions, deadlines, finish preferences, color details…"></textarea>
+        </div>
+      </div>
+
+      <!-- Place Order -->
+      <button class="btn-place-order" id="placeOrderBtn" onclick="submitOrder()">
+        🛒 Place Order
+      </button>
+      <div class="payment-notice">
+        🔒 Payment will be collected upon order confirmation
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ── ORDER CONFIRMATION ─────────────────────────────────────────────────── -->
+<div class="order-confirm-overlay" id="orderConfirmOverlay">
+  <div class="order-confirm-box">
+    <div class="oc-check">✅</div>
+    <div class="oc-title">Order Received!</div>
+    <div class="oc-msg" id="ocMsg">
+      We will contact you at <strong id="ocEmail"></strong> to confirm and collect payment.
+    </div>
+    <button class="btn-oc-back" onclick="closeOrderConfirm()">← Back to Calculator</button>
+  </div>
+</div>
+
 <style>
 @media print {
   body > * { display: none !important; }
@@ -1155,6 +1508,14 @@ function calc() {
   document.getElementById('t-qty').textContent   = qty;
   document.getElementById('t-total').textContent = fmt(total);
   window._lastCalc = { matCost, printCost, addonCost, overhead, unitPrice, qty, total };
+
+  // Show Add to Cart button once a valid STL-based quote is calculated
+  const _acBtn = document.getElementById('addToCartBtn');
+  if (_acBtn) {
+    const hasSTL = parseFloat(document.getElementById('materialGrams').value) > 0
+                   && parseFloat(document.getElementById('printHours').value) > 0;
+    _acBtn.style.display = (total > 0 && hasSTL) ? 'flex' : 'none';
+  }
 }
 
 function toggleAddon(which) {
@@ -1762,6 +2123,372 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('stlFileInfo').textContent = fileName + '  \u00b7  ' + kb;
   };
 }());
+</script>
+
+<script>
+// ── SHOPPING CART SYSTEM ──────────────────────────────────────────────────────
+// Cart state lives in `cart` (array) and is persisted to localStorage.
+// Payment processing is intentionally stubbed — see processPayment() below.
+
+const CART_STORAGE_KEY = '3dp_cart';
+const TAX_RATE = 0.085; // Tennessee sales tax
+
+// ── Cart state ────────────────────────────────────────────────────────────────
+let cart = loadCart();
+
+function loadCart() {
+  try {
+    const raw = localStorage.getItem(CART_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) { return []; }
+}
+
+function saveCart() {
+  try { localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart)); } catch (e) {}
+}
+
+function clearCart() {
+  cart = [];
+  saveCart();
+  updateCartBadge();
+  renderCart();
+}
+
+// ── Add to Cart ───────────────────────────────────────────────────────────────
+function addToCart() {
+  const lc = window._lastCalc;
+  if (!lc || lc.total <= 0) { showToast('Upload an STL file to calculate a quote first'); return; }
+
+  const fileName   = document.getElementById('stlFileName').textContent || 'Unnamed Part';
+  const material   = document.getElementById('materialType').value;
+  const infillSel  = document.getElementById('slicerInfill');
+  const infill     = infillSel.options[infillSel.selectedIndex].text;
+  const supports   = document.getElementById('slicerSupport').value === 'auto' ? 'Auto' : 'None';
+  const colorSel   = document.getElementById('printColor');
+  const color      = colorSel.options[colorSel.selectedIndex].text.replace(/ \+\$5\.00/, '');
+  const qty        = Math.max(1, parseFloat(document.getElementById('qty').value) || 1);
+  const weightDisp = document.getElementById('slicerWeightDisp').textContent || '—';
+  const timeDisp   = document.getElementById('slicerTimeDisp').textContent   || '—';
+
+  const item = {
+    id:           Date.now(),
+    fileName:     fileName,
+    material:     material,
+    infill:       infill,
+    supports:     supports,
+    color:        color,
+    qty:          qty,
+    printTimeStr: timeDisp,
+    filamentStr:  weightDisp,
+    printHours:   parseFloat(document.getElementById('printHours').value) || 0,
+    filamentG:    parseFloat(document.getElementById('materialGrams').value) || 0,
+    unitPrice:    lc.unitPrice,
+    lineTotal:    lc.unitPrice * qty,
+  };
+
+  cart.push(item);
+  saveCart();
+  updateCartBadge();
+
+  // Confirmation animation on the button
+  const btn = document.getElementById('addToCartBtn');
+  if (btn) {
+    const orig = btn.innerHTML;
+    btn.innerHTML = '✓ Added to Cart';
+    btn.classList.add('added');
+    btn.disabled = true;
+    setTimeout(() => {
+      btn.innerHTML = orig;
+      btn.classList.remove('added');
+      btn.disabled = false;
+    }, 1800);
+  }
+}
+
+// ── Badge ─────────────────────────────────────────────────────────────────────
+function updateCartBadge() {
+  const count = cart.reduce((s, item) => s + item.qty, 0);
+  const badges = [
+    document.getElementById('cartBadge'),
+    document.getElementById('cartPanelBadge'),
+  ];
+  badges.forEach(b => {
+    if (!b) return;
+    b.textContent = count;
+    b.style.display = count > 0 ? 'inline-flex' : 'none';
+  });
+}
+
+// ── Cart Panel ────────────────────────────────────────────────────────────────
+function openCart() {
+  renderCart();
+  document.getElementById('cartOverlay').classList.add('open');
+  document.getElementById('cartPanel').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeCart() {
+  document.getElementById('cartOverlay').classList.remove('open');
+  document.getElementById('cartPanel').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function renderCart() {
+  const list   = document.getElementById('cartItemsList');
+  const footer = document.getElementById('cartPanelFooter');
+  updateCartBadge();
+
+  if (cart.length === 0) {
+    list.innerHTML = `
+      <div class="cart-empty-state">
+        <div class="ce-icon">🛒</div>
+        <div class="ce-title">Your cart is empty</div>
+        <div class="ce-sub">Upload an STL and calculate a quote, then add it here.</div>
+      </div>`;
+    footer.style.display = 'none';
+    return;
+  }
+
+  footer.style.display = 'block';
+  list.innerHTML = cart.map(item => `
+    <div class="cart-item" id="cart-item-${item.id}">
+      <div class="cart-item-name" title="${escHtml(item.fileName)}">${escHtml(item.fileName)}</div>
+      <div class="cart-item-meta">
+        ${escHtml(item.material)} · ${escHtml(item.infill)} infill · ${escHtml(item.color)}<br>
+        Supports: ${escHtml(item.supports)} · ⏱ ${escHtml(item.printTimeStr)} · ⚖ ${escHtml(item.filamentStr)}
+      </div>
+      <div class="cart-item-footer">
+        <div class="cart-item-qty">
+          <button class="cart-qty-btn" onclick="cartChangeQty(${item.id}, -1)">−</button>
+          <span class="cart-qty-num">${item.qty}</span>
+          <button class="cart-qty-btn" onclick="cartChangeQty(${item.id}, 1)">+</button>
+        </div>
+        <span class="cart-item-price">${fmtPrice(item.lineTotal)}</span>
+        <button class="cart-item-remove" onclick="cartRemove(${item.id})" title="Remove">✕</button>
+      </div>
+    </div>
+  `).join('');
+
+  document.getElementById('cartSubtotal').textContent = fmtPrice(cartSubtotal());
+}
+
+function cartChangeQty(id, delta) {
+  const item = cart.find(i => i.id === id);
+  if (!item) return;
+  item.qty = Math.max(1, item.qty + delta);
+  item.lineTotal = item.unitPrice * item.qty;
+  saveCart();
+  renderCart();
+}
+
+function cartRemove(id) {
+  cart = cart.filter(i => i.id !== id);
+  saveCart();
+  renderCart();
+  // If checkout is open, refresh it
+  if (document.getElementById('checkoutOverlay').classList.contains('open')) {
+    renderCheckout();
+  }
+}
+
+function cartSubtotal() {
+  return cart.reduce((s, i) => s + i.lineTotal, 0);
+}
+
+function fmtPrice(n) { return '$' + Number(n).toFixed(2); }
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Checkout ──────────────────────────────────────────────────────────────────
+function openCheckout() {
+  if (cart.length === 0) { showToast('Your cart is empty'); return; }
+  closeCart();
+  renderCheckout();
+  document.getElementById('checkoutOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeCheckout() {
+  document.getElementById('checkoutOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function renderCheckout() {
+  const subtotal = cartSubtotal();
+  const tax      = subtotal * TAX_RATE;
+  const total    = subtotal + tax;
+
+  // Order summary table
+  document.getElementById('coTableBody').innerHTML = cart.map(item => `
+    <tr>
+      <td>
+        <div class="co-item-name">${escHtml(item.fileName)}</div>
+        <div class="co-item-meta">${escHtml(item.material)} · ${escHtml(item.infill)} infill · ${escHtml(item.color)}<br>⏱ ${escHtml(item.printTimeStr)} · ⚖ ${escHtml(item.filamentStr)}</div>
+      </td>
+      <td style="text-align:right;vertical-align:middle;">${item.qty}</td>
+      <td style="text-align:right;vertical-align:middle;">${fmtPrice(item.unitPrice)}</td>
+      <td style="text-align:right;vertical-align:middle;" class="co-item-price">${fmtPrice(item.lineTotal)}</td>
+    </tr>
+  `).join('');
+
+  // Pricing breakdown
+  document.getElementById('coPricingSubtotal').textContent = fmtPrice(subtotal);
+  document.getElementById('coPricingTax').textContent      = fmtPrice(tax);
+  document.getElementById('coPricingTotal').textContent    = fmtPrice(total);
+}
+
+// ── Order Submission ──────────────────────────────────────────────────────────
+async function submitOrder() {
+  const name    = document.getElementById('coName').value.trim();
+  const email   = document.getElementById('coEmail').value.trim();
+  const address = document.getElementById('coAddress').value.trim();
+
+  if (!name)    { document.getElementById('coName').focus();    showToast('Please enter your name');    return; }
+  if (!email || !email.includes('@')) { document.getElementById('coEmail').focus(); showToast('Please enter a valid email'); return; }
+  if (!address) { document.getElementById('coAddress').focus(); showToast('Please enter a shipping address'); return; }
+
+  const subtotal = cartSubtotal();
+  const tax      = subtotal * TAX_RATE;
+  const total    = subtotal + tax;
+
+  const orderData = {
+    customer: {
+      name,
+      email,
+      phone:   document.getElementById('coPhone').value.trim(),
+      address,
+    },
+    notes:    document.getElementById('coNotes').value.trim(),
+    items:    cart,
+    subtotal,
+    tax,
+    total,
+  };
+
+  const btn = document.getElementById('placeOrderBtn');
+  btn.disabled  = true;
+  btn.innerHTML = '⏳ Placing Order…';
+
+  try {
+    // ── Payment placeholder ──────────────────────────────────────────────────
+    // processPayment() is intentionally a no-op until you wire in a processor.
+    // See the function definition below for integration instructions.
+    const paymentResult = await processPayment(orderData);
+    if (!paymentResult.success) throw new Error(paymentResult.message || 'Payment failed');
+    // ────────────────────────────────────────────────────────────────────────
+
+    await submitOrderToBackend(orderData, paymentResult.paymentId);
+
+    // Success
+    document.getElementById('ocEmail').textContent = email;
+    closeCheckout();
+    document.getElementById('orderConfirmOverlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    clearCart();
+
+  } catch (err) {
+    console.error('[Cart] Order submission error:', err);
+    showToast('Something went wrong — please try again or contact us directly');
+    btn.disabled  = false;
+    btn.innerHTML = '🛒 Place Order';
+  }
+}
+
+async function submitOrderToBackend(orderData, paymentId) {
+  const { customer, notes, items, subtotal, tax, total } = orderData;
+
+  // Build a human-readable items summary for the email body
+  const itemsSummary = items.map((item, i) =>
+    `${i + 1}. ${item.fileName} — ${item.material}, ${item.infill} infill, ${item.color}, Supports: ${item.supports}\n` +
+    `   Qty: ${item.qty} × ${fmtPrice(item.unitPrice)} = ${fmtPrice(item.lineTotal)}\n` +
+    `   Est. print time: ${item.printTimeStr} · Filament: ${item.filamentStr}`
+  ).join('\n\n');
+
+  const body = new FormData();
+  body.append('orderType',     'cart-order');
+  body.append('name',          customer.name);
+  body.append('email',         customer.email);
+  body.append('phone',         customer.phone || '—');
+  body.append('address',       customer.address);
+  body.append('orderNotes',    notes || '—');
+  body.append('orderItems',    itemsSummary);
+  body.append('itemCount',     String(items.length));
+  body.append('subtotal',      fmtPrice(subtotal));
+  body.append('tax',           fmtPrice(tax));
+  body.append('orderTotal',    fmtPrice(total));
+  body.append('paymentStatus', 'Pending — to be collected upon confirmation');
+  if (paymentId) body.append('paymentId', paymentId);
+  body.append('message',
+    `=== NEW ORDER REQUEST ===\n\nCustomer: ${customer.name}\nEmail: ${customer.email}\nPhone: ${customer.phone || '—'}\nShip To: ${customer.address}\n\n` +
+    `--- Items ---\n${itemsSummary}\n\n--- Totals ---\nSubtotal: ${fmtPrice(subtotal)}\nTax (8.5%): ${fmtPrice(tax)}\nORDER TOTAL: ${fmtPrice(total)}\n\n` +
+    `--- Notes ---\n${notes || 'None'}\n\nPayment: Pending — to be collected upon confirmation`
+  );
+
+  const res = await fetch('/.netlify/functions/submit-quote', { method: 'POST', body });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+// ── Order Confirmation ────────────────────────────────────────────────────────
+function closeOrderConfirm() {
+  document.getElementById('orderConfirmOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// ── Close modals on overlay click ─────────────────────────────────────────────
+document.addEventListener('click', e => {
+  if (e.target.id === 'checkoutOverlay')    closeCheckout();
+  if (e.target.id === 'orderConfirmOverlay') closeOrderConfirm();
+});
+
+// ── Keyboard: Escape closes any open modal ────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (document.getElementById('orderConfirmOverlay').classList.contains('open')) { closeOrderConfirm(); return; }
+  if (document.getElementById('checkoutOverlay').classList.contains('open'))     { closeCheckout();    return; }
+  if (document.getElementById('cartPanel').classList.contains('open'))           { closeCart();        return; }
+});
+
+// ── Restore cart badge on page load ──────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => { updateCartBadge(); });
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  PAYMENT PROCESSOR PLACEHOLDER
+//  ─────────────────────────────────────────────────────────────────────────────
+//  This function intentionally does nothing — payment is collected offline after
+//  order confirmation. When you're ready to add a payment processor, replace the
+//  body of this function with your integration code.
+//
+//  TO ADD STRIPE:
+//    1. Add <script src="https://js.stripe.com/v3/"></script> to <head>
+//    2. Create a Netlify function (e.g. netlify/functions/create-payment-intent.js)
+//       that calls stripe.paymentIntents.create() and returns { clientSecret }
+//    3. Replace this function body with:
+//         const stripe = Stripe('pk_live_YOUR_KEY');
+//         const { data } = await fetch('/.netlify/functions/create-payment-intent',
+//           { method:'POST', body: JSON.stringify({ amount: Math.round(orderData.total * 100) }) }).then(r=>r.json());
+//         const { error, paymentIntent } = await stripe.confirmCardPayment(data.clientSecret, { ... });
+//         if (error) return { success: false, message: error.message };
+//         return { success: true, paymentId: paymentIntent.id };
+//
+//  TO ADD PAYPAL:
+//    1. Load the PayPal JS SDK with your client-id
+//    2. Render paypal.Buttons() in the checkout UI
+//    3. Return { success: true, paymentId: details.id } from the onApprove callback
+//
+//  TO ADD SQUARE:
+//    1. Load the Square Web Payments SDK
+//    2. Initialize with Square.payments(appId, locationId)
+//    3. Create a card payment and tokenize before calling this function
+//
+//  orderData shape: { customer, notes, items[], subtotal, tax, total }
+// ══════════════════════════════════════════════════════════════════════════════
+async function processPayment(orderData) {
+  // PLACEHOLDER — payment collected offline after order confirmation.
+  // Replace this entire function body when wiring in Stripe / PayPal / Square.
+  // See the comment block above for step-by-step integration instructions.
+  return { success: true, paymentId: null, message: 'payment-pending' };
+}
 </script>
 </body>
 </html>
