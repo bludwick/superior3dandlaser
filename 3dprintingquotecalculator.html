@@ -1420,7 +1420,6 @@ function triggerPrint() { window.print(); }
 
 document.addEventListener('click', e => { if (e.target.id === 'printModal') closePrintPreview(); });
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('date').value = new Date().toISOString().split('T')[0];
   renderMaterials(); renderLabour(); renderInserts();
   const sel = document.getElementById('materialType');
   sel.value = 'PLA';
