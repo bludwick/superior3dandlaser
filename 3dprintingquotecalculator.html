@@ -1132,7 +1132,9 @@ function calc() {
   const asmHrs  = asmEnabled ? (asmLevelVal === 'custom' ? g('assemblyHrs') : parseFloat(asmLevelVal)) : 0;
   const asmCost = asmHrs * g('labourRate');
 
-  const colorSurcharge = document.getElementById('printColor').value !== 'black' ? 5.00 : 0;
+  const printColorVal = document.getElementById('printColor').value;
+  const colorSurcharge = printColorVal !== 'black' ? 5.00 : 0;
+  if (window.setSTLViewerColor) window.setSTLViewerColor(printColorVal);
   const addonCost  = postCost + insertCost + asmCost + colorSurcharge;
   const directCost = matCost + printCost + addonCost;
   const overhead   = directCost * g('overheadRate');
@@ -1630,9 +1632,38 @@ document.addEventListener('DOMContentLoaded', () => {
       if (c.parentNode) c.parentNode.removeChild(c);
       _renderer = null;
     }
+    _currentMaterial = null;
   }
 
   window.disposeSTLViewer = dispose;
+
+  // ── Color map: dropdown value → Three.js hex ──────────────────────────────
+  var COLOR_MAP = {
+    black:   0x1a1a1a,
+    white:   0xf0f0f0,
+    gray:    0x808080,
+    red:     0xcc2222,
+    blue:    0x2255cc,
+    green:   0x22aa44,
+    yellow:  0xddcc00,
+    orange:  0xdd7700,
+    purple:  0x7722cc,
+    pink:    0xee55aa,
+    natural: 0xe8dcc8,
+    custom:  0xa8a8a8
+  };
+
+  var _currentMaterial = null;
+
+  window.setSTLViewerColor = function (colorName) {
+    if (!_currentMaterial) return;
+    var hex = COLOR_MAP[colorName] !== undefined ? COLOR_MAP[colorName] : COLOR_MAP.custom;
+    _currentMaterial.color.setHex(hex);
+    // Adjust specular/shininess for light vs dark colors
+    var isLight = (colorName === 'white' || colorName === 'natural' || colorName === 'yellow');
+    _currentMaterial.specular.setHex(isLight ? 0x555555 : 0x2a2a2a);
+    _currentMaterial.shininess = isLight ? 25 : 35;
+  };
 
   window.initSTLViewer = function (buffer, fileName, fileSize) {
     if (typeof THREE === 'undefined' || !THREE.STLLoader) {
@@ -1682,11 +1713,12 @@ document.addEventListener('DOMContentLoaded', () => {
     scene.add(dl2);
 
     // ── Mesh ──────────────────────────────────────────────────────────────────
-    var mesh = new THREE.Mesh(
-      geometry,
-      new THREE.MeshPhongMaterial({ color: 0xa8a8a8, specular: 0x2a2a2a, shininess: 35 })
-    );
+    _currentMaterial = new THREE.MeshPhongMaterial({ color: 0xa8a8a8, specular: 0x2a2a2a, shininess: 35 });
+    var mesh = new THREE.Mesh(geometry, _currentMaterial);
     scene.add(mesh);
+    // Apply current color selection
+    var colorSel = document.getElementById('printColor');
+    if (colorSel) window.setSTLViewerColor(colorSel.value);
 
     // ── Orbit controls ────────────────────────────────────────────────────────
     var controls = new THREE.OrbitControls(camera, _renderer.domElement);
