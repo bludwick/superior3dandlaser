@@ -302,7 +302,6 @@
   .slicer-chip .chip-label { font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
   .slicer-chip .chip-val { font-size:15px; font-weight:800; color:var(--accent); }
   .slicer-ok-note { font-size:11px; color:var(--accent); font-weight:600; margin-top:8px; }
-  .slicer-calib-note { font-size:10px; color:var(--muted); margin-top:5px; font-family:monospace; letter-spacing:.01em; }
   .slicer-err-box { margin-top:10px; padding:11px 14px; background:rgba(220,38,38,.05); border:1px solid rgba(220,38,38,.2); border-radius:8px; font-size:12px; color:var(--muted); line-height:1.5; }
   .slicer-err-box a { color:var(--accent); font-weight:600; text-decoration:none; }
   .slicer-err-box a:hover { text-decoration:underline; }
@@ -515,7 +514,6 @@
             <div class="slicer-chip"><span class="chip-label">Filament Weight</span><span class="chip-val" id="slicerWeightDisp">—</span></div>
           </div>
           <div class="slicer-ok-note">✓ Volume-based estimate — actual values may vary ±20%</div>
-          <div id="slicerCalibNote" class="slicer-calib-note" style="display:none;"></div>
         </div>
         <div id="slicerError" style="display:none;" class="slicer-err-box">
           We couldn't estimate this file automatically. Please <a href="contact.html">submit it for a manual quote</a>.
@@ -527,13 +525,13 @@
           <div class="field">
             <label>Material</label>
             <select id="materialType" onchange="onMaterialChange()">
-              <option value="PLA">PLA</option>
+              <option value="PLA" selected>PLA</option>
               <option value="PETG">PETG</option>
               <option value="ABS">ABS</option>
               <option value="ASA">ASA</option>
               <option value="TPU (95A)">TPU (95A)</option>
               <option value="Nylon PA12">Nylon PA12</option>
-              <option value="CF-Nylon" selected>CF-Nylon</option>
+              <option value="CF-Nylon">CF-Nylon</option>
               <option value="RESIN (std)">RESIN (std)</option>
               <option value="RESIN (ABS-like)">RESIN (ABS-like)</option>
               <option value="custom">Custom…</option>
@@ -544,14 +542,10 @@
             <div class="input-wrap"><input type="number" id="matCostKg" value="75" step="0.5" oninput="calc()"><span class="unit-tag">$/kg</span></div>
             <span class="hint" id="matHint">⚡ Auto-set from material selection</span>
           </div>
-          <div class="field">
-            <label>Material Used</label>
-            <div class="input-wrap"><input type="number" id="materialGrams" value="50" step="1" oninput="calc()"><span class="unit-tag">g</span></div>
-            <span class="hint">From STL estimate, or enter manually</span>
-          </div>
+          <input type="hidden" id="materialGrams" value="0">
           <div class="field">
             <label>Print Time</label>
-            <div class="input-wrap"><input type="number" id="printHours" value="4.5" step="0.5" oninput="calc()"><span class="unit-tag">hrs</span></div>
+            <div class="input-wrap"><input type="number" id="printHours" value="0" step="0.5" oninput="calc()"><span class="unit-tag">hrs</span></div>
             <span class="hint">From STL estimate, or enter manually</span>
           </div>
           <div class="field admin-only">
@@ -1429,8 +1423,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('date').value = new Date().toISOString().split('T')[0];
   renderMaterials(); renderLabour(); renderInserts();
   const sel = document.getElementById('materialType');
-  const cfIdx = materials.findIndex(m => m.name === 'CF-Nylon');
-  if (cfIdx >= 0) sel.value = 'CF-Nylon';
+  sel.value = 'PLA';
   onMaterialChange(); calc(); renderBatch();
 });
 </script>
@@ -1441,22 +1434,6 @@ document.addEventListener('DOMContentLoaded', () => {
 // resolves to the current domain rather than grid.space — unfixable cross-origin
 // limitation. We parse the STL directly instead: instant, no network, no CORS.
 (function () {
-  // ╔══════════════════════════════════════════════════════════════════╗
-  // ║  PRINT TIME CALIBRATION — adjust these to match your printer    ║
-  // ╚══════════════════════════════════════════════════════════════════╝
-
-  // Multiplier applied to the raw volume-based time estimate.
-  // The base formula gives a theoretical minimum (pure extrusion time).
-  // Real printers are slower due to acceleration, speed limits, and
-  // print-quality settings. Increase until estimates match your Bambu.
-  // e.g. 3.0 = the raw estimate is tripled.  Start here and tune down.
-  const PRINT_TIME_CALIBRATION = 3.0;
-
-  // Additional multiplier for layer-change overhead: travel moves,
-  // retraction sequences, Z-hop, fan speed ramps, etc.
-  // 1.15 = add 15% on top of PRINT_TIME_CALIBRATION.
-  const LAYER_TIME_OVERHEAD = 1.15;
-
   // ── Material density lookup (g/cm³) ──────────────────────────────
   const DENSITY = {
     'PLA': 1.24, 'PETG': 1.27, 'ABS': 1.04, 'ASA': 1.07,
@@ -1534,24 +1511,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const matMM3  = meshMM3 * fill * supportMult;
     const weightG = (matMM3 / 1000) * (DENSITY[material] || 1.24);
 
-    // Raw time: ~25 mm³/s average deposition rate at typical FDM speeds.
-    // Result is in SECONDS before dividing by 3600.
-    const rawSec = (matMM3 / 25) * 1.2;   // seconds (1.2 = base 20% baseline pad)
-    const rawHrs = rawSec / 3600;          // convert to hours
-
-    // Adjusted time: apply both calibration constants on top of raw hours
-    const hrs = rawHrs * PRINT_TIME_CALIBRATION * LAYER_TIME_OVERHEAD;
-
-    console.log(
-      '[STL Estimator] fill:', (fill*100).toFixed(0)+'%',
+    // ~25 mm³/s average deposition; +20% for travel moves, warmup, retracts
+    const hrs = (matMM3 / 25 * 1.2) / 3600;
+    console.log('[STL Estimator] fill:', (fill*100).toFixed(0)+'%',
       ' matVol:', matMM3.toFixed(0)+'mm³',
       ' weight:', weightG.toFixed(1)+'g',
-      '\n  raw time:', rawSec.toFixed(0)+'s =', rawHrs.toFixed(4)+'hrs',
-      '→ ×'+PRINT_TIME_CALIBRATION+' (PRINT_TIME_CALIBRATION)',
-      '× ×'+LAYER_TIME_OVERHEAD+' (LAYER_TIME_OVERHEAD)',
-      '= '+hrs.toFixed(4)+'hrs adjusted'
-    );
-    return { weightG, rawHrs, hrs };
+      ' time:', hrs.toFixed(2)+'hrs');
+    return { weightG, hrs };
   }
 
   let _cachedMeshMM3 = null; // persists across infill/support changes
@@ -1560,32 +1526,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const infill      = parseFloat(document.getElementById('slicerInfill').value);
     const supportType = document.getElementById('slicerSupport').value;
     const material    = document.getElementById('materialType').value;
-    const { weightG, rawHrs, hrs } = estimate(meshMM3, infill, supportType, material);
+    const { weightG, hrs } = estimate(meshMM3, infill, supportType, material);
 
     document.getElementById('materialGrams').value = weightG.toFixed(1);
     document.getElementById('printHours').value    = hrs.toFixed(2);
-    document.getElementById('materialGrams').closest('.field').querySelector('.hint').textContent = '✓ Estimated from STL geometry';
-    document.getElementById('printHours').closest('.field').querySelector('.hint').textContent    = '✓ Estimated from STL geometry';
+    document.getElementById('printHours').closest('.field').querySelector('.hint').textContent = '✓ Estimated from STL geometry';
     if (typeof calc === 'function') calc();
 
-    function fmtHrs(h) {
-      const hh = Math.floor(h), mm = Math.round((h - hh) * 60);
-      return hh > 0 ? `${hh}h ${mm}m` : `${mm}m`;
-    }
-    const timeStr = fmtHrs(hrs);
-    const rawStr  = fmtHrs(rawHrs);
-
+    const h = Math.floor(hrs), m = Math.round((hrs - h) * 60);
+    const timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
     document.getElementById('slicerTimeDisp').textContent   = timeStr;
     document.getElementById('slicerWeightDisp').textContent = weightG.toFixed(1) + ' g';
     document.getElementById('res-slicer').textContent       = `~${timeStr} · ~${weightG.toFixed(1)} g`;
     document.getElementById('res-slicer').style.color       = 'var(--accent)';
-
-    // Calibration debug line — remove once multipliers are dialled in
-    const note = document.getElementById('slicerCalibNote');
-    if (note) {
-      note.textContent = `raw: ${rawStr}  ×${PRINT_TIME_CALIBRATION} cal  ×${LAYER_TIME_OVERHEAD} overhead  →  ${timeStr}`;
-      note.style.display = 'block';
-    }
   }
 
   window.reestimate = function () {
