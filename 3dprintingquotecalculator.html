@@ -151,7 +151,7 @@
   label { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--label); }
   .input-wrap { position: relative; display: flex; align-items: center; }
   .unit-tag { position: absolute; right: 10px; font-size: 11px; color: var(--muted); pointer-events: none; }
-  input, select {
+  input:not([type=checkbox]), select {
     width: 100%;
     padding: 9px 40px 9px 12px;
     background: var(--input-bg);
@@ -164,7 +164,7 @@
     transition: border-color .2s, box-shadow .2s;
     -webkit-appearance: none;
   }
-  input:focus, select:focus {
+  input:not([type=checkbox]):focus, select:focus {
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(185,28,28,.12);
   }
@@ -302,6 +302,24 @@
   .slicer-err-box a { color:var(--accent); font-weight:600; text-decoration:none; }
   .slicer-err-box a:hover { text-decoration:underline; }
 
+  /* SECTION DIVIDER */
+  .section-divider { height:1px; background:var(--border); margin:20px 0 16px; }
+
+  /* ADD-ONS */
+  .addons-section { margin-top:4px; }
+  .addons-title { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:4px; display:flex; align-items:center; gap:10px; }
+  .addons-title::before, .addons-title::after { content:''; flex:1; height:1px; background:var(--border); }
+  .addon-row { display:flex; align-items:center; gap:14px; padding:10px 0; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+  .addon-row:last-of-type { border-bottom:none; }
+  .addon-check { display:flex; align-items:center; gap:9px; cursor:pointer; min-width:155px; user-select:none; flex-shrink:0; }
+  .addon-check input[type=checkbox] { width:16px !important; height:16px !important; padding:0 !important; box-shadow:none !important; border:1px solid var(--border) !important; background:var(--input-bg) !important; accent-color:var(--accent); cursor:pointer; flex-shrink:0; -webkit-appearance:checkbox; appearance:checkbox; }
+  .addon-check span { font-size:13px; font-weight:600; color:var(--text); }
+  .addon-ctrl { display:flex; align-items:center; gap:10px; flex:1; flex-wrap:wrap; }
+  .addon-ctrl select { width:auto; min-width:150px; flex:0 0 auto; }
+  .addon-ctrl .input-wrap { width:auto; flex:0 0 auto; }
+  .addon-ctrl .input-wrap input { width:90px; }
+  .addon-cost { font-size:12px; font-weight:700; color:var(--accent); margin-left:auto; font-variant-numeric:tabular-nums; white-space:nowrap; }
+
   /* SITE NAV */
   .site-nav { position:sticky; top:0; z-index:50; background:rgba(255,255,255,.96); backdrop-filter:blur(8px); border-bottom:1px solid var(--border); }
   .site-nav-inner { max-width:1100px; margin:0 auto; padding:0 20px; display:flex; align-items:center; justify-content:space-between; height:58px; gap:16px; }
@@ -375,80 +393,8 @@
             <label>Quantity of Parts</label>
             <div class="input-wrap"><input type="number" id="qty" value="3" min="1" oninput="calc()"><span class="unit-tag">pcs</span></div>
           </div>
-          <div class="field"><label>Date</label><input type="date" id="date"></div>
-          <div class="field"><label>Prepared By</label><input type="text" id="preparedBy" placeholder="Your name"></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="section-card">
-      <div class="section-header" onclick="toggleSection(this)">
-        <div class="section-icon">📐</div>
-        <span class="section-title">STL Estimator</span>
-        <span class="section-result" id="res-slicer" style="font-size:11px;color:var(--muted);font-weight:600;">Upload STL to estimate</span>
-        <span class="chevron">▾</span>
-      </div>
-      <div class="section-body">
-        <div class="fields">
-          <div class="field full">
-            <label>STL File</label>
-            <div class="stl-upload-zone" onclick="document.getElementById('stlInput').click()">
-              <input type="file" id="stlInput" accept=".stl" onchange="handleSTLUpload(this.files[0])">
-              <span class="stl-upload-btn">Choose STL…</span>
-              <span class="stl-file-name" id="stlFileName">No file selected · Slicing will auto-fill Material Used and Print Time</span>
-            </div>
-          </div>
           <div class="field">
-            <label>Infill Density</label>
-            <select id="slicerInfill" onchange="reestimate()">
-              <option value="0.10">10% — Minimal</option>
-              <option value="0.15">15%</option>
-              <option value="0.20" selected>20% — Standard</option>
-              <option value="0.25">25%</option>
-              <option value="0.40">40%</option>
-              <option value="0.50">50% — Dense</option>
-              <option value="0.75">75%</option>
-              <option value="1.00">100% — Solid</option>
-            </select>
-            <span class="hint">Used when estimating your file</span>
-          </div>
-          <div class="field">
-            <label>Supports</label>
-            <select id="slicerSupport" onchange="reestimate()">
-              <option value="disabled">None</option>
-              <option value="auto">Auto (where needed)</option>
-            </select>
-            <span class="hint">Used when estimating your file</span>
-          </div>
-        </div>
-        <div id="slicerSpinner" style="display:none;" class="slicer-spinner">
-          <div class="slicer-spin-ring"></div>
-          <span>Slicing your file… this may take up to a minute</span>
-        </div>
-        <div id="slicerResults" style="display:none;">
-          <div class="slicer-chips">
-            <div class="slicer-chip"><span class="chip-label">Print Time</span><span class="chip-val" id="slicerTimeDisp">—</span></div>
-            <div class="slicer-chip"><span class="chip-label">Filament Weight</span><span class="chip-val" id="slicerWeightDisp">—</span></div>
-          </div>
-          <div class="slicer-ok-note">✓ Volume-based estimate — actual values may vary ±20%</div>
-        </div>
-        <div id="slicerError" style="display:none;" class="slicer-err-box">
-          We couldn't estimate this file automatically. Please <a href="contact.html">submit it for a manual quote</a>.
-        </div>
-      </div>
-    </div>
-
-    <div class="section-card">
-      <div class="section-header" onclick="toggleSection(this)">
-        <div class="section-icon">🧱</div>
-        <span class="section-title">Section 1 — Material</span>
-        <span class="section-result admin-only" id="res-material">$0.00</span>
-        <span class="chevron">▾</span>
-      </div>
-      <div class="section-body">
-        <div class="fields">
-          <div class="field">
-            <label>Material Type</label>
+            <label>Material</label>
             <select id="materialType" onchange="onMaterialChange()">
               <option value="PLA">PLA</option>
               <option value="PETG">PETG</option>
@@ -467,45 +413,168 @@
             <div class="input-wrap"><input type="number" id="matCostKg" value="75" step="0.5" oninput="calc()"><span class="unit-tag">$/kg</span></div>
             <span class="hint" id="matHint">⚡ Auto-set from material selection</span>
           </div>
-          <div class="field">
-            <label>Material Used</label>
-            <div class="input-wrap"><input type="number" id="materialGrams" value="50" step="1" oninput="calc()"><span class="unit-tag">g</span></div>
-            <span class="hint">From slicer estimate</span>
-          </div>
-          <div class="field admin-only">
-            <label>Waste / Support Factor</label>
-            <div class="input-wrap"><input type="number" id="wasteFactor" value="1.10" step="0.01" oninput="calc()"><span class="unit-tag">×</span></div>
-            <span class="hint">1.10 = 10% waste</span>
-          </div>
+          <div class="field"><label>Date</label><input type="date" id="date"></div>
+          <div class="field"><label>Prepared By</label><input type="text" id="preparedBy" placeholder="Your name"></div>
         </div>
       </div>
     </div>
 
     <div class="section-card">
       <div class="section-header" onclick="toggleSection(this)">
-        <div class="section-icon">⏱</div>
-        <span class="section-title">Section 2 — Print Time</span>
-        <span class="section-result admin-only" id="res-print">$0.00</span>
+        <div class="section-icon">🖨</div>
+        <span class="section-title">Print Settings</span>
+        <span class="section-result admin-only" id="res-print-total">$0.00</span>
         <span class="chevron">▾</span>
       </div>
       <div class="section-body">
+
+        <!-- STL Upload -->
         <div class="fields">
+          <div class="field full">
+            <label>STL File <span style="font-weight:400;color:var(--muted);text-transform:none;font-size:10px;letter-spacing:0;">(optional — auto-fills material &amp; time below)</span></label>
+            <div class="stl-upload-zone" onclick="document.getElementById('stlInput').click()">
+              <input type="file" id="stlInput" accept=".stl" onchange="handleSTLUpload(this.files[0])">
+              <span class="stl-upload-btn">Choose STL…</span>
+              <span class="stl-file-name" id="stlFileName">No file selected</span>
+            </div>
+            <span class="hint" id="res-slicer" style="color:var(--muted);font-weight:600;">Upload an STL to auto-estimate material &amp; time</span>
+          </div>
+          <div class="field">
+            <label>Infill Density</label>
+            <select id="slicerInfill" onchange="reestimate()">
+              <option value="0.10">10% — Minimal</option>
+              <option value="0.15">15%</option>
+              <option value="0.20" selected>20% — Standard</option>
+              <option value="0.25">25%</option>
+              <option value="0.40">40%</option>
+              <option value="0.50">50% — Dense</option>
+              <option value="0.75">75%</option>
+              <option value="1.00">100% — Solid</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Supports</label>
+            <select id="slicerSupport" onchange="reestimate()">
+              <option value="disabled">None</option>
+              <option value="auto">Auto (where needed)</option>
+            </select>
+          </div>
+        </div>
+        <div id="slicerSpinner" style="display:none;" class="slicer-spinner">
+          <div class="slicer-spin-ring"></div>
+          <span>Estimating from geometry…</span>
+        </div>
+        <div id="slicerResults" style="display:none;">
+          <div class="slicer-chips">
+            <div class="slicer-chip"><span class="chip-label">Print Time</span><span class="chip-val" id="slicerTimeDisp">—</span></div>
+            <div class="slicer-chip"><span class="chip-label">Filament Weight</span><span class="chip-val" id="slicerWeightDisp">—</span></div>
+          </div>
+          <div class="slicer-ok-note">✓ Volume-based estimate — actual values may vary ±20%</div>
+        </div>
+        <div id="slicerError" style="display:none;" class="slicer-err-box">
+          We couldn't estimate this file automatically. Please <a href="contact.html">submit it for a manual quote</a>.
+        </div>
+
+        <!-- Material & Print Time inputs -->
+        <div class="section-divider"></div>
+        <div class="fields">
+          <div class="field">
+            <label>Material Used</label>
+            <div class="input-wrap"><input type="number" id="materialGrams" value="50" step="1" oninput="calc()"><span class="unit-tag">g</span></div>
+            <span class="hint">From STL estimate, or enter manually</span>
+          </div>
           <div class="field">
             <label>Print Time</label>
             <div class="input-wrap"><input type="number" id="printHours" value="4.5" step="0.5" oninput="calc()"><span class="unit-tag">hrs</span></div>
-            <span class="hint">From slicer estimate</span>
+            <span class="hint">From STL estimate, or enter manually</span>
+          </div>
+          <div class="field admin-only">
+            <label>Waste / Support Factor</label>
+            <div class="input-wrap"><input type="number" id="wasteFactor" value="1.10" step="0.01" oninput="calc()"><span class="unit-tag">×</span></div>
+            <span class="hint">1.10 = 10% waste</span>
           </div>
           <div class="field admin-only">
             <label>Printer Operating Cost</label>
             <div class="input-wrap"><input type="number" id="printerCost" value="0.15" step="0.01" oninput="calc()"><span class="unit-tag">$/hr</span></div>
             <span class="hint">Electricity + depreciation</span>
           </div>
-          <div class="field full admin-only">
-            <label>Printer Failure Rate (contingency)</label>
+          <div class="field admin-only">
+            <label>Failure Rate (contingency)</label>
             <div class="input-wrap"><input type="number" id="failureRate" value="0.05" step="0.01" oninput="calc()"><span class="unit-tag">%</span></div>
             <span class="hint">0.05 = 5% contingency</span>
           </div>
         </div>
+
+        <!-- Add-ons -->
+        <div class="addons-section">
+          <div class="addons-title">Add-ons</div>
+
+          <div class="addon-row">
+            <label class="addon-check">
+              <input type="checkbox" id="chkPost" onchange="toggleAddon('post'); calc()">
+              <span>Post-Processing</span>
+            </label>
+            <div class="addon-ctrl" id="ctrl-post" style="display:none;">
+              <select id="postLevel" onchange="onPostLevelChange(); calc()">
+                <option value="0.5">Light — ½ hr</option>
+                <option value="1.5" selected>Standard — 1½ hrs</option>
+                <option value="3">Heavy — 3 hrs</option>
+                <option value="custom">Custom…</option>
+              </select>
+              <div class="input-wrap" id="post-custom" style="display:none;">
+                <input type="number" id="postHrs" value="1" step="0.5" oninput="calc()"><span class="unit-tag">hrs</span>
+              </div>
+              <span class="addon-cost admin-only" id="cost-post"></span>
+            </div>
+          </div>
+
+          <div class="addon-row">
+            <label class="addon-check">
+              <input type="checkbox" id="chkInserts" onchange="toggleAddon('inserts'); calc()">
+              <span>Heat Inserts</span>
+            </label>
+            <div class="addon-ctrl" id="ctrl-inserts" style="display:none;">
+              <div class="input-wrap">
+                <input type="number" id="insertCount" value="4" min="1" oninput="calc()"><span class="unit-tag">inserts</span>
+              </div>
+              <span class="addon-cost admin-only" id="cost-inserts"></span>
+            </div>
+          </div>
+
+          <div class="addon-row">
+            <label class="addon-check">
+              <input type="checkbox" id="chkAssembly" onchange="toggleAddon('assembly'); calc()">
+              <span>Assembly</span>
+            </label>
+            <div class="addon-ctrl" id="ctrl-assembly" style="display:none;">
+              <select id="assemblyLevel" onchange="onAssemblyLevelChange(); calc()">
+                <option value="0.5">Simple — ½ hr</option>
+                <option value="1.5" selected>Moderate — 1½ hrs</option>
+                <option value="3">Complex — 3 hrs</option>
+                <option value="custom">Custom…</option>
+              </select>
+              <div class="input-wrap" id="assembly-custom" style="display:none;">
+                <input type="number" id="assemblyHrs" value="1" step="0.5" oninput="calc()"><span class="unit-tag">hrs</span>
+              </div>
+              <span class="addon-cost admin-only" id="cost-assembly"></span>
+            </div>
+          </div>
+
+          <!-- Admin labour rates (hidden from customers) -->
+          <div class="fields admin-only" style="margin-top:14px;">
+            <div class="field">
+              <label>Labour Rate</label>
+              <div class="input-wrap"><input type="number" id="labourRate" value="25" step="1" oninput="calc()"><span class="unit-tag">$/hr</span></div>
+              <span class="hint">Post-processing &amp; assembly</span>
+            </div>
+            <div class="field">
+              <label>Insert Install Cost</label>
+              <div class="input-wrap"><input type="number" id="insertUnitCost" value="0.50" step="0.10" oninput="calc()"><span class="unit-tag">$/ea</span></div>
+              <span class="hint">Per heat insert installed</span>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -540,6 +609,7 @@
         <div class="summary-grid admin-only">
           <div class="summary-row"><span class="label">Material Cost</span><span class="val" id="s-material">$0.00</span></div>
           <div class="summary-row"><span class="label">Print Time Cost</span><span class="val" id="s-print">$0.00</span></div>
+          <div class="summary-row"><span class="label">Add-ons</span><span class="val" id="s-addons">$0.00</span></div>
           <div class="summary-row"><span class="label">Overhead</span><span class="val" id="s-overhead">$0.00</span></div>
         </div>
         <div class="total-box">
@@ -973,21 +1043,56 @@ function calc() {
   const matCost   = (g('matCostKg') / 1000) * g('materialGrams') * g('wasteFactor');
   const printBase = g('printHours') * g('printerCost');
   const printCost = printBase * (1 + g('failureRate'));
-  const directCost = matCost + printCost;
+
+  // Add-ons
+  const postEnabled = document.getElementById('chkPost').checked;
+  const postLevelVal = document.getElementById('postLevel').value;
+  const postHrs  = postEnabled ? (postLevelVal === 'custom' ? g('postHrs') : parseFloat(postLevelVal)) : 0;
+  const postCost = postHrs * g('labourRate');
+
+  const insEnabled  = document.getElementById('chkInserts').checked;
+  const insertCount = insEnabled ? g('insertCount') : 0;
+  const insertCost  = insertCount * g('insertUnitCost');
+
+  const asmEnabled  = document.getElementById('chkAssembly').checked;
+  const asmLevelVal = document.getElementById('assemblyLevel').value;
+  const asmHrs  = asmEnabled ? (asmLevelVal === 'custom' ? g('assemblyHrs') : parseFloat(asmLevelVal)) : 0;
+  const asmCost = asmHrs * g('labourRate');
+
+  const addonCost  = postCost + insertCost + asmCost;
+  const directCost = matCost + printCost + addonCost;
   const overhead   = directCost * g('overheadRate');
   const unitPrice  = (directCost + overhead) * (1 + g('profitMargin'));
   const qty        = Math.max(1, g('qty'));
   const total      = unitPrice * qty;
 
-  document.getElementById('res-material').textContent = fmt(matCost);
-  document.getElementById('res-print').textContent    = fmt(printCost);
-  document.getElementById('s-material').textContent   = fmt(matCost);
-  document.getElementById('s-print').textContent      = fmt(printCost);
-  document.getElementById('s-overhead').textContent   = fmt(overhead);
-  document.getElementById('t-unit').textContent       = fmt(unitPrice);
-  document.getElementById('t-qty').textContent        = qty;
-  document.getElementById('t-total').textContent      = fmt(total);
-  window._lastCalc = { matCost, printCost, overhead, unitPrice, qty, total };
+  const rpt = document.getElementById('res-print-total');
+  if (rpt) rpt.textContent = fmt(directCost);
+  document.getElementById('s-material').textContent = fmt(matCost);
+  document.getElementById('s-print').textContent    = fmt(printCost);
+  document.getElementById('s-addons').textContent   = fmt(addonCost);
+  document.getElementById('s-overhead').textContent = fmt(overhead);
+  const cp = document.getElementById('cost-post');    if (cp) cp.textContent    = postEnabled  ? fmt(postCost)   : '';
+  const ci = document.getElementById('cost-inserts'); if (ci) ci.textContent = insEnabled  ? fmt(insertCost) : '';
+  const ca = document.getElementById('cost-assembly');if (ca) ca.textContent = asmEnabled  ? fmt(asmCost)    : '';
+  document.getElementById('t-unit').textContent  = fmt(unitPrice);
+  document.getElementById('t-qty').textContent   = qty;
+  document.getElementById('t-total').textContent = fmt(total);
+  window._lastCalc = { matCost, printCost, addonCost, overhead, unitPrice, qty, total };
+}
+
+function toggleAddon(which) {
+  const ctrl = document.getElementById('ctrl-' + which);
+  const checkId = { post:'chkPost', inserts:'chkInserts', assembly:'chkAssembly' }[which];
+  ctrl.style.display = document.getElementById(checkId).checked ? 'flex' : 'none';
+}
+function onPostLevelChange() {
+  const v = document.getElementById('postLevel').value;
+  document.getElementById('post-custom').style.display = v === 'custom' ? 'flex' : 'none';
+}
+function onAssemblyLevelChange() {
+  const v = document.getElementById('assemblyLevel').value;
+  document.getElementById('assembly-custom').style.display = v === 'custom' ? 'flex' : 'none';
 }
 
 let batchRows = [];
@@ -1083,6 +1188,16 @@ function resetCalc() {
   document.getElementById('failureRate').value   = 0.05;
   document.getElementById('overheadRate').value  = 0.15;
   document.getElementById('profitMargin').value  = 0.25;
+  document.getElementById('labourRate').value    = 25;
+  document.getElementById('insertUnitCost').value = 0.50;
+  // Reset add-ons
+  ['chkPost','chkInserts','chkAssembly'].forEach(id => { document.getElementById(id).checked = false; });
+  ['ctrl-post','ctrl-inserts','ctrl-assembly'].forEach(id => { document.getElementById(id).style.display = 'none'; });
+  document.getElementById('post-custom').style.display = 'none';
+  document.getElementById('assembly-custom').style.display = 'none';
+  document.getElementById('postLevel').value = '1.5';
+  document.getElementById('assemblyLevel').value = '1.5';
+  document.getElementById('insertCount').value = 4;
   calc();
   showToast('Calculator reset to defaults');
 }
