@@ -504,9 +504,9 @@
           </div>
           <div class="field">
             <label>Color</label>
-            <select id="printColor">
+            <select id="printColor" onchange="calc()">
               <option value="white">White</option>
-              <option value="black">Black</option>
+              <option value="black" selected>Black</option>
               <option value="gray">Gray</option>
               <option value="red">Red</option>
               <option value="blue">Blue</option>
@@ -1132,7 +1132,8 @@ function calc() {
   const asmHrs  = asmEnabled ? (asmLevelVal === 'custom' ? g('assemblyHrs') : parseFloat(asmLevelVal)) : 0;
   const asmCost = asmHrs * g('labourRate');
 
-  const addonCost  = postCost + insertCost + asmCost;
+  const colorSurcharge = document.getElementById('printColor').value !== 'black' ? 5.00 : 0;
+  const addonCost  = postCost + insertCost + asmCost + colorSurcharge;
   const directCost = matCost + printCost + addonCost;
   const overhead   = directCost * g('overheadRate');
   const unitPrice  = (directCost + overhead) * (1 + g('profitMargin'));
@@ -1263,6 +1264,7 @@ function resetCalc() {
   document.getElementById('profitMargin').value  = 0.50;
   document.getElementById('labourRate').value    = 25;
   document.getElementById('insertUnitCost').value = 0.50;
+  document.getElementById('printColor').value = 'black';
   // Reset add-ons
   ['chkPost','chkInserts','chkAssembly'].forEach(id => { document.getElementById(id).checked = false; });
   ['ctrl-post','ctrl-inserts','ctrl-assembly'].forEach(id => { document.getElementById(id).style.display = 'none'; });
