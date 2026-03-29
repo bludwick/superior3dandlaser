@@ -82,6 +82,7 @@
       <h3>Send Us a Message</h3>
 
       <form id="contactForm" enctype="multipart/form-data" novalidate>
+        <input type="hidden" name="formType" value="contact">
         <div class="form-row">
           <div class="form-group">
             <label for="firstName">First Name <span style="color:var(--accent)">*</span></label>
@@ -132,8 +133,8 @@
       <!-- Success State -->
       <div class="form-success" id="formSuccess">
         <div class="success-icon">✅</div>
-        <h4>Thanks! We'll have your quote ready within 24 hours.</h4>
-        <p>We've received your message and will be in touch shortly at the email you provided.</p>
+        <h4>Message sent! We'll be in touch soon.</h4>
+        <p>We've received your message and will reply to the email you provided as soon as possible.</p>
         <div style="margin-top:1.5rem">
           <a href="index.html" class="btn btn-outline">Back to Home</a>
         </div>

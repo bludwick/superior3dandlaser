@@ -36,28 +36,47 @@ function parseForm(event) {
   });
 }
 
-exports.handler = async (event) => {
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method Not Allowed' };
-  }
+// Build SMTP transporter (shared across all form types)
+function makeTransporter() {
+  return nodemailer.createTransport({
+    host: 'smtp.office365.com',
+    port: 587,
+    secure: false,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+    tls: { ciphers: 'SSLv3' },
+  });
+}
 
-  try {
-    const { fields, fileBuffer, fileName, fileMime } = await parseForm(event);
+// ── Email builders ────────────────────────────────────────────────────────────
 
-    // Save file to Netlify Blobs (persistent uploads store)
-    let downloadUrl = null;
-    let savedFileName = null;
-    if (fileBuffer && fileName) {
-      const store = getStore({ name: 'uploads', consistency: 'strong' });
-      savedFileName = `${Date.now()}-${fileName}`;
-      await store.set(savedFileName, fileBuffer, {
-        metadata: { contentType: fileMime, originalName: fileName }
-      });
-      downloadUrl = `${process.env.SITE_URL}/.netlify/blobs/site:uploads/${savedFileName}`;
-    }
+function buildContactEmail(fields) {
+  const body = `
+New Contact Message — Superior 3D and Laser
+============================================
 
-    // Build email body
-    const emailBody = `
+Name:     ${fields.firstName || ''} ${fields.lastName || ''}
+Email:    ${fields.email || ''}
+Phone:    ${fields.phone || 'Not provided'}
+Service:  ${fields.service || 'Not specified'}
+
+Message:
+${fields.message || ''}
+
+============================================
+  `.trim();
+
+  return {
+    to:      'sales@superior3dandlaser.com',
+    subject: `New Contact Message — ${fields.firstName || ''} ${fields.lastName || ''}`.trim(),
+    text:    body,
+  };
+}
+
+function buildQuoteEmail(fields, fileName, downloadUrl) {
+  const body = `
 New Quote Request — Superior 3D and Laser
 ==========================================
 
@@ -74,28 +93,84 @@ ${fields.message || ''}
 
 ${downloadUrl ? `Uploaded File: ${fileName}\nDownload Link: ${downloadUrl}` : 'No file attached.'}
 ==========================================
-    `.trim();
+  `.trim();
 
-    // Send email via Microsoft 365 SMTP
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.office365.com',
-      port: 587,
-      secure: false,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-      tls: { ciphers: 'SSLv3' },
-    });
+  return {
+    to:      'blake@superior3dandlaser.com',
+    subject: `New Quote Request — ${fields.firstName || ''} ${fields.lastName || ''}`.trim(),
+    text:    body,
+  };
+}
 
-    const mailOptions = {
-      from: process.env.SMTP_USER,
-      to: 'blake@superior3dandlaser.com',
-      subject: `New Quote Request — ${fields.firstName || ''} ${fields.lastName || ''}`,
-      text: emailBody,
-    };
+function buildCartOrderEmail(fields) {
+  const body = `
+New Cart Order Request — Superior 3D and Laser
+===============================================
 
-    // Attach file directly to email as well
+Customer:  ${fields.name || ''}
+Email:     ${fields.email || ''}
+Phone:     ${fields.phone || 'Not provided'}
+Ship To:   ${fields.address || ''}
+
+--- Order Items (${fields.itemCount || '?'} item(s)) ---
+${fields.orderItems || ''}
+
+--- Totals ---
+Subtotal:    ${fields.subtotal || ''}
+Tax (8.5%):  ${fields.tax || ''}
+ORDER TOTAL: ${fields.orderTotal || ''}
+
+--- Notes ---
+${fields.orderNotes || 'None'}
+
+Payment Status: ${fields.paymentStatus || 'Pending'}
+${fields.paymentId ? `Payment ID: ${fields.paymentId}` : ''}
+===============================================
+  `.trim();
+
+  return {
+    to:      'blake@superior3dandlaser.com',
+    subject: `New Order Request — ${fields.name || ''} — ${fields.orderTotal || ''}`.trim(),
+    text:    body,
+  };
+}
+
+// ── Handler ───────────────────────────────────────────────────────────────────
+
+exports.handler = async (event) => {
+  if (event.httpMethod !== 'POST') {
+    return { statusCode: 405, body: 'Method Not Allowed' };
+  }
+
+  try {
+    const { fields, fileBuffer, fileName, fileMime } = await parseForm(event);
+
+    // Save file to Netlify Blobs (quote form only)
+    let downloadUrl = null;
+    let savedFileName = null;
+    if (fileBuffer && fileName) {
+      const store = getStore({ name: 'uploads', consistency: 'strong' });
+      savedFileName = `${Date.now()}-${fileName}`;
+      await store.set(savedFileName, fileBuffer, {
+        metadata: { contentType: fileMime, originalName: fileName }
+      });
+      downloadUrl = `${process.env.SITE_URL}/.netlify/blobs/site:uploads/${savedFileName}`;
+    }
+
+    // Route to the correct email template based on form type
+    let mailOptions;
+    const formType = fields.formType || (fields.orderType === 'cart-order' ? 'cart' : 'quote');
+
+    if (formType === 'contact') {
+      mailOptions = buildContactEmail(fields);
+    } else if (formType === 'cart' || fields.orderType === 'cart-order') {
+      mailOptions = buildCartOrderEmail(fields);
+    } else {
+      // Default: quote request (contact.html)
+      mailOptions = buildQuoteEmail(fields, fileName, downloadUrl);
+    }
+
+    // Attach uploaded file directly to email (quote form)
     if (fileBuffer && fileName) {
       mailOptions.attachments = [{
         filename: fileName,
@@ -104,7 +179,11 @@ ${downloadUrl ? `Uploaded File: ${fileName}\nDownload Link: ${downloadUrl}` : 'N
       }];
     }
 
-    await transporter.sendMail(mailOptions);
+    const transporter = makeTransporter();
+    await transporter.sendMail({
+      from: process.env.SMTP_USER,
+      ...mailOptions,
+    });
 
     return {
       statusCode: 200,
