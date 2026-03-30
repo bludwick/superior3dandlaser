@@ -965,13 +965,13 @@
         <div class="fields" style="margin-top:12px;">
           <div class="field">
             <label>Expedite Surcharge (1–2 Days)</label>
-            <div class="input-wrap"><input type="number" id="expediteSurcharge" value="0.50" step="0.01" oninput="calc()"><span class="unit-tag">×</span></div>
-            <span class="hint">0.50 = 50% added to subtotal</span>
+            <div class="input-wrap"><input type="number" id="expediteSurcharge" value="50" step="1" oninput="calc()"><span class="unit-tag">$</span></div>
+            <span class="hint">Flat fee added to order total</span>
           </div>
           <div class="field">
             <label>Rush Surcharge (3–5 Days)</label>
-            <div class="input-wrap"><input type="number" id="rushSurcharge" value="0.25" step="0.01" oninput="calc()"><span class="unit-tag">×</span></div>
-            <span class="hint">0.25 = 25% added to subtotal</span>
+            <div class="input-wrap"><input type="number" id="rushSurcharge" value="25" step="1" oninput="calc()"><span class="unit-tag">$</span></div>
+            <span class="hint">Flat fee added to order total</span>
           </div>
         </div>
         <div style="margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
@@ -1511,8 +1511,8 @@ const PRICING_DEFAULTS = {
   insertUnitCost:    0.50,
   overheadRate:      0.15,
   profitMargin:      0.50,
-  expediteSurcharge: 0.50,  // 50% of subtotal for 1-2 day orders
-  rushSurcharge:     0.25,  // 25% of subtotal for 3-5 day orders
+  expediteSurcharge: 50,    // flat $50 fee for 1-2 day orders
+  rushSurcharge:     25,    // flat $25 fee for 3-5 day orders
 };
 
 function saveSettings() {
@@ -2511,12 +2511,12 @@ function closeCheckout() {
 }
 
 function getLeadTimeSurcharge(subtotal) {
-  const sel  = document.getElementById('coLeadTime');
-  const val  = sel ? sel.value : 'standard';
-  const expediteRate = parseFloat(document.getElementById('expediteSurcharge')?.value) || 0.50;
-  const rushRate     = parseFloat(document.getElementById('rushSurcharge')?.value)     || 0.25;
-  const rates = { expedite: expediteRate, rush: rushRate, standard: 0 };
-  return { val, amount: subtotal * (rates[val] || 0) };
+  const sel        = document.getElementById('coLeadTime');
+  const val        = sel ? sel.value : 'standard';
+  const expediteAmt = parseFloat(document.getElementById('expediteSurcharge')?.value) || 50;
+  const rushAmt     = parseFloat(document.getElementById('rushSurcharge')?.value)     || 25;
+  const amounts = { expedite: expediteAmt, rush: rushAmt, standard: 0 };
+  return { val, amount: amounts[val] || 0 };
 }
 
 function renderCheckout() {
@@ -2534,12 +2534,12 @@ function renderCheckout() {
     ltNote.textContent = "⚡ Expedite orders are prioritized immediately — we'll confirm feasibility within 2 hours.";
     ltNote.style.display = '';
     ltRow.style.display  = '';
-    ltLbl.textContent    = `Expedite Surcharge (+${Math.round((parseFloat(document.getElementById('expediteSurcharge')?.value)||0.5)*100)}%)`;
+    ltLbl.textContent    = `Expedite Surcharge (+${fmt(parseFloat(document.getElementById('expediteSurcharge')?.value)||50)})`;
   } else if (ltVal === 'rush') {
     ltNote.textContent = '🚀 Rush orders are queued ahead of standard — typically shipped within 3–5 business days.';
     ltNote.style.display = '';
     ltRow.style.display  = '';
-    ltLbl.textContent    = `Rush Surcharge (+${Math.round((parseFloat(document.getElementById('rushSurcharge')?.value)||0.25)*100)}%)`;
+    ltLbl.textContent    = `Rush Surcharge (+${fmt(parseFloat(document.getElementById('rushSurcharge')?.value)||25)})`;
   } else {
     ltNote.style.display = 'none';
     ltRow.style.display  = 'none';
