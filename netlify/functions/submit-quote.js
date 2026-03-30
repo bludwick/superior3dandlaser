@@ -159,7 +159,8 @@ exports.handler = async (event) => {
     }
 
     await sendEmail({
-      from: 'Superior 3D and Laser <sales@superior3dandlaser.com>',
+      from:     'Superior 3D and Laser <sales@superiormetrology.com>',
+      reply_to: 'sales@superior3dandlaser.com',
       ...mailOptions,
     });
 
