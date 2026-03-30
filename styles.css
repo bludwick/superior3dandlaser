@@ -19,7 +19,10 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+  overflow-x: hidden;
+}
 
 body {
   font-family: var(--font);
@@ -29,6 +32,7 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
 }
 
 a { color: var(--accent); text-decoration: none; transition: color .2s; }
@@ -663,14 +667,14 @@ footer {
   .footer-brand { grid-column: 1 / -1; }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .nav-links a { color: #111111; font-size: 1rem; }
   .nav-links {
     display: none;
     position: fixed;
     top: 68px;
     right: 0;
-    width: 220px;
+    width: 240px;
     background: #ffffff;
     border: 1px solid var(--border);
     border-top: 3px solid var(--accent);
