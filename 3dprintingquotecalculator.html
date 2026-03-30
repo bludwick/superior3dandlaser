@@ -2460,7 +2460,7 @@ document.addEventListener('DOMContentLoaded', () => { updateCartBadge(); });
 //  body of this function with your integration code.
 //
 //  TO ADD STRIPE:
-//    1. Add <script src="https://js.stripe.com/v3/"></script> to <head>
+//    1. Add <script src="https://js.stripe.com/v3/"><\/script> to <head>
 //    2. Create a Netlify function (e.g. netlify/functions/create-payment-intent.js)
 //       that calls stripe.paymentIntents.create() and returns { clientSecret }
 //    3. Replace this function body with:
