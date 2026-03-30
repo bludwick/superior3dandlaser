@@ -790,13 +790,7 @@
               <option value="1.00">100% — Solid</option>
             </select>
           </div>
-          <div class="field">
-            <label>Supports</label>
-            <select id="slicerSupport" onchange="reestimate()">
-              <option value="disabled">None</option>
-              <option value="auto">Auto (where needed)</option>
-            </select>
-          </div>
+          <input type="hidden" id="slicerSupport" value="auto">
           <div class="field">
             <label>Color</label>
             <select id="printColor" onchange="calc()">
