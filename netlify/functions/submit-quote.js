@@ -174,7 +174,7 @@ exports.handler = async (event) => {
 
     const transporter = makeTransporter();
     await transporter.sendMail({
-      from: `Superior 3D and Laser <${process.env.SMTP_USER}>`,
+      from: process.env.SMTP_FROM || `Superior 3D and Laser <${process.env.SMTP_USER}>`,
       ...mailOptions,
     });
 
