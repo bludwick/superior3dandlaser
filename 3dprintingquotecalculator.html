@@ -959,6 +959,18 @@
             <span class="hint">0.50 = 50% mark-up on cost</span>
           </div>
         </div>
+        <div class="fields" style="margin-top:12px;">
+          <div class="field">
+            <label>Expedite Surcharge (1–2 Days)</label>
+            <div class="input-wrap"><input type="number" id="expediteSurcharge" value="0.50" step="0.01" oninput="calc()"><span class="unit-tag">×</span></div>
+            <span class="hint">0.50 = 50% added to subtotal</span>
+          </div>
+          <div class="field">
+            <label>Rush Surcharge (3–5 Days)</label>
+            <div class="input-wrap"><input type="number" id="rushSurcharge" value="0.25" step="0.01" oninput="calc()"><span class="unit-tag">×</span></div>
+            <span class="hint">0.25 = 25% added to subtotal</span>
+          </div>
+        </div>
         <div style="margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
           <span style="font-size:11px;color:var(--muted);">⚡ All pricing settings auto-save when in Admin mode</span>
           <button class="btn btn-secondary" style="padding:6px 14px;font-size:12px;" onclick="resetPricingDefaults()">↺ Reset to factory defaults</button>
@@ -1302,11 +1314,27 @@
         <tbody id="coTableBody"></tbody>
       </table>
 
+      <!-- Lead Time -->
+      <div class="checkout-section-title" style="margin-top:20px;">Lead Time</div>
+      <div class="co-field full" style="margin-bottom:16px;">
+        <label class="co-label">Requested Timeline <span class="co-req">*</span></label>
+        <select class="co-input" id="coLeadTime" onchange="renderCheckout()">
+          <option value="standard" selected>Standard (1–2 Weeks)</option>
+          <option value="rush">Rush (3–5 Days)</option>
+          <option value="expedite">Expedite (1–2 Days)</option>
+        </select>
+        <div id="coLeadTimeNote" style="font-size:11px;color:var(--accent);margin-top:4px;display:none;"></div>
+      </div>
+
       <!-- Pricing Breakdown -->
       <div class="co-pricing">
         <div class="co-pricing-row">
           <span class="co-pl">Subtotal</span>
           <span class="co-pv" id="coPricingSubtotal">$0.00</span>
+        </div>
+        <div class="co-pricing-row" id="coLeadTimeSurchargeRow" style="display:none;">
+          <span class="co-pl" id="coLeadTimeSurchargeLabel">Rush Surcharge</span>
+          <span class="co-pv" id="coPricingLeadTime">$0.00</span>
         </div>
         <div class="co-pricing-row">
           <span class="co-pl">TN Sales Tax (8.5%)</span>
@@ -1471,13 +1499,15 @@ function saveInserts()   { save('3dp_inserts', insertRef);  flashNote('insertSav
 
 // ── Pricing settings persistence ─────────────────────────────────────────────
 const PRICING_DEFAULTS = {
-  wasteFactor:    1.10,
-  printerCost:    0.15,
-  failureRate:    0.05,
-  labourRate:     25,
-  insertUnitCost: 0.50,
-  overheadRate:   0.15,
-  profitMargin:   0.50,
+  wasteFactor:       1.10,
+  printerCost:       0.15,
+  failureRate:       0.05,
+  labourRate:        25,
+  insertUnitCost:    0.50,
+  overheadRate:      0.15,
+  profitMargin:      0.50,
+  expediteSurcharge: 0.50,  // 50% of subtotal for 1-2 day orders
+  rushSurcharge:     0.25,  // 25% of subtotal for 3-5 day orders
 };
 
 function saveSettings() {
@@ -2473,10 +2503,41 @@ function closeCheckout() {
   document.body.style.overflow = '';
 }
 
+function getLeadTimeSurcharge(subtotal) {
+  const sel  = document.getElementById('coLeadTime');
+  const val  = sel ? sel.value : 'standard';
+  const expediteRate = parseFloat(document.getElementById('expediteSurcharge')?.value) || 0.50;
+  const rushRate     = parseFloat(document.getElementById('rushSurcharge')?.value)     || 0.25;
+  const rates = { expedite: expediteRate, rush: rushRate, standard: 0 };
+  return { val, amount: subtotal * (rates[val] || 0) };
+}
+
 function renderCheckout() {
-  const subtotal = cartSubtotal();
-  const tax      = subtotal * TAX_RATE;
-  const total    = subtotal + tax;
+  const subtotal              = cartSubtotal();
+  const { val: ltVal, amount: ltSurcharge } = getLeadTimeSurcharge(subtotal);
+  const taxBase               = subtotal + ltSurcharge;
+  const tax                   = taxBase * TAX_RATE;
+  const total                 = taxBase + tax;
+
+  // Lead time note + surcharge row
+  const ltNote = document.getElementById('coLeadTimeNote');
+  const ltRow  = document.getElementById('coLeadTimeSurchargeRow');
+  const ltLbl  = document.getElementById('coLeadTimeSurchargeLabel');
+  if (ltVal === 'expedite') {
+    ltNote.textContent = '⚡ Expedite orders are prioritized immediately — we'll confirm feasibility within 2 hours.';
+    ltNote.style.display = '';
+    ltRow.style.display  = '';
+    ltLbl.textContent    = `Expedite Surcharge (+${Math.round((parseFloat(document.getElementById('expediteSurcharge')?.value)||0.5)*100)}%)`;
+  } else if (ltVal === 'rush') {
+    ltNote.textContent = '🚀 Rush orders are queued ahead of standard — typically shipped within 3–5 business days.';
+    ltNote.style.display = '';
+    ltRow.style.display  = '';
+    ltLbl.textContent    = `Rush Surcharge (+${Math.round((parseFloat(document.getElementById('rushSurcharge')?.value)||0.25)*100)}%)`;
+  } else {
+    ltNote.style.display = 'none';
+    ltRow.style.display  = 'none';
+  }
+  document.getElementById('coPricingLeadTime').textContent = fmtPrice(ltSurcharge);
 
   // Order summary table
   document.getElementById('coTableBody').innerHTML = cart.map(item => {
@@ -2510,9 +2571,13 @@ async function submitOrder() {
   if (!email || !email.includes('@')) { document.getElementById('coEmail').focus(); showToast('Please enter a valid email'); return; }
   if (!address) { document.getElementById('coAddress').focus(); showToast('Please enter a shipping address'); return; }
 
-  const subtotal = cartSubtotal();
-  const tax      = subtotal * TAX_RATE;
-  const total    = subtotal + tax;
+  const subtotal              = cartSubtotal();
+  const { val: ltVal, amount: ltSurcharge } = getLeadTimeSurcharge(subtotal);
+  const leadTimeLabels = { expedite: 'Expedite (1–2 Days)', rush: 'Rush (3–5 Days)', standard: 'Standard (1–2 Weeks)' };
+  const leadTimeLabel  = leadTimeLabels[ltVal] || 'Standard (1–2 Weeks)';
+  const taxBase               = subtotal + ltSurcharge;
+  const tax                   = taxBase * TAX_RATE;
+  const total                 = taxBase + tax;
 
   const orderData = {
     customer: {
@@ -2521,8 +2586,10 @@ async function submitOrder() {
       phone:   document.getElementById('coPhone').value.trim(),
       address,
     },
-    notes:    document.getElementById('coNotes').value.trim(),
-    items:    cart,
+    notes:       document.getElementById('coNotes').value.trim(),
+    leadTime:    leadTimeLabel,
+    ltSurcharge,
+    items:       cart,
     subtotal,
     tax,
     total,
@@ -2558,7 +2625,7 @@ async function submitOrder() {
 }
 
 async function submitOrderToBackend(orderData, paymentId) {
-  const { customer, notes, items, subtotal, tax, total } = orderData;
+  const { customer, notes, leadTime, ltSurcharge, items, subtotal, tax, total } = orderData;
 
   // Build a human-readable items summary for the email body
   const itemsSummary = items.map((item, i) => {
@@ -2584,9 +2651,11 @@ async function submitOrderToBackend(orderData, paymentId) {
   body.append('orderTotal',    fmtPrice(total));
   body.append('paymentStatus', 'Pending — to be collected upon confirmation');
   if (paymentId) body.append('paymentId', paymentId);
+  const ltLine = ltSurcharge > 0 ? `Lead Time Surcharge (${leadTime}): ${fmtPrice(ltSurcharge)}\n` : '';
   body.append('message',
     `=== NEW ORDER REQUEST ===\n\nCustomer: ${customer.name}\nEmail: ${customer.email}\nPhone: ${customer.phone || '—'}\nShip To: ${customer.address}\n\n` +
-    `--- Items ---\n${itemsSummary}\n\n--- Totals ---\nSubtotal: ${fmtPrice(subtotal)}\nTax (8.5%): ${fmtPrice(tax)}\nORDER TOTAL: ${fmtPrice(total)}\n\n` +
+    `--- Lead Time ---\n${leadTime}\n\n` +
+    `--- Items ---\n${itemsSummary}\n\n--- Totals ---\nSubtotal: ${fmtPrice(subtotal)}\n${ltLine}Tax (8.5%): ${fmtPrice(tax)}\nORDER TOTAL: ${fmtPrice(total)}\n\n` +
     `--- Notes ---\n${notes || 'None'}\n\nPayment: Pending — to be collected upon confirmation`
   );
 
