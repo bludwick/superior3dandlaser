@@ -1,5 +1,6 @@
-const busboy    = require('busboy');
-const { getStore } = require('@netlify/blobs');
+const busboy        = require('busboy');
+const { getStore }  = require('@netlify/blobs');
+const { Resend }    = require('resend');
 
 // Parse multipart form data from the event
 function parseForm(event) {
@@ -32,19 +33,10 @@ function parseForm(event) {
 
 // ── Resend email sender ───────────────────────────────────────────────────────
 async function sendEmail(payload) {
-  const res = await fetch('https://api.resend.com/emails', {
-    method:  'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-      'Content-Type':  'application/json',
-    },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || `Resend error ${res.status}`);
-  }
-  return res.json();
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const { data, error } = await resend.emails.send(payload);
+  if (error) throw new Error(`Resend: ${error.message} (${error.name})`);
+  return data;
 }
 
 // ── Email builders ────────────────────────────────────────────────────────────
@@ -166,9 +158,8 @@ exports.handler = async (event) => {
       }];
     }
 
-    const fromAddress = process.env.RESEND_FROM || 'Superior 3D and Laser <sales@superior3dandlaser.com>';
     await sendEmail({
-      from: fromAddress,
+      from: 'Superior 3D and Laser <sales@superior3dandlaser.com>',
       ...mailOptions,
     });
 
