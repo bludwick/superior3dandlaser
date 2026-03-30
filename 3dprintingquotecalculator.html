@@ -1959,7 +1959,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let _baseWeightG   = null; // per-unit weight from last STL estimate
   let _baseHrs       = null; // per-unit print time from last STL estimate
 
-  function updateSlicerDisplay() {
+  window.updateSlicerDisplay = function updateSlicerDisplay() {
     if (_baseWeightG === null || _baseHrs === null) return;
     const qty          = Math.max(1, parseFloat(document.getElementById('qty').value) || 1);
     const totalWeightG = _baseWeightG * qty;
