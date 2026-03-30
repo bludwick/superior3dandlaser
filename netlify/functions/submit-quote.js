@@ -1,5 +1,4 @@
 const busboy = require('busboy');
-const nodemailer = require('nodemailer');
 const { getStore } = require('@netlify/blobs');
 
 // Parse multipart form data from the event
@@ -36,28 +35,47 @@ function parseForm(event) {
   });
 }
 
-// Build SMTP transporter (shared across all form types)
-function makeTransporter() {
-  return nodemailer.createTransport({
-    host: 'smtp.office365.com',
-    port: 587,
-    secure: false,
-    requireTLS: true,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
+// ── Send email via Resend API (uses Node 22 built-in fetch) ───────────────────
+async function sendEmail({ to, subject, text, attachments }) {
+  const payload = {
+    from: 'Superior 3D and Laser <noreply@superior3dandlaser.com>',
+    to: [to],
+    subject,
+    text,
+  };
+
+  // Attach files if present (Resend expects base64-encoded content)
+  if (attachments && attachments.length > 0) {
+    payload.attachments = attachments.map(a => ({
+      filename: a.filename,
+      content: a.content.toString('base64'),
+    }));
+  }
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
     },
-    tls: {
-      rejectUnauthorized: false,
-      minVersion: 'TLSv1.2',
-    },
+    body: JSON.stringify(payload),
   });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Resend API error ${res.status}`);
+  }
+
+  return res.json();
 }
 
 // ── Email builders ────────────────────────────────────────────────────────────
 
 function buildContactEmail(fields) {
-  const body = `
+  return {
+    to:      'sales@superior3dandlaser.com',
+    subject: `New Contact Message — ${fields.firstName || ''} ${fields.lastName || ''}`.trim(),
+    text: `
 New Contact Message — Superior 3D and Laser
 ============================================
 
@@ -70,17 +88,15 @@ Message:
 ${fields.message || ''}
 
 ============================================
-  `.trim();
-
-  return {
-    to:      'sales@superior3dandlaser.com',
-    subject: `New Contact Message — ${fields.firstName || ''} ${fields.lastName || ''}`.trim(),
-    text:    body,
+    `.trim(),
   };
 }
 
 function buildQuoteEmail(fields, fileName, downloadUrl) {
-  const body = `
+  return {
+    to:      'blake@superior3dandlaser.com',
+    subject: `New Quote Request — ${fields.firstName || ''} ${fields.lastName || ''}`.trim(),
+    text: `
 New Quote Request — Superior 3D and Laser
 ==========================================
 
@@ -97,17 +113,15 @@ ${fields.message || ''}
 
 ${downloadUrl ? `Uploaded File: ${fileName}\nDownload Link: ${downloadUrl}` : 'No file attached.'}
 ==========================================
-  `.trim();
-
-  return {
-    to:      'blake@superior3dandlaser.com',
-    subject: `New Quote Request — ${fields.firstName || ''} ${fields.lastName || ''}`.trim(),
-    text:    body,
+    `.trim(),
   };
 }
 
 function buildCartOrderEmail(fields) {
-  const body = `
+  return {
+    to:      'blake@superior3dandlaser.com',
+    subject: `New Order Request — ${fields.name || ''} — ${fields.orderTotal || ''}`.trim(),
+    text: `
 New Cart Order Request — Superior 3D and Laser
 ===============================================
 
@@ -130,12 +144,7 @@ ${fields.orderNotes || 'None'}
 Payment Status: ${fields.paymentStatus || 'Pending'}
 ${fields.paymentId ? `Payment ID: ${fields.paymentId}` : ''}
 ===============================================
-  `.trim();
-
-  return {
-    to:      'blake@superior3dandlaser.com',
-    subject: `New Order Request — ${fields.name || ''} — ${fields.orderTotal || ''}`.trim(),
-    text:    body,
+    `.trim(),
   };
 }
 
@@ -151,10 +160,9 @@ exports.handler = async (event) => {
 
     // Save file to Netlify Blobs (quote form only)
     let downloadUrl = null;
-    let savedFileName = null;
     if (fileBuffer && fileName) {
       const store = getStore({ name: 'uploads', consistency: 'strong' });
-      savedFileName = `${Date.now()}-${fileName}`;
+      const savedFileName = `${Date.now()}-${fileName}`;
       await store.set(savedFileName, fileBuffer, {
         metadata: { contentType: fileMime, originalName: fileName }
       });
@@ -162,19 +170,18 @@ exports.handler = async (event) => {
     }
 
     // Route to the correct email template based on form type
-    let mailOptions;
     const formType = fields.formType || (fields.orderType === 'cart-order' ? 'cart' : 'quote');
 
+    let mailOptions;
     if (formType === 'contact') {
       mailOptions = buildContactEmail(fields);
     } else if (formType === 'cart' || fields.orderType === 'cart-order') {
       mailOptions = buildCartOrderEmail(fields);
     } else {
-      // Default: quote request (contact.html)
       mailOptions = buildQuoteEmail(fields, fileName, downloadUrl);
     }
 
-    // Attach uploaded file directly to email (quote form)
+    // Attach uploaded file to email if present
     if (fileBuffer && fileName) {
       mailOptions.attachments = [{
         filename: fileName,
@@ -183,11 +190,7 @@ exports.handler = async (event) => {
       }];
     }
 
-    const transporter = makeTransporter();
-    await transporter.sendMail({
-      from: process.env.SMTP_USER,
-      ...mailOptions,
-    });
+    await sendEmail(mailOptions);
 
     return {
       statusCode: 200,
@@ -197,7 +200,6 @@ exports.handler = async (event) => {
     console.error('submit-quote error:', err);
     return {
       statusCode: 500,
-      // Temporarily exposing error detail for diagnosis — will be removed once working
       body: JSON.stringify({ error: 'Submission failed. Please try again.', detail: err.message }),
     };
   }
