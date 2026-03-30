@@ -954,6 +954,10 @@
             <span class="hint">0.50 = 50% mark-up on cost</span>
           </div>
         </div>
+        <div style="margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <span style="font-size:11px;color:var(--muted);">⚡ All pricing settings auto-save when in Admin mode</span>
+          <button class="btn btn-secondary" style="padding:6px 14px;font-size:12px;" onclick="resetPricingDefaults()">↺ Reset to factory defaults</button>
+        </div>
       </div>
     </div>
 
@@ -1459,6 +1463,46 @@ function saveMaterials() { save('3dp_materials', materials); rebuildMaterialDrop
 function saveLabour()    { save('3dp_labour', labourRates); flashNote('labourSaveNote', 'Reference only'); }
 function saveInserts()   { save('3dp_inserts', insertRef);  flashNote('insertSaveNote', 'Reference only'); }
 
+// ── Pricing settings persistence ─────────────────────────────────────────────
+const PRICING_DEFAULTS = {
+  wasteFactor:    1.10,
+  printerCost:    0.15,
+  failureRate:    0.05,
+  labourRate:     25,
+  insertUnitCost: 0.50,
+  overheadRate:   0.15,
+  profitMargin:   0.50,
+};
+
+function saveSettings() {
+  const s = {};
+  Object.keys(PRICING_DEFAULTS).forEach(k => {
+    const el = document.getElementById(k);
+    if (el) s[k] = parseFloat(el.value);
+  });
+  localStorage.setItem('3dp_settings', JSON.stringify(s));
+}
+
+function loadSettings() {
+  let s = PRICING_DEFAULTS;
+  try {
+    const raw = localStorage.getItem('3dp_settings');
+    if (raw) s = { ...PRICING_DEFAULTS, ...JSON.parse(raw) };
+  } catch(e) {}
+  Object.keys(s).forEach(k => {
+    const el = document.getElementById(k);
+    if (el) el.value = s[k];
+  });
+}
+
+function resetPricingDefaults() {
+  if (!confirm('Reset all pricing settings to factory defaults?')) return;
+  localStorage.removeItem('3dp_settings');
+  loadSettings();
+  calc();
+  showToast('Pricing settings reset to factory defaults');
+}
+
 function addMaterialRow() {
   materials.push({ name: 'New Material', midpoint: 30, range: '$xx–$xx', notes: '' });
   renderMaterials(); saveMaterials();
@@ -1568,6 +1612,9 @@ function calc() {
 
   // Update print time & filament weight display to reflect current qty
   if (typeof updateSlicerDisplay === 'function') updateSlicerDisplay();
+
+  // Auto-save admin pricing settings on every calculation
+  if (document.body.classList.contains('admin-mode')) saveSettings();
 }
 
 function toggleAddon(which) {
@@ -1667,18 +1714,12 @@ function toggleSection(header) { header.closest('.section-card').classList.toggl
 
 function resetCalc() {
   document.getElementById('partName').value = '';
-  document.getElementById('qty').value = 3;
+  document.getElementById('qty').value = 1;
   const sel = document.getElementById('materialType');
   if (materials.length) { sel.value = materials[0].name; onMaterialChange(); }
   document.getElementById('materialGrams').value = 50;
-  document.getElementById('wasteFactor').value   = 1.10;
   document.getElementById('printHours').value    = 4.5;
-  document.getElementById('printerCost').value   = 0.15;
-  document.getElementById('failureRate').value   = 0.05;
-  document.getElementById('overheadRate').value  = 0.15;
-  document.getElementById('profitMargin').value  = 0.50;
-  document.getElementById('labourRate').value    = 25;
-  document.getElementById('insertUnitCost').value = 0.50;
+  loadSettings(); // restore saved pricing settings
   document.getElementById('printColor').value = 'black';
   // Reset add-ons
   ['chkPost','chkInserts','chkAssembly'].forEach(id => { document.getElementById(id).checked = false; });
@@ -1851,6 +1892,7 @@ function triggerPrint() { window.print(); }
 document.addEventListener('click', e => { if (e.target.id === 'printModal') closePrintPreview(); });
 document.addEventListener('DOMContentLoaded', () => {
   renderMaterials(); renderLabour(); renderInserts();
+  loadSettings();
   const sel = document.getElementById('materialType');
   sel.value = 'PLA';
   onMaterialChange(); calc(); renderBatch();
