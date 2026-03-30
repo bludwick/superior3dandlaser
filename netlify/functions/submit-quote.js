@@ -166,8 +166,9 @@ exports.handler = async (event) => {
       }];
     }
 
+    const fromAddress = process.env.RESEND_FROM || 'Superior 3D and Laser <sales@superior3dandlaser.com>';
     await sendEmail({
-      from: 'Superior 3D and Laser <sales@superior3dandlaser.com>',
+      from: fromAddress,
       ...mailOptions,
     });
 
