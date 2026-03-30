@@ -2390,8 +2390,7 @@ function renderCart() {
 
   footer.style.display = 'block';
   list.innerHTML = cart.map(item => {
-    const partsTotal = item.unitPrice * item.qty;
-    const hasColor   = (item.colorSurcharge || 0) > 0;
+    const hasColor = (item.colorSurcharge || 0) > 0;
     return `
     <div class="cart-item" id="cart-item-${item.id}">
       <div class="cart-item-name" title="${escHtml(item.fileName)}">${escHtml(item.fileName)}</div>
@@ -2399,14 +2398,7 @@ function renderCart() {
         ${escHtml(item.material)} · ${escHtml(item.infill)} infill · ${escHtml(item.color)}<br>
         Supports: ${escHtml(item.supports)} · ⏱ ${escHtml(item.printTimeStr)} · ⚖ ${escHtml(item.filamentStr)}
       </div>
-      <div class="cart-item-breakdown">
-        <div class="cib-row"><span>Material</span><span>${fmtPrice((item.matCost || 0) * item.qty)}</span></div>
-        <div class="cib-row"><span>Print Time</span><span>${fmtPrice((item.printCost || 0) * item.qty)}</span></div>
-        ${(item.addonCost || 0) > 0 ? `<div class="cib-row"><span>Add-ons</span><span>${fmtPrice(item.addonCost * item.qty)}</span></div>` : ''}
-        <div class="cib-row"><span>Overhead &amp; Margin</span><span>${fmtPrice(partsTotal - ((item.matCost || 0) + (item.printCost || 0) + (item.addonCost || 0)) * item.qty)}</span></div>
-        ${hasColor ? `<div class="cib-row cib-color"><span>Color Surcharge <em>(per order)</em></span><span>+${fmtPrice(item.colorSurcharge)}</span></div>` : ''}
-        <div class="cib-row cib-total"><span>Item Total</span><span>${fmtPrice(item.lineTotal)}</span></div>
-      </div>
+      ${hasColor ? `<div class="cart-item-breakdown"><div class="cib-row cib-color"><span>Color Surcharge</span><span>+${fmtPrice(item.colorSurcharge)}</span></div></div>` : ''}
       <div class="cart-item-footer">
         <div class="cart-item-qty">
           <button class="cart-qty-btn" onclick="cartChangeQty(${item.id}, -1)">−</button>
