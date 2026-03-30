@@ -861,9 +861,9 @@
             <span class="hint">Electricity + depreciation</span>
           </div>
           <div class="field admin-only">
-            <label>Print Labour Rate</label>
-            <div class="input-wrap"><input type="number" id="printLabourRate" value="0.25" step="0.01" oninput="calc()"><span class="unit-tag">$/hr</span></div>
-            <span class="hint">Operator monitoring per print hour</span>
+            <label>Print Labour (per part)</label>
+            <div class="input-wrap"><input type="number" id="printLabourHrs" value="0.25" step="0.05" oninput="calc()"><span class="unit-tag">hrs</span></div>
+            <span class="hint">Flat labour hours billed at professional rate</span>
           </div>
           <div class="field admin-only">
             <label>Failure Rate (contingency)</label>
@@ -1507,7 +1507,7 @@ function saveInserts()   { save('3dp_inserts', insertRef);  flashNote('insertSav
 const PRICING_DEFAULTS = {
   wasteFactor:       1.10,
   printerCost:       0.15,
-  printLabourRate:   0.25,
+  printLabourHrs:    0.25,
   failureRate:       0.05,
   labourRate:        25,
   insertUnitCost:    0.50,
@@ -1605,7 +1605,7 @@ function calc() {
   const matCost        = (g('matCostKg') / 1000) * g('materialGrams') * g('wasteFactor');
   const printBase      = g('printHours') * g('printerCost');
   const printCost      = printBase * (1 + g('failureRate'));
-  const printLabourCost = g('printHours') * g('printLabourRate');
+  const printLabourCost = g('printLabourHrs') * g('labourRate');
 
   // Add-ons
   const postEnabled = document.getElementById('chkPost').checked;
