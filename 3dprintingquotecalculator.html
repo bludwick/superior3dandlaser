@@ -724,7 +724,7 @@
           <div class="field"><label>Project Name</label><input type="text" id="projectName" placeholder="My Print Project"></div>
           <div class="field">
             <label>Quantity of Parts</label>
-            <div class="input-wrap"><input type="number" id="qty" value="3" min="1" oninput="calc()"><span class="unit-tag">pcs</span></div>
+            <div class="input-wrap"><input type="number" id="qty" value="1" min="1" oninput="calc()"><span class="unit-tag">pcs</span></div>
           </div>
         </div>
       </div>
@@ -1564,6 +1564,9 @@ function calc() {
                    && parseFloat(document.getElementById('printHours').value) > 0;
     _acBtn.style.display = (total > 0 && hasSTL) ? 'flex' : 'none';
   }
+
+  // Update print time & filament weight display to reflect current qty
+  if (typeof updateSlicerDisplay === 'function') updateSlicerDisplay();
 }
 
 function toggleAddon(which) {
@@ -1953,6 +1956,21 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   let _cachedMeshMM3 = null; // persists across infill/support changes
+  let _baseWeightG   = null; // per-unit weight from last STL estimate
+  let _baseHrs       = null; // per-unit print time from last STL estimate
+
+  function updateSlicerDisplay() {
+    if (_baseWeightG === null || _baseHrs === null) return;
+    const qty          = Math.max(1, parseFloat(document.getElementById('qty').value) || 1);
+    const totalWeightG = _baseWeightG * qty;
+    const totalHrs     = _baseHrs * qty;
+    const h = Math.floor(totalHrs), m = Math.round((totalHrs - h) * 60);
+    const timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+    document.getElementById('slicerTimeDisp').textContent   = timeStr;
+    document.getElementById('slicerWeightDisp').textContent = totalWeightG.toFixed(1) + ' g';
+    document.getElementById('res-slicer').textContent       = `~${timeStr} · ~${totalWeightG.toFixed(1)} g`;
+    document.getElementById('res-slicer').style.color       = 'var(--accent)';
+  }
 
   function applyEstimate(meshMM3) {
     const infill      = parseFloat(document.getElementById('slicerInfill').value);
@@ -1960,16 +1978,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const material    = document.getElementById('materialType').value;
     const { weightG, hrs } = estimate(meshMM3, infill, supportType, material);
 
+    _baseWeightG = weightG;
+    _baseHrs     = hrs;
+
     document.getElementById('materialGrams').value = weightG.toFixed(1);
     document.getElementById('printHours').value    = hrs.toFixed(2);
-    if (typeof calc === 'function') calc();
-
-    const h = Math.floor(hrs), m = Math.round((hrs - h) * 60);
-    const timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
-    document.getElementById('slicerTimeDisp').textContent   = timeStr;
-    document.getElementById('slicerWeightDisp').textContent = weightG.toFixed(1) + ' g';
-    document.getElementById('res-slicer').textContent       = `~${timeStr} · ~${weightG.toFixed(1)} g`;
-    document.getElementById('res-slicer').style.color       = 'var(--accent)';
+    if (typeof calc === 'function') calc(); // calc() calls updateSlicerDisplay()
   }
 
   window.reestimate = function () {
