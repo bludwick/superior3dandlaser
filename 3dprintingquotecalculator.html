@@ -544,7 +544,14 @@
   }
   .cart-item:hover { border-color: rgba(185,28,28,.3); }
   .cart-item-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .cart-item-meta { font-size: 11px; color: var(--muted); margin-bottom: 10px; line-height: 1.6; }
+  .cart-item-meta { font-size: 11px; color: var(--muted); margin-bottom: 8px; line-height: 1.6; }
+  .cart-item-breakdown { background: var(--bg-light); border-radius: 6px; padding: 8px 10px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 3px; }
+  .cib-row { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+  .cib-row span:first-child { flex: 1; }
+  .cib-row span:last-child { font-variant-numeric: tabular-nums; text-align: right; }
+  .cib-color { color: var(--accent); font-weight: 600; }
+  .cib-color em { font-style: normal; font-weight: 400; font-size: 10px; opacity: .8; }
+  .cib-total { color: var(--text); font-weight: 700; border-top: 1px solid var(--border); margin-top: 4px; padding-top: 4px; }
   .cart-item-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .cart-item-qty { display: flex; align-items: center; gap: 7px; }
   .cart-qty-btn {
@@ -2281,19 +2288,24 @@ function addToCart() {
   const timeDisp   = document.getElementById('slicerTimeDisp').textContent   || '—';
 
   const item = {
-    id:           Date.now(),
-    fileName:     fileName,
-    material:     material,
-    infill:       infill,
-    supports:     supports,
-    color:        color,
-    qty:          qty,
-    printTimeStr: timeDisp,
-    filamentStr:  weightDisp,
-    printHours:   parseFloat(document.getElementById('printHours').value) || 0,
-    filamentG:    parseFloat(document.getElementById('materialGrams').value) || 0,
-    unitPrice:    lc.unitPrice,
-    lineTotal:    lc.unitPrice * qty,
+    id:              Date.now(),
+    fileName:        fileName,
+    material:        material,
+    infill:          infill,
+    supports:        supports,
+    color:           color,
+    qty:             qty,
+    printTimeStr:    timeDisp,
+    filamentStr:     weightDisp,
+    printHours:      parseFloat(document.getElementById('printHours').value) || 0,
+    filamentG:       parseFloat(document.getElementById('materialGrams').value) || 0,
+    unitPrice:       lc.unitPrice,
+    matCost:         lc.matCost,
+    printCost:       lc.printCost,
+    addonCost:       lc.addonCost,
+    overhead:        lc.overhead,
+    colorSurcharge:  lc.colorSurcharge || 0,
+    lineTotal:       lc.total, // unitPrice × qty + colorSurcharge (flat)
   };
 
   cart.push(item);
@@ -2377,12 +2389,23 @@ function renderCart() {
   }
 
   footer.style.display = 'block';
-  list.innerHTML = cart.map(item => `
+  list.innerHTML = cart.map(item => {
+    const partsTotal = item.unitPrice * item.qty;
+    const hasColor   = (item.colorSurcharge || 0) > 0;
+    return `
     <div class="cart-item" id="cart-item-${item.id}">
       <div class="cart-item-name" title="${escHtml(item.fileName)}">${escHtml(item.fileName)}</div>
       <div class="cart-item-meta">
         ${escHtml(item.material)} · ${escHtml(item.infill)} infill · ${escHtml(item.color)}<br>
         Supports: ${escHtml(item.supports)} · ⏱ ${escHtml(item.printTimeStr)} · ⚖ ${escHtml(item.filamentStr)}
+      </div>
+      <div class="cart-item-breakdown">
+        <div class="cib-row"><span>Material</span><span>${fmtPrice((item.matCost || 0) * item.qty)}</span></div>
+        <div class="cib-row"><span>Print Time</span><span>${fmtPrice((item.printCost || 0) * item.qty)}</span></div>
+        ${(item.addonCost || 0) > 0 ? `<div class="cib-row"><span>Add-ons</span><span>${fmtPrice(item.addonCost * item.qty)}</span></div>` : ''}
+        <div class="cib-row"><span>Overhead &amp; Margin</span><span>${fmtPrice(partsTotal - ((item.matCost || 0) + (item.printCost || 0) + (item.addonCost || 0)) * item.qty)}</span></div>
+        ${hasColor ? `<div class="cib-row cib-color"><span>Color Surcharge <em>(per order)</em></span><span>+${fmtPrice(item.colorSurcharge)}</span></div>` : ''}
+        <div class="cib-row cib-total"><span>Item Total</span><span>${fmtPrice(item.lineTotal)}</span></div>
       </div>
       <div class="cart-item-footer">
         <div class="cart-item-qty">
@@ -2394,7 +2417,7 @@ function renderCart() {
         <button class="cart-item-remove" onclick="cartRemove(${item.id})" title="Remove">✕</button>
       </div>
     </div>
-  `).join('');
+  `}).join('');
 
   document.getElementById('cartSubtotal').textContent = fmtPrice(cartSubtotal());
 }
@@ -2403,7 +2426,7 @@ function cartChangeQty(id, delta) {
   const item = cart.find(i => i.id === id);
   if (!item) return;
   item.qty = Math.max(1, item.qty + delta);
-  item.lineTotal = item.unitPrice * item.qty;
+  item.lineTotal = item.unitPrice * item.qty + (item.colorSurcharge || 0);
   saveCart();
   renderCart();
 }
@@ -2447,17 +2470,20 @@ function renderCheckout() {
   const total    = subtotal + tax;
 
   // Order summary table
-  document.getElementById('coTableBody').innerHTML = cart.map(item => `
+  document.getElementById('coTableBody').innerHTML = cart.map(item => {
+    const hasColor = (item.colorSurcharge || 0) > 0;
+    return `
     <tr>
       <td>
         <div class="co-item-name">${escHtml(item.fileName)}</div>
         <div class="co-item-meta">${escHtml(item.material)} · ${escHtml(item.infill)} infill · ${escHtml(item.color)}<br>⏱ ${escHtml(item.printTimeStr)} · ⚖ ${escHtml(item.filamentStr)}</div>
+        ${hasColor ? `<div class="co-item-meta" style="color:var(--accent);margin-top:2px;">+ Color surcharge (per order): ${fmtPrice(item.colorSurcharge)}</div>` : ''}
       </td>
       <td style="text-align:right;vertical-align:middle;">${item.qty}</td>
       <td style="text-align:right;vertical-align:middle;">${fmtPrice(item.unitPrice)}</td>
       <td style="text-align:right;vertical-align:middle;" class="co-item-price">${fmtPrice(item.lineTotal)}</td>
     </tr>
-  `).join('');
+  `}).join('');
 
   // Pricing breakdown
   document.getElementById('coPricingSubtotal').textContent = fmtPrice(subtotal);
@@ -2526,11 +2552,14 @@ async function submitOrderToBackend(orderData, paymentId) {
   const { customer, notes, items, subtotal, tax, total } = orderData;
 
   // Build a human-readable items summary for the email body
-  const itemsSummary = items.map((item, i) =>
-    `${i + 1}. ${item.fileName} — ${item.material}, ${item.infill} infill, ${item.color}, Supports: ${item.supports}\n` +
-    `   Qty: ${item.qty} × ${fmtPrice(item.unitPrice)} = ${fmtPrice(item.lineTotal)}\n` +
-    `   Est. print time: ${item.printTimeStr} · Filament: ${item.filamentStr}`
-  ).join('\n\n');
+  const itemsSummary = items.map((item, i) => {
+    const hasColor = (item.colorSurcharge || 0) > 0;
+    return `${i + 1}. ${item.fileName} — ${item.material}, ${item.infill} infill, ${item.color}, Supports: ${item.supports}\n` +
+      `   Qty: ${item.qty} × ${fmtPrice(item.unitPrice)} = ${fmtPrice(item.unitPrice * item.qty)}\n` +
+      (hasColor ? `   Color surcharge (per order): +${fmtPrice(item.colorSurcharge)}\n` : '') +
+      `   Item Total: ${fmtPrice(item.lineTotal)}\n` +
+      `   Est. print time: ${item.printTimeStr} · Filament: ${item.filamentStr}`;
+  }).join('\n\n');
 
   const body = new FormData();
   body.append('orderType',     'cart-order');
