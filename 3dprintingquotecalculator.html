@@ -2524,7 +2524,7 @@ function renderCheckout() {
   const ltRow  = document.getElementById('coLeadTimeSurchargeRow');
   const ltLbl  = document.getElementById('coLeadTimeSurchargeLabel');
   if (ltVal === 'expedite') {
-    ltNote.textContent = '⚡ Expedite orders are prioritized immediately — we'll confirm feasibility within 2 hours.';
+    ltNote.textContent = "⚡ Expedite orders are prioritized immediately — we'll confirm feasibility within 2 hours.";
     ltNote.style.display = '';
     ltRow.style.display  = '';
     ltLbl.textContent    = `Expedite Surcharge (+${Math.round((parseFloat(document.getElementById('expediteSurcharge')?.value)||0.5)*100)}%)`;
