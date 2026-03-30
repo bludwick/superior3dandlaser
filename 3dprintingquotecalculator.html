@@ -289,10 +289,6 @@
   .section-card:nth-child(8) { animation: fadeIn .3s ease .40s both; }
 
   /* SLICER */
-  .stl-upload-zone { display:flex; align-items:center; gap:12px; padding:12px 16px; background:var(--bg-light); border:1.5px dashed var(--border); border-radius:8px; cursor:pointer; transition:border-color .2s,background .2s; }
-  .stl-upload-zone:hover { border-color:var(--accent); background:rgba(185,28,28,.04); }
-  .stl-upload-zone input[type=file] { display:none; }
-  .stl-upload-btn { padding:7px 14px; background:var(--accent); color:#fff; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap; flex-shrink:0; }
   .stl-file-name { font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .slicer-spinner { display:flex; align-items:center; gap:12px; padding:12px 0 4px; font-size:13px; color:var(--muted); }
   @keyframes spin { to { transform:rotate(360deg); } }
@@ -326,14 +322,14 @@
 
   /* STL 3D VIEWER */
   .stl-viewer-center {
-    max-width: 50%;
-    min-width: 280px;
-    margin: 12px auto 0;
+    width: 100%;
+    margin: 0;
   }
-  @media (max-width: 600px) { .stl-viewer-center { max-width: 100%; } }
   .stl-viewer-ph {
     border: 2px dashed var(--border);
     border-radius: var(--radius);
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
     height: 300px;
     display: flex;
     flex-direction: column;
@@ -346,7 +342,9 @@
     background: var(--bg-light);
     user-select: none;
   }
-  .stl-viewer-ph .ph-icon { font-size: 38px; line-height: 1; }
+  .stl-viewer-ph:hover { border-color: var(--accent); background: rgba(185,28,28,.04); }
+  .stl-viewer-ph:hover .ph-upload-icon { color: var(--accent) !important; }
+  .stl-viewer-ph .ph-icon { line-height: 1; }
   .stl-viewer-canvas {
     width: 100%;
     height: 300px;
@@ -751,17 +749,32 @@
       </div>
       <div class="section-body">
 
-        <!-- STL Upload -->
-        <div class="fields">
-          <div class="field full">
-            <label>STL File <span style="font-weight:400;color:var(--muted);text-transform:none;font-size:10px;letter-spacing:0;">(optional — auto-fills material &amp; time below)</span></label>
-            <div class="stl-upload-zone" onclick="document.getElementById('stlInput').click()">
-              <input type="file" id="stlInput" accept=".stl" onchange="handleSTLUpload(this.files[0])">
-              <span class="stl-upload-btn">Choose STL…</span>
-              <span class="stl-file-name" id="stlFileName">No file selected</span>
+        <!-- STL Upload + 3D Viewer (merged) -->
+        <input type="file" id="stlInput" accept=".stl" style="display:none" onchange="handleSTLUpload(this.files[0])">
+        <div class="stl-viewer-center" style="margin-bottom:16px;">
+          <div id="stlViewerPlaceholder" class="stl-viewer-ph" onclick="document.getElementById('stlInput').click()">
+            <div class="ph-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="color:var(--muted);transition:color .2s;" class="ph-upload-icon">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
             </div>
-            <span class="hint" id="res-slicer" style="color:var(--muted);font-weight:600;">Upload an STL to auto-estimate material &amp; time</span>
+            <div style="font-size:13px;font-weight:600;margin-top:10px;">Click to upload STL file</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;">Auto-fills material &amp; print time estimate</div>
           </div>
+          <div id="stlViewerWrap" style="display:none;">
+            <div id="stlViewerContainer" class="stl-viewer-canvas"></div>
+            <div class="stl-viewer-meta">
+              <span class="dims" id="stlDims"></span>
+              <span id="stlFileInfo"></span>
+            </div>
+          </div>
+          <span class="hint" id="res-slicer" style="color:var(--muted);font-weight:600;display:block;margin-top:6px;">Upload an STL to auto-estimate material &amp; time</span>
+        </div>
+
+        <div class="fields">
+          <div class="field full" style="display:none;"><span class="stl-file-name" id="stlFileName">No file selected</span></div>
           <div class="field">
             <label>Material</label>
             <select id="materialType" onchange="onMaterialChange()">
@@ -807,21 +820,6 @@
               <option value="natural">Natural / Transparent +$5.00</option>
               <option value="custom">Custom… +$5.00</option>
             </select>
-          </div>
-        </div>
-
-        <!-- 3D Model Preview -->
-        <div class="stl-viewer-center">
-          <div id="stlViewerPlaceholder" class="stl-viewer-ph">
-            <div class="ph-icon">📦</div>
-            <div>Upload an STL file to preview the 3D model</div>
-          </div>
-          <div id="stlViewerWrap" style="display:none;">
-            <div id="stlViewerContainer" class="stl-viewer-canvas"></div>
-            <div class="stl-viewer-meta">
-              <span class="dims" id="stlDims"></span>
-              <span id="stlFileInfo"></span>
-            </div>
           </div>
         </div>
 
