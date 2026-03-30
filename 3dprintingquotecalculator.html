@@ -972,6 +972,7 @@
           <div class="summary-row"><span class="label">Print Time Cost</span><span class="val" id="s-print">$0.00</span></div>
           <div class="summary-row"><span class="label">Add-ons</span><span class="val" id="s-addons">$0.00</span></div>
           <div class="summary-row"><span class="label">Overhead</span><span class="val" id="s-overhead">$0.00</span></div>
+          <div class="summary-row" id="s-color-row" style="display:none;"><span class="label">Color Surcharge <span style="font-weight:400;font-size:10px;">(per order)</span></span><span class="val" id="s-color"></span></div>
         </div>
         <div class="total-box">
           <div class="total-left">
@@ -1581,12 +1582,12 @@ function calc() {
   const printColorVal = document.getElementById('printColor').value;
   const colorSurcharge = printColorVal !== 'black' ? 5.00 : 0;
   if (window.setSTLViewerColor) window.setSTLViewerColor(printColorVal);
-  const addonCost  = postCost + insertCost + asmCost + colorSurcharge;
+  const addonCost  = postCost + insertCost + asmCost; // color is per-order, handled separately
   const directCost = matCost + printCost + addonCost;
   const overhead   = directCost * g('overheadRate');
   const unitPrice  = (directCost + overhead) * (1 + g('profitMargin'));
   const qty        = Math.max(1, g('qty'));
-  const total      = unitPrice * qty;
+  const total      = unitPrice * qty + colorSurcharge; // color added once flat
 
   const rpt = document.getElementById('res-print-total');
   if (rpt) rpt.textContent = fmt(directCost);
@@ -1597,10 +1598,14 @@ function calc() {
   const cp = document.getElementById('cost-post');    if (cp) cp.textContent    = postEnabled  ? fmt(postCost)   : '';
   const ci = document.getElementById('cost-inserts'); if (ci) ci.textContent = insEnabled  ? fmt(insertCost) : '';
   const ca = document.getElementById('cost-assembly');if (ca) ca.textContent = asmEnabled  ? fmt(asmCost)    : '';
+  const sc = document.getElementById('s-color-row');
+  if (sc) sc.style.display = colorSurcharge > 0 ? '' : 'none';
+  const scv = document.getElementById('s-color');
+  if (scv) scv.textContent = colorSurcharge > 0 ? fmt(colorSurcharge) : '';
   document.getElementById('t-unit').textContent  = fmt(unitPrice);
   document.getElementById('t-qty').textContent   = qty;
   document.getElementById('t-total').textContent = fmt(total);
-  window._lastCalc = { matCost, printCost, addonCost, overhead, unitPrice, qty, total };
+  window._lastCalc = { matCost, printCost, addonCost, overhead, unitPrice, qty, colorSurcharge, total };
 
   // Show Add to Cart button once a valid STL-based quote is calculated
   const _acBtn = document.getElementById('addToCartBtn');
