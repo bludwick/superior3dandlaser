@@ -372,16 +372,60 @@
   .stl-viewer-meta .dims { font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: .02em; }
 
   /* SITE NAV */
-  .site-nav { position:sticky; top:0; z-index:50; background:rgba(255,255,255,.96); backdrop-filter:blur(8px); border-bottom:1px solid var(--border); }
-  .site-nav-inner { max-width:1100px; margin:0 auto; padding:0 20px; display:flex; align-items:center; justify-content:space-between; height:58px; gap:16px; }
-  .site-nav-logo img { height:38px; width:auto; display:block; }
+  .site-nav { position:sticky; top:0; z-index:50; background:rgba(255,255,255,.96); backdrop-filter:blur(8px); border-bottom:1px solid var(--border); overflow:visible; }
+  .site-nav-inner { max-width:1100px; margin:0 auto; padding:0 20px; display:flex; align-items:center; justify-content:space-between; height:58px; gap:12px; }
+  .site-nav-logo img { height:38px; width:auto; display:block; flex-shrink:0; }
   .site-nav-links { display:flex; align-items:center; gap:2px; list-style:none; margin:0; padding:0; }
-  .site-nav-links a { font-size:13px; font-weight:600; color:var(--muted); text-decoration:none; padding:6px 12px; border-radius:6px; transition:color .15s,background .15s; letter-spacing:.01em; }
+  .site-nav-links a { font-size:13px; font-weight:600; color:var(--muted); text-decoration:none; padding:6px 12px; border-radius:6px; transition:color .15s,background .15s; letter-spacing:.01em; white-space:nowrap; }
   .site-nav-links a:hover { color:var(--text); background:var(--bg-light); }
   .site-nav-links a.snav-cta { color:var(--accent); }
   .site-nav-links a.snav-cta:hover { color:var(--accent-lt); background:rgba(185,28,28,.06); }
   .site-nav-links a.snav-active { color:var(--text); }
-  @media (max-width:600px) { .site-nav-links { gap:0; } .site-nav-links a { padding:6px 8px; font-size:12px; } }
+
+  /* Hamburger button — hidden on desktop */
+  .site-nav-toggle { display:none; background:none; border:none; cursor:pointer; padding:6px; flex-shrink:0; }
+  .site-nav-toggle span { display:block; width:22px; height:2px; background:var(--text); margin:4px 0; border-radius:2px; transition:.3s; }
+
+  @media (max-width:768px) {
+    .site-nav-inner { gap:8px; }
+    /* Hide nav links and cart button; show hamburger */
+    .site-nav-links { display:none; }
+    .cart-nav-btn { display:none; }
+    .site-nav-toggle { display:block; }
+    /* Dropdown menu */
+    .site-nav-links.snav-open {
+      display:flex;
+      flex-direction:column;
+      align-items:flex-start;
+      position:fixed;
+      top:58px; right:0;
+      width:220px;
+      background:#fff;
+      border:1px solid var(--border);
+      border-top:3px solid var(--accent);
+      border-radius:0 0 0 10px;
+      box-shadow:-4px 12px 32px rgba(0,0,0,.18);
+      padding:1rem 1.25rem;
+      gap:1rem;
+      z-index:300;
+    }
+    .site-nav-links.snav-open a { font-size:14px; color:#111; padding:4px 0; width:100%; }
+    /* Show cart icon as last item inside the open menu */
+    .site-nav-links.snav-open .snav-cart-mobile {
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-size:14px;
+      font-weight:700;
+      color:var(--accent);
+      cursor:pointer;
+      padding:4px 0;
+      background:none;
+      border:none;
+      font-family:var(--font);
+      width:100%;
+    }
+  }
 
   /* ADMIN VISIBILITY — hidden from customers by default */
   body:not(.admin-mode) .admin-only { display: none; }
@@ -629,16 +673,20 @@
     <a href="index.html" class="site-nav-logo">
       <img src="logoheader_transparent.png" alt="Superior 3D and Laser">
     </a>
-    <ul class="site-nav-links">
+    <ul class="site-nav-links" id="siteNavLinks">
       <li><a href="index.html">Home</a></li>
       <li><a href="services.html">Services</a></li>
       <li><a href="contact-us.html">Contact</a></li>
       <li><a href="3dprintingquotecalculator.html" class="snav-cta snav-active">Instant Quote</a></li>
       <li><a href="contact.html" class="snav-cta">Custom Quote</a></li>
+      <li><button class="snav-cart-mobile" onclick="closeNav();openCart()">🛒 Cart <span class="cart-badge" id="cartBadgeMobile" style="display:none;">0</span></button></li>
     </ul>
     <button class="cart-nav-btn" id="cartNavBtn" onclick="openCart()">
       🛒 Cart
       <span class="cart-badge" id="cartBadge" style="display:none;">0</span>
+    </button>
+    <button class="site-nav-toggle" id="siteNavToggle" aria-label="Toggle menu" onclick="toggleNav()">
+      <span></span><span></span><span></span>
     </button>
   </div>
 </nav>
@@ -2205,11 +2253,28 @@ function addToCart() {
   }
 }
 
+// ── Mobile nav toggle ─────────────────────────────────────────────────────────
+function toggleNav() {
+  document.getElementById('siteNavLinks').classList.toggle('snav-open');
+}
+function closeNav() {
+  document.getElementById('siteNavLinks').classList.remove('snav-open');
+}
+// Close mobile nav when clicking outside
+document.addEventListener('click', e => {
+  const nav = document.getElementById('siteNavLinks');
+  const toggle = document.getElementById('siteNavToggle');
+  if (nav && toggle && !nav.contains(e.target) && !toggle.contains(e.target)) {
+    closeNav();
+  }
+});
+
 // ── Badge ─────────────────────────────────────────────────────────────────────
 function updateCartBadge() {
   const count = cart.reduce((s, item) => s + item.qty, 0);
   const badges = [
     document.getElementById('cartBadge'),
+    document.getElementById('cartBadgeMobile'),
     document.getElementById('cartPanelBadge'),
   ];
   badges.forEach(b => {
