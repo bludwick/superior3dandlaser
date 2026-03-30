@@ -706,7 +706,7 @@
 <div class="app">
   <header>
     <div class="logo-area">
-      <div class="logo-tag">🖨 FDM / Resin</div>
+      <div class="logo-tag"><img src="3dprint-icon.svg" style="height:1em;width:auto;vertical-align:middle;margin-right:5px;" alt="">FDM / Resin</div>
       <h1>3D Print <span>Pricer</span></h1>
     </div>
     <div class="header-right">
@@ -744,7 +744,7 @@
 
     <div class="section-card">
       <div class="section-header" onclick="toggleSection(this)">
-        <div class="section-icon">🖨</div>
+        <div class="section-icon"><img src="3dprint-icon.svg" style="width:18px;height:auto;" alt=""></div>
         <span class="section-title">Print Settings</span>
         <span class="section-result admin-only" id="res-print-total">$0.00</span>
         <span class="chevron">▾</span>
@@ -1011,7 +1011,7 @@
         <div class="section-icon">📋</div>
         <span class="section-title">Batch / Multi-Part Estimator</span>
         <div style="display:flex;gap:8px;margin-left:auto;">
-          <button class="btn btn-secondary" style="padding:7px 16px;font-size:12px;" onclick="openPrintPreview('internal')">🖨 Print Summary</button>
+          <button class="btn btn-secondary" style="padding:7px 16px;font-size:12px;" onclick="openPrintPreview('internal')"><img src="3dprint-icon.svg" style="height:1em;width:auto;vertical-align:middle;margin-right:5px;" alt="">Print Summary</button>
           <button class="btn btn-primary" style="padding:7px 16px;font-size:12px;" onclick="openPrintPreview('quote')">📄 Customer Quote</button>
         </div>
       </div>
@@ -1112,7 +1112,7 @@
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
       <span id="previewLabel" style="font-size:13px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#fff;opacity:.8;">Print Preview — 8.5×11"</span>
       <div style="display:flex;gap:10px;">
-        <button class="btn btn-primary" onclick="triggerPrint()">🖨 Print / Save PDF</button>
+        <button class="btn btn-primary" onclick="triggerPrint()"><img src="3dprint-icon.svg" style="height:1em;width:auto;vertical-align:middle;margin-right:5px;filter:invert(1);" alt="">Print / Save PDF</button>
         <button class="btn btn-secondary" onclick="closePrintPreview()">✕ Close</button>
       </div>
     </div>
@@ -2408,7 +2408,7 @@ function renderCart() {
     const hasColor = (item.colorSurcharge || 0) > 0;
     const thumbHtml = item.thumbnail
       ? `<img class="cart-item-thumb" src="${item.thumbnail}" alt="${escHtml(item.fileName)}">`
-      : `<div class="cart-item-thumb cart-item-thumb-ph">🖨</div>`;
+      : `<div class="cart-item-thumb cart-item-thumb-ph"><img src="3dprint-icon.svg" style="width:32px;height:auto;opacity:0.3;" alt=""></div>`;
     return `
     <div class="cart-item" id="cart-item-${item.id}">
       <div class="cart-item-top">
