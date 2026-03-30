@@ -1516,7 +1516,7 @@ const PRICING_DEFAULTS = {
 };
 
 function saveSettings() {
-  const s = {};
+  const s = { _v: SETTINGS_VERSION };
   Object.keys(PRICING_DEFAULTS).forEach(k => {
     const el = document.getElementById(k);
     if (el) s[k] = parseFloat(el.value);
@@ -1524,11 +1524,21 @@ function saveSettings() {
   localStorage.setItem('3dp_settings', JSON.stringify(s));
 }
 
+const SETTINGS_VERSION = 2; // bump when defaults change in a breaking way
+
 function loadSettings() {
   let s = PRICING_DEFAULTS;
   try {
     const raw = localStorage.getItem('3dp_settings');
-    if (raw) s = { ...PRICING_DEFAULTS, ...JSON.parse(raw) };
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      // If version doesn't match, discard stale cache and use fresh defaults
+      if ((parsed._v || 1) < SETTINGS_VERSION) {
+        localStorage.removeItem('3dp_settings');
+      } else {
+        s = { ...PRICING_DEFAULTS, ...parsed };
+      }
+    }
   } catch(e) {}
   Object.keys(s).forEach(k => {
     const el = document.getElementById(k);
