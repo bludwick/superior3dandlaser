@@ -861,6 +861,11 @@
             <span class="hint">Electricity + depreciation</span>
           </div>
           <div class="field admin-only">
+            <label>Print Labour Rate</label>
+            <div class="input-wrap"><input type="number" id="printLabourRate" value="0.25" step="0.01" oninput="calc()"><span class="unit-tag">$/hr</span></div>
+            <span class="hint">Operator monitoring per print hour</span>
+          </div>
+          <div class="field admin-only">
             <label>Failure Rate (contingency)</label>
             <div class="input-wrap"><input type="number" id="failureRate" value="0.05" step="0.01" oninput="calc()"><span class="unit-tag">%</span></div>
             <span class="hint">0.05 = 5% contingency</span>
@@ -987,6 +992,7 @@
         <div class="summary-grid admin-only">
           <div class="summary-row"><span class="label">Material Cost</span><span class="val" id="s-material">$0.00</span></div>
           <div class="summary-row"><span class="label">Print Time Cost</span><span class="val" id="s-print">$0.00</span></div>
+          <div class="summary-row"><span class="label">Print Labour</span><span class="val" id="s-print-labour">$0.00</span></div>
           <div class="summary-row"><span class="label">Add-ons</span><span class="val" id="s-addons">$0.00</span></div>
           <div class="summary-row"><span class="label">Overhead</span><span class="val" id="s-overhead">$0.00</span></div>
           <div class="summary-row" id="s-color-row" style="display:none;"><span class="label">Color Surcharge <span style="font-weight:400;font-size:10px;">(per order)</span></span><span class="val" id="s-color"></span></div>
@@ -1501,6 +1507,7 @@ function saveInserts()   { save('3dp_inserts', insertRef);  flashNote('insertSav
 const PRICING_DEFAULTS = {
   wasteFactor:       1.10,
   printerCost:       0.15,
+  printLabourRate:   0.25,
   failureRate:       0.05,
   labourRate:        25,
   insertUnitCost:    0.50,
@@ -1595,9 +1602,10 @@ function onMaterialChange() {
 }
 
 function calc() {
-  const matCost   = (g('matCostKg') / 1000) * g('materialGrams') * g('wasteFactor');
-  const printBase = g('printHours') * g('printerCost');
-  const printCost = printBase * (1 + g('failureRate'));
+  const matCost        = (g('matCostKg') / 1000) * g('materialGrams') * g('wasteFactor');
+  const printBase      = g('printHours') * g('printerCost');
+  const printCost      = printBase * (1 + g('failureRate'));
+  const printLabourCost = g('printHours') * g('printLabourRate');
 
   // Add-ons
   const postEnabled = document.getElementById('chkPost').checked;
@@ -1618,7 +1626,7 @@ function calc() {
   const colorSurcharge = printColorVal !== 'black' ? 5.00 : 0;
   if (window.setSTLViewerColor) window.setSTLViewerColor(printColorVal);
   const addonCost  = postCost + insertCost + asmCost; // color is per-order, handled separately
-  const directCost = matCost + printCost + addonCost;
+  const directCost = matCost + printCost + printLabourCost + addonCost;
   const overhead   = directCost * g('overheadRate');
   const unitPrice  = (directCost + overhead) * (1 + g('profitMargin'));
   const qty        = Math.max(1, g('qty'));
@@ -1626,9 +1634,10 @@ function calc() {
 
   const rpt = document.getElementById('res-print-total');
   if (rpt) rpt.textContent = fmt(directCost);
-  document.getElementById('s-material').textContent = fmt(matCost);
-  document.getElementById('s-print').textContent    = fmt(printCost);
-  document.getElementById('s-addons').textContent   = fmt(addonCost);
+  document.getElementById('s-material').textContent      = fmt(matCost);
+  document.getElementById('s-print').textContent         = fmt(printCost);
+  document.getElementById('s-print-labour').textContent  = fmt(printLabourCost);
+  document.getElementById('s-addons').textContent        = fmt(addonCost);
   document.getElementById('s-overhead').textContent = fmt(overhead);
   const cp = document.getElementById('cost-post');    if (cp) cp.textContent    = postEnabled  ? fmt(postCost)   : '';
   const ci = document.getElementById('cost-inserts'); if (ci) ci.textContent = insEnabled  ? fmt(insertCost) : '';
@@ -1640,7 +1649,7 @@ function calc() {
   document.getElementById('t-unit').textContent  = fmt(unitPrice);
   document.getElementById('t-qty').textContent   = qty;
   document.getElementById('t-total').textContent = fmt(total);
-  window._lastCalc = { matCost, printCost, addonCost, overhead, unitPrice, qty, colorSurcharge, total };
+  window._lastCalc = { matCost, printCost, printLabourCost, addonCost, overhead, unitPrice, qty, colorSurcharge, total };
 
   // Show Add to Cart button once a valid STL-based quote is calculated
   const _acBtn = document.getElementById('addToCartBtn');
