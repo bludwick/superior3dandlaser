@@ -212,15 +212,16 @@
       body: new FormData(form)
     })
     .then(async (res) => {
-      if (!res.ok) throw new Error('Server error');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || data.error || `HTTP ${res.status}`);
       form.style.display = 'none';
       successEl.style.display = 'block';
       successEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     })
-    .catch(() => {
+    .catch((err) => {
       btn.textContent = 'Send Message';
       btn.disabled = false;
-      alert('Something went wrong. Please email us directly at sales@superior3dandlaser.com');
+      alert('Error: ' + err.message);
     });
   });
 
