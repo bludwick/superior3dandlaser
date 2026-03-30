@@ -1,4 +1,5 @@
-const busboy = require('busboy');
+const busboy    = require('busboy');
+const nodemailer = require('nodemailer');
 const { getStore } = require('@netlify/blobs');
 
 // Parse multipart form data from the event
@@ -6,67 +7,49 @@ function parseForm(event) {
   return new Promise((resolve, reject) => {
     const fields = {};
     let fileBuffer = null;
-    let fileName = null;
-    let fileMime = null;
+    let fileName   = null;
+    let fileMime   = null;
 
     const bb = busboy({ headers: event.headers });
 
-    bb.on('field', (name, value) => {
-      fields[name] = value;
-    });
+    bb.on('field', (name, value) => { fields[name] = value; });
 
     bb.on('file', (name, stream, info) => {
       fileName = info.filename;
       fileMime = info.mimeType;
       const chunks = [];
-      stream.on('data', (chunk) => chunks.push(chunk));
-      stream.on('end', () => { fileBuffer = Buffer.concat(chunks); });
+      stream.on('data',  chunk => chunks.push(chunk));
+      stream.on('end',   ()    => { fileBuffer = Buffer.concat(chunks); });
     });
 
     bb.on('finish', () => resolve({ fields, fileBuffer, fileName, fileMime }));
-    bb.on('error', reject);
+    bb.on('error',  reject);
 
-    const body = Buffer.from(
-      event.body,
-      event.isBase64Encoded ? 'base64' : 'utf8'
-    );
+    const body = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8');
     bb.write(body);
     bb.end();
   });
 }
 
-// ── Send email via Resend API (uses Node 22 built-in fetch) ───────────────────
-async function sendEmail({ to, subject, text, attachments }) {
-  const payload = {
-    from: 'Superior 3D and Laser <noreply@superior3dandlaser.com>',
-    to: [to],
-    subject,
-    text,
-  };
-
-  // Attach files if present (Resend expects base64-encoded content)
-  if (attachments && attachments.length > 0) {
-    payload.attachments = attachments.map(a => ({
-      filename: a.filename,
-      content: a.content.toString('base64'),
-    }));
-  }
-
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
+// ── Microsoft 365 SMTP transporter ───────────────────────────────────────────
+// Requires SMTP AUTH to be enabled on the mailbox in M365 Admin Center:
+// admin.exchange.microsoft.com → Mailboxes → [mailbox] → Manage email apps
+// → Authenticated SMTP = ON
+function makeTransporter() {
+  return nodemailer.createTransport({
+    host:       'smtp.office365.com',
+    port:       587,
+    secure:     false,
+    requireTLS: true,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
     },
-    body: JSON.stringify(payload),
+    tls: {
+      rejectUnauthorized: false,
+      minVersion: 'TLSv1.2',
+    },
   });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || `Resend API error ${res.status}`);
-  }
-
-  return res.json();
 }
 
 // ── Email builders ────────────────────────────────────────────────────────────
@@ -80,9 +63,9 @@ New Contact Message — Superior 3D and Laser
 ============================================
 
 Name:     ${fields.firstName || ''} ${fields.lastName || ''}
-Email:    ${fields.email || ''}
-Phone:    ${fields.phone || 'Not provided'}
-Service:  ${fields.service || 'Not specified'}
+Email:    ${fields.email    || ''}
+Phone:    ${fields.phone    || 'Not provided'}
+Service:  ${fields.service  || 'Not specified'}
 
 Message:
 ${fields.message || ''}
@@ -101,9 +84,9 @@ New Quote Request — Superior 3D and Laser
 ==========================================
 
 Name:        ${fields.firstName || ''} ${fields.lastName || ''}
-Email:       ${fields.email || ''}
-Phone:       ${fields.phone || 'Not provided'}
-Service:     ${fields.service || ''}
+Email:       ${fields.email    || ''}
+Phone:       ${fields.phone    || 'Not provided'}
+Service:     ${fields.service  || ''}
 Quantity:    ${fields.quantity || 'Not provided'}
 Timeline:    ${fields.timeline || 'Not provided'}
 Material:    ${fields.material || 'Not provided'}
@@ -125,18 +108,18 @@ function buildCartOrderEmail(fields) {
 New Cart Order Request — Superior 3D and Laser
 ===============================================
 
-Customer:  ${fields.name || ''}
-Email:     ${fields.email || ''}
-Phone:     ${fields.phone || 'Not provided'}
+Customer:  ${fields.name    || ''}
+Email:     ${fields.email   || ''}
+Phone:     ${fields.phone   || 'Not provided'}
 Ship To:   ${fields.address || ''}
 
 --- Order Items (${fields.itemCount || '?'} item(s)) ---
 ${fields.orderItems || ''}
 
 --- Totals ---
-Subtotal:    ${fields.subtotal || ''}
-Tax (8.5%):  ${fields.tax || ''}
-ORDER TOTAL: ${fields.orderTotal || ''}
+Subtotal:    ${fields.subtotal    || ''}
+Tax (8.5%):  ${fields.tax         || ''}
+ORDER TOTAL: ${fields.orderTotal  || ''}
 
 --- Notes ---
 ${fields.orderNotes || 'None'}
@@ -158,20 +141,19 @@ exports.handler = async (event) => {
   try {
     const { fields, fileBuffer, fileName, fileMime } = await parseForm(event);
 
-    // Save file to Netlify Blobs (quote form only)
+    // Save uploaded file to Netlify Blobs (quote form only)
     let downloadUrl = null;
     if (fileBuffer && fileName) {
-      const store = getStore({ name: 'uploads', consistency: 'strong' });
+      const store         = getStore({ name: 'uploads', consistency: 'strong' });
       const savedFileName = `${Date.now()}-${fileName}`;
       await store.set(savedFileName, fileBuffer, {
-        metadata: { contentType: fileMime, originalName: fileName }
+        metadata: { contentType: fileMime, originalName: fileName },
       });
       downloadUrl = `${process.env.SITE_URL}/.netlify/blobs/site:uploads/${savedFileName}`;
     }
 
-    // Route to the correct email template based on form type
+    // Route to the correct email template
     const formType = fields.formType || (fields.orderType === 'cart-order' ? 'cart' : 'quote');
-
     let mailOptions;
     if (formType === 'contact') {
       mailOptions = buildContactEmail(fields);
@@ -181,21 +163,23 @@ exports.handler = async (event) => {
       mailOptions = buildQuoteEmail(fields, fileName, downloadUrl);
     }
 
-    // Attach uploaded file to email if present
+    // Attach uploaded file directly to the email
     if (fileBuffer && fileName) {
       mailOptions.attachments = [{
-        filename: fileName,
-        content: fileBuffer,
+        filename:    fileName,
+        content:     fileBuffer,
         contentType: fileMime,
       }];
     }
 
-    await sendEmail(mailOptions);
+    const transporter = makeTransporter();
+    await transporter.sendMail({
+      from: `Superior 3D and Laser <${process.env.SMTP_USER}>`,
+      ...mailOptions,
+    });
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ success: true }),
-    };
+    return { statusCode: 200, body: JSON.stringify({ success: true }) };
+
   } catch (err) {
     console.error('submit-quote error:', err);
     return {
