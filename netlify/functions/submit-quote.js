@@ -1,5 +1,4 @@
 const busboy    = require('busboy');
-const nodemailer = require('nodemailer');
 const { getStore } = require('@netlify/blobs');
 
 // Parse multipart form data from the event
@@ -31,32 +30,28 @@ function parseForm(event) {
   });
 }
 
-// ── Microsoft 365 SMTP transporter ───────────────────────────────────────────
-// Requires SMTP AUTH to be enabled on the mailbox in M365 Admin Center:
-// admin.exchange.microsoft.com → Mailboxes → [mailbox] → Manage email apps
-// → Authenticated SMTP = ON
-function makeTransporter() {
-  return nodemailer.createTransport({
-    host:       'smtp.office365.com',
-    port:       587,
-    secure:     false,
-    requireTLS: true,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
+// ── Resend email sender ───────────────────────────────────────────────────────
+async function sendEmail(payload) {
+  const res = await fetch('https://api.resend.com/emails', {
+    method:  'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+      'Content-Type':  'application/json',
     },
-    tls: {
-      rejectUnauthorized: false,
-      minVersion: 'TLSv1.2',
-    },
+    body: JSON.stringify(payload),
   });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Resend error ${res.status}`);
+  }
+  return res.json();
 }
 
 // ── Email builders ────────────────────────────────────────────────────────────
 
 function buildContactEmail(fields) {
   return {
-    to:      'sales@superior3dandlaser.com',
+    to:      ['sales@superior3dandlaser.com'],
     subject: `New Contact Message — ${fields.firstName || ''} ${fields.lastName || ''}`.trim(),
     text: `
 New Contact Message — Superior 3D and Laser
@@ -77,7 +72,7 @@ ${fields.message || ''}
 
 function buildQuoteEmail(fields, fileName, downloadUrl) {
   return {
-    to:      'blake@superior3dandlaser.com',
+    to:      ['blake@superior3dandlaser.com'],
     subject: `New Quote Request — ${fields.firstName || ''} ${fields.lastName || ''}`.trim(),
     text: `
 New Quote Request — Superior 3D and Laser
@@ -102,7 +97,7 @@ ${downloadUrl ? `Uploaded File: ${fileName}\nDownload Link: ${downloadUrl}` : 'N
 
 function buildCartOrderEmail(fields) {
   return {
-    to:      'blake@superior3dandlaser.com',
+    to:      ['blake@superior3dandlaser.com'],
     subject: `New Order Request — ${fields.name || ''} — ${fields.orderTotal || ''}`.trim(),
     text: `
 New Cart Order Request — Superior 3D and Laser
@@ -163,18 +158,16 @@ exports.handler = async (event) => {
       mailOptions = buildQuoteEmail(fields, fileName, downloadUrl);
     }
 
-    // Attach uploaded file directly to the email
+    // Attach uploaded file directly to the email (base64 for Resend)
     if (fileBuffer && fileName) {
       mailOptions.attachments = [{
-        filename:    fileName,
-        content:     fileBuffer,
-        contentType: fileMime,
+        filename: fileName,
+        content:  fileBuffer.toString('base64'),
       }];
     }
 
-    const transporter = makeTransporter();
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM || `Superior 3D and Laser <${process.env.SMTP_USER}>`,
+    await sendEmail({
+      from: 'Superior 3D and Laser <sales@superior3dandlaser.com>',
       ...mailOptions,
     });
 
