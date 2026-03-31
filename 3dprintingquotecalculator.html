@@ -689,10 +689,7 @@
   .btn-oc-back:hover { background: var(--accent-lt); }
 
   /* ── MATERIAL / COLOR LIBRARY ─────────────────────────────────────────── */
-  .brand-filter { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; }
-  .brand-btn { padding:5px 14px; border:1.5px solid var(--border); border-radius:20px; background:var(--bg); font-family:var(--font); font-size:11px; font-weight:700; color:var(--muted); cursor:pointer; transition:all .15s; letter-spacing:.04em; }
-  .brand-btn:hover { border-color:var(--accent); color:var(--accent); }
-  .brand-btn.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+
 
   .color-picker-wrap { position:relative; width:100%; }
   .color-picker-btn { display:flex; align-items:center; gap:8px; width:100%; padding:9px 12px; background:var(--input-bg); border:1.5px solid var(--border); border-radius:8px; cursor:pointer; font-family:var(--font); font-size:13px; color:var(--text); transition:border-color .2s; user-select:none; box-sizing:border-box; }
@@ -817,14 +814,9 @@
 
         <div class="fields">
           <div class="field full" style="display:none;"><span class="stl-file-name" id="stlFileName">No file selected</span></div>
-          <!-- Material — brand-filtered library picker -->
+          <!-- Material library picker -->
           <div class="field full">
             <label>Material</label>
-            <div class="brand-filter" id="brandFilterBtns">
-              <button class="brand-btn active" onclick="setLibBrand('all',this)">All</button>
-              <button class="brand-btn" onclick="setLibBrand('Bambu Lab',this)">Bambu Lab</button>
-              <button class="brand-btn" onclick="setLibBrand('Polymaker',this)">Polymaker</button>
-            </div>
             <select id="matLibSelect" onchange="onMatLibChange()"><!-- populated by JS --></select>
             <!-- hidden select kept for pricing/slicer integration -->
             <select id="materialType" style="display:none;" onchange="onMaterialChange()">
@@ -1620,17 +1612,9 @@ const MATERIAL_COLOR_LIBRARY = [
 // Keys must match the COLOR_MAP in the Three.js IIFE (used for 3D viewer)
 const VIEWER_KEYS = ['black','white','gray','red','blue','green','yellow','orange','purple','pink','natural','custom'];
 
-let _libBrand    = 'all';   // active brand filter
 let _libMatId    = null;    // selected material library id
 let _libColorIdx = null;    // selected color index within that material
 window._libColorHex = null; // hex of the currently selected library color
-
-function setLibBrand(brand, btn) {
-  _libBrand = brand;
-  document.querySelectorAll('#brandFilterBtns .brand-btn').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-  renderMatLibDropdown(true);
-}
 
 // Returns the combined active material list:
 //   1. Library entries whose pricingKey exists in the admin materials table
@@ -1670,10 +1654,7 @@ function findActiveMat(id) {
 function renderMatLibDropdown(resetColor) {
   const sel = document.getElementById('matLibSelect');
   if (!sel) return;
-  const active = getActiveLibraryEntries();
-  const list   = _libBrand === 'all'
-    ? active
-    : active.filter(m => m.brand === _libBrand);
+  const list = getActiveLibraryEntries();
   sel.innerHTML = list.map(m => {
     const label = m.brand ? `${m.brand} — ${m.name}` : m.name;
     return `<option value="${m.id}">${label}</option>`;
@@ -1812,13 +1793,8 @@ document.addEventListener('click', function(e) {
 });
 
 function resetLibPicker() {
-  _libBrand    = 'all';
   _libMatId    = null;
   _libColorIdx = null;
-  // Reset brand buttons
-  document.querySelectorAll('#brandFilterBtns .brand-btn').forEach((b, i) => {
-    b.classList.toggle('active', i === 0);
-  });
   renderMatLibDropdown(true);
 }
 
