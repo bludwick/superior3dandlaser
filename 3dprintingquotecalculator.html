@@ -2190,16 +2190,16 @@ function calc() {
   if (sc) sc.style.display = colorSurcharge > 0 ? '' : 'none';
   const scv = document.getElementById('s-color');
   if (scv) scv.textContent = colorSurcharge > 0 ? fmt(colorSurcharge) : '';
-  document.getElementById('t-unit').textContent  = fmt(unitPrice);
+  const hasSTL = parseFloat(document.getElementById('materialGrams').value) > 0
+                 && parseFloat(document.getElementById('printHours').value) > 0;
+  document.getElementById('t-unit').textContent  = hasSTL ? fmt(unitPrice) : '$0.00';
   document.getElementById('t-qty').textContent   = qty;
-  document.getElementById('t-total').textContent = fmt(total);
+  document.getElementById('t-total').textContent = hasSTL ? fmt(total)     : '$0.00';
   window._lastCalc = { matCost, printCost, printLabourCost, addonCost, overhead, unitPrice, qty, colorSurcharge, total };
 
   // Show Add to Cart button once a valid STL-based quote is calculated
   const _acBtn = document.getElementById('addToCartBtn');
   if (_acBtn) {
-    const hasSTL = parseFloat(document.getElementById('materialGrams').value) > 0
-                   && parseFloat(document.getElementById('printHours').value) > 0;
     _acBtn.style.display = (total > 0 && hasSTL) ? 'flex' : 'none';
   }
 

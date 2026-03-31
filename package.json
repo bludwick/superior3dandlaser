@@ -4,7 +4,9 @@
   "private": true,
   "dependencies": {
     "@netlify/blobs": "^8.1.0",
+    "bcryptjs": "^2.4.3",
     "busboy": "^1.6.0",
+    "jsonwebtoken": "^9.0.2",
     "nodemailer": "^6.9.14",
     "resend": "^4.0.0"
   }
