@@ -5,3 +5,21 @@
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
+
+[[edge_functions]]
+  path = "/admin"
+  function = "admin-auth"
+
+[[edge_functions]]
+  path = "/admin/*"
+  function = "admin-auth"
+
+[[redirects]]
+  from = "/api/admin/login"
+  to = "/.netlify/functions/admin-login"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/logout"
+  to = "/.netlify/functions/admin-logout"
+  status = 200
