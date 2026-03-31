@@ -853,6 +853,7 @@
               <div id="colorPickerBtn" class="color-picker-btn" onclick="toggleColorPicker()">
                 <span id="cpSwatch" class="color-swatch-sm" style="background:#cccccc;"></span>
                 <span id="cpLabel" class="cp-label">Select a color…</span>
+                <span id="cpSurcharge" style="display:none;color:var(--accent);font-weight:700;font-size:12px;white-space:nowrap;flex-shrink:0;"></span>
                 <span class="color-picker-arrow">▾</span>
               </div>
               <div id="colorDropdown" class="color-dropdown" style="display:none;">
@@ -1716,6 +1717,8 @@ function pickLibColor(colorIdx) {
   // Update picker button
   document.getElementById('cpSwatch').style.background = color.hex;
   document.getElementById('cpLabel').textContent = color.name;
+  const cpSur = document.getElementById('cpSurcharge');
+  if (cpSur) { cpSur.textContent = isBlack ? '' : '+$5.00'; cpSur.style.display = isBlack ? 'none' : ''; }
 
   // Close dropdown
   document.getElementById('colorDropdown').style.display = 'none';
@@ -1738,8 +1741,10 @@ function clearColorPickerUI(runCalc) {
   const cpLabel  = document.getElementById('cpLabel');
   const row      = document.getElementById('colorPreviewRow');
   const pSel     = document.getElementById('printColor');
+  const cpSur = document.getElementById('cpSurcharge');
   if (cpSwatch) cpSwatch.style.background = '#cccccc';
   if (cpLabel)  cpLabel.textContent = 'Select a color…';
+  if (cpSur)    { cpSur.textContent = ''; cpSur.style.display = 'none'; }
   if (row)      row.style.display = 'none';
   if (pSel)     pSel.innerHTML = '<option value="black" selected>Black</option>';
   if (runCalc !== false && typeof calc === 'function') calc();
