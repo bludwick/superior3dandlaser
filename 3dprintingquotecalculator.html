@@ -675,6 +675,36 @@
   .oc-msg strong { color: var(--accent); }
   .btn-oc-back { background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 12px 28px; font-family: var(--font); font-size: 14px; font-weight: 700; cursor: pointer; transition: all .2s; }
   .btn-oc-back:hover { background: var(--accent-lt); }
+
+  /* ── MATERIAL / COLOR LIBRARY ─────────────────────────────────────────── */
+  .brand-filter { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; }
+  .brand-btn { padding:5px 14px; border:1.5px solid var(--border); border-radius:20px; background:var(--bg); font-family:var(--font); font-size:11px; font-weight:700; color:var(--muted); cursor:pointer; transition:all .15s; letter-spacing:.04em; }
+  .brand-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .brand-btn.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+
+  .color-picker-wrap { position:relative; width:100%; }
+  .color-picker-btn { display:flex; align-items:center; gap:8px; width:100%; padding:9px 12px; background:var(--input-bg); border:1.5px solid var(--border); border-radius:8px; cursor:pointer; font-family:var(--font); font-size:13px; color:var(--text); transition:border-color .2s; user-select:none; box-sizing:border-box; }
+  .color-picker-btn:hover, .color-picker-btn.open { border-color:var(--accent); }
+  .color-swatch-sm { width:16px; height:16px; border-radius:50%; flex-shrink:0; border:1.5px solid rgba(0,0,0,.15); display:inline-block; }
+  .cp-label { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .color-picker-arrow { margin-left:auto; font-size:10px; color:var(--muted); transition:transform .2s; flex-shrink:0; }
+  .color-picker-btn.open .color-picker-arrow { transform:rotate(180deg); }
+
+  .color-dropdown { position:absolute; top:calc(100% + 4px); left:0; right:0; background:var(--bg); border:1.5px solid var(--border); border-radius:10px; box-shadow:0 8px 32px rgba(0,0,0,.14); z-index:300; padding:10px; max-height:260px; overflow-y:auto; }
+  .color-grid { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:8px; }
+  .color-option { display:flex; align-items:center; gap:7px; padding:5px 8px; border-radius:6px; cursor:pointer; font-size:12px; font-weight:500; color:var(--text); transition:background .12s; border:1.5px solid transparent; white-space:nowrap; }
+  .color-option:hover { background:var(--bg-light); }
+  .color-option.selected { border-color:var(--accent); background:rgba(185,28,28,.06); }
+  .color-option.oos { opacity:.4; cursor:not-allowed; }
+  .color-option.oos:hover { background:none; }
+  .oos-badge { font-size:9px; font-weight:700; color:var(--muted); letter-spacing:.04em; text-transform:uppercase; margin-left:4px; }
+  .color-oos-toggle { display:flex; align-items:center; gap:6px; padding:6px 2px 2px; border-top:1px solid var(--border); font-size:11px; color:var(--muted); cursor:pointer; }
+  .color-oos-toggle input { cursor:pointer; accent-color:var(--accent); }
+
+  .color-preview-row { display:flex; align-items:center; gap:10px; margin-top:8px; }
+  .color-preview-large { width:32px; height:32px; border-radius:50%; border:2px solid rgba(0,0,0,.15); flex-shrink:0; }
+  .color-preview-name { font-size:12px; font-weight:700; color:var(--text); }
+  .color-preview-meta { font-size:11px; color:var(--muted); }
 </style>
 </head>
 <body>
@@ -775,18 +805,26 @@
 
         <div class="fields">
           <div class="field full" style="display:none;"><span class="stl-file-name" id="stlFileName">No file selected</span></div>
-          <div class="field">
+          <!-- Material — brand-filtered library picker -->
+          <div class="field full">
             <label>Material</label>
-            <select id="materialType" onchange="onMaterialChange()">
+            <div class="brand-filter" id="brandFilterBtns">
+              <button class="brand-btn active" onclick="setLibBrand('all',this)">All</button>
+              <button class="brand-btn" onclick="setLibBrand('Bambu Lab',this)">Bambu Lab</button>
+              <button class="brand-btn" onclick="setLibBrand('Polymaker',this)">Polymaker</button>
+            </div>
+            <select id="matLibSelect" onchange="onMatLibChange()"><!-- populated by JS --></select>
+            <!-- hidden select kept for pricing/slicer integration -->
+            <select id="materialType" style="display:none;" onchange="onMaterialChange()">
+              <option value="PLA" selected>PLA</option>
+              <option value="PETG">PETG</option>
               <option value="ABS">ABS</option>
               <option value="ASA">ASA</option>
-              <option value="CF-Nylon">CF-Nylon</option>
-              <option value="Nylon PA12">Nylon PA12</option>
-              <option value="PETG">PETG</option>
-              <option value="PLA" selected>PLA</option>
-              <option value="RESIN (ABS-like)">RESIN (ABS-like)</option>
-              <option value="RESIN (std)">RESIN (std)</option>
               <option value="TPU (95A)">TPU (95A)</option>
+              <option value="Nylon PA12">Nylon PA12</option>
+              <option value="CF-Nylon">CF-Nylon</option>
+              <option value="RESIN (std)">RESIN (std)</option>
+              <option value="RESIN (ABS-like)">RESIN (ABS-like)</option>
               <option value="custom">Custom…</option>
             </select>
           </div>
@@ -804,21 +842,34 @@
             </select>
           </div>
           <input type="hidden" id="slicerSupport" value="auto">
-          <div class="field">
+          <!-- Color — library-driven swatch picker -->
+          <div class="field full">
             <label>Color</label>
-            <select id="printColor" onchange="calc()">
+            <div class="color-picker-wrap" id="colorPickerWrap">
+              <div id="colorPickerBtn" class="color-picker-btn" onclick="toggleColorPicker()">
+                <span id="cpSwatch" class="color-swatch-sm" style="background:#cccccc;"></span>
+                <span id="cpLabel" class="cp-label">Select a color…</span>
+                <span class="color-picker-arrow">▾</span>
+              </div>
+              <div id="colorDropdown" class="color-dropdown" style="display:none;">
+                <div id="colorGrid" class="color-grid"></div>
+                <label class="color-oos-toggle">
+                  <input type="checkbox" id="showOOS" onchange="renderColorOptions()">
+                  Show out-of-stock colors
+                </label>
+              </div>
+            </div>
+            <div class="color-preview-row" id="colorPreviewRow" style="display:none;">
+              <div id="colorPreviewLarge" class="color-preview-large"></div>
+              <div>
+                <div class="color-preview-name" id="colorPreviewName"></div>
+                <div class="color-preview-meta" id="colorPreviewMeta"></div>
+              </div>
+            </div>
+            <span class="hint" style="margin-top:5px;display:block;">Don't see your color? <a href="contact.html" style="color:var(--accent);font-weight:600;text-decoration:none;">Contact us</a> — we may be able to source it.</span>
+            <!-- hidden printColor for pricing/viewer/cart integration -->
+            <select id="printColor" style="display:none;" onchange="calc()">
               <option value="black" selected>Black</option>
-              <option value="white">White +$5.00</option>
-              <option value="gray">Gray +$5.00</option>
-              <option value="red">Red +$5.00</option>
-              <option value="blue">Blue +$5.00</option>
-              <option value="green">Green +$5.00</option>
-              <option value="yellow">Yellow +$5.00</option>
-              <option value="orange">Orange +$5.00</option>
-              <option value="purple">Purple +$5.00</option>
-              <option value="pink">Pink +$5.00</option>
-              <option value="natural">Natural / Transparent +$5.00</option>
-              <option value="custom">Custom… +$5.00</option>
             </select>
           </div>
         </div>
@@ -1411,6 +1462,312 @@
 </style>
 
 <script>
+// ══════════════════════════════════════════════════════════════════════════════
+// MATERIAL / COLOR LIBRARY
+// Edit this object to add, remove, or update materials and colors.
+// pricingKey must match a name in DEFAULT_MATERIALS for $/kg auto-lookup.
+// viewerKey maps to the Three.js COLOR_MAP keys: black, white, gray, red,
+//   blue, green, yellow, orange, purple, pink, natural, custom
+// ══════════════════════════════════════════════════════════════════════════════
+const MATERIAL_COLOR_LIBRARY = [
+  {
+    id: 'bambu-pla-basic', name: 'PLA Basic', brand: 'Bambu Lab', pricingKey: 'PLA',
+    colors: [
+      { name: 'Black',       hex: '#1c1c1c', viewerKey: 'black',   inStock: true  },
+      { name: 'White',       hex: '#f5f5f5', viewerKey: 'white',   inStock: true  },
+      { name: 'Grey',        hex: '#8c8c8c', viewerKey: 'gray',    inStock: true  },
+      { name: 'Red',         hex: '#cc2222', viewerKey: 'red',     inStock: true  },
+      { name: 'Orange',      hex: '#e8680a', viewerKey: 'orange',  inStock: true  },
+      { name: 'Yellow',      hex: '#e8c914', viewerKey: 'yellow',  inStock: true  },
+      { name: 'Green',       hex: '#2a9d50', viewerKey: 'green',   inStock: true  },
+      { name: 'Blue',        hex: '#2255cc', viewerKey: 'blue',    inStock: true  },
+      { name: 'Dark Blue',   hex: '#1a2d6b', viewerKey: 'blue',    inStock: true  },
+      { name: 'Pink',        hex: '#ee55aa', viewerKey: 'pink',    inStock: true  },
+      { name: 'Beige',       hex: '#d4c4a0', viewerKey: 'natural', inStock: true  },
+      { name: 'Jade White',  hex: '#c8e0d8', viewerKey: 'white',   inStock: true  },
+      { name: 'Cobalt Blue', hex: '#0047ab', viewerKey: 'blue',    inStock: true  },
+    ],
+  },
+  {
+    id: 'bambu-pla-matte', name: 'PLA Matte', brand: 'Bambu Lab', pricingKey: 'PLA',
+    colors: [
+      { name: 'Matte Black',  hex: '#2a2a2a', viewerKey: 'black',   inStock: true },
+      { name: 'Matte White',  hex: '#f0f0f0', viewerKey: 'white',   inStock: true },
+      { name: 'Matte Grey',   hex: '#9a9a9a', viewerKey: 'gray',    inStock: true },
+      { name: 'Matte Red',    hex: '#b83030', viewerKey: 'red',     inStock: true },
+      { name: 'Matte Green',  hex: '#3a8a50', viewerKey: 'green',   inStock: true },
+      { name: 'Matte Blue',   hex: '#3355aa', viewerKey: 'blue',    inStock: true },
+      { name: 'Matte Beige',  hex: '#c8b898', viewerKey: 'natural', inStock: true },
+      { name: 'Matte Yellow', hex: '#d4b830', viewerKey: 'yellow',  inStock: true },
+      { name: 'Matte Orange', hex: '#d45a10', viewerKey: 'orange',  inStock: true },
+      { name: 'Matte Pink',   hex: '#d4608a', viewerKey: 'pink',    inStock: true },
+    ],
+  },
+  {
+    id: 'bambu-petg-basic', name: 'PETG Basic', brand: 'Bambu Lab', pricingKey: 'PETG',
+    colors: [
+      { name: 'Black',              hex: '#1c1c1c', viewerKey: 'black',   inStock: true },
+      { name: 'White',              hex: '#f5f5f5', viewerKey: 'white',   inStock: true },
+      { name: 'Grey',               hex: '#8c8c8c', viewerKey: 'gray',    inStock: true },
+      { name: 'Red',                hex: '#cc2222', viewerKey: 'red',     inStock: true },
+      { name: 'Orange',             hex: '#e8680a', viewerKey: 'orange',  inStock: true },
+      { name: 'Yellow',             hex: '#e8c914', viewerKey: 'yellow',  inStock: true },
+      { name: 'Green',              hex: '#2a9d50', viewerKey: 'green',   inStock: true },
+      { name: 'Blue',               hex: '#2255cc', viewerKey: 'blue',    inStock: true },
+      { name: 'Translucent',        hex: '#ddeedd', viewerKey: 'natural', inStock: true },
+      { name: 'Translucent Red',    hex: '#ffb0b0', viewerKey: 'red',     inStock: true },
+      { name: 'Translucent Blue',   hex: '#b0c8ff', viewerKey: 'blue',    inStock: true },
+      { name: 'Translucent Green',  hex: '#b0e8c0', viewerKey: 'green',   inStock: true },
+      { name: 'Translucent Orange', hex: '#ffd0a0', viewerKey: 'orange',  inStock: true },
+      { name: 'Translucent Yellow', hex: '#fff0a0', viewerKey: 'yellow',  inStock: true },
+    ],
+  },
+  {
+    id: 'bambu-abs', name: 'ABS', brand: 'Bambu Lab', pricingKey: 'ABS',
+    colors: [
+      { name: 'Black',     hex: '#1c1c1c', viewerKey: 'black',   inStock: true },
+      { name: 'White',     hex: '#f5f5f5', viewerKey: 'white',   inStock: true },
+      { name: 'Grey',      hex: '#8c8c8c', viewerKey: 'gray',    inStock: true },
+      { name: 'Red',       hex: '#cc2222', viewerKey: 'red',     inStock: true },
+      { name: 'Orange',    hex: '#e8680a', viewerKey: 'orange',  inStock: true },
+      { name: 'Yellow',    hex: '#e8c914', viewerKey: 'yellow',  inStock: true },
+      { name: 'Green',     hex: '#2a9d50', viewerKey: 'green',   inStock: true },
+      { name: 'Blue',      hex: '#2255cc', viewerKey: 'blue',    inStock: true },
+      { name: 'Dark Blue', hex: '#1a2d6b', viewerKey: 'blue',    inStock: true },
+      { name: 'Pink',      hex: '#ee55aa', viewerKey: 'pink',    inStock: true },
+      { name: 'Beige',     hex: '#d4c4a0', viewerKey: 'natural', inStock: true },
+    ],
+  },
+  {
+    id: 'bambu-tpu-95a', name: 'TPU 95A', brand: 'Bambu Lab', pricingKey: 'TPU (95A)',
+    colors: [
+      { name: 'Black',  hex: '#1c1c1c', viewerKey: 'black',   inStock: true },
+      { name: 'White',  hex: '#f5f5f5', viewerKey: 'white',   inStock: true },
+      { name: 'Red',    hex: '#cc2222', viewerKey: 'red',     inStock: true },
+      { name: 'Blue',   hex: '#2255cc', viewerKey: 'blue',    inStock: true },
+      { name: 'Green',  hex: '#2a9d50', viewerKey: 'green',   inStock: true },
+      { name: 'Orange', hex: '#e8680a', viewerKey: 'orange',  inStock: true },
+      { name: 'Yellow', hex: '#e8c914', viewerKey: 'yellow',  inStock: true },
+      { name: 'Clear',  hex: '#e8f4ff', viewerKey: 'white',   inStock: true },
+    ],
+  },
+  {
+    id: 'polymaker-polylite-pla', name: 'PolyLite PLA', brand: 'Polymaker', pricingKey: 'PLA',
+    colors: [
+      { name: 'Black',       hex: '#1c1c1c', viewerKey: 'black',   inStock: true },
+      { name: 'White',       hex: '#f5f5f5', viewerKey: 'white',   inStock: true },
+      { name: 'Grey',        hex: '#8c8c8c', viewerKey: 'gray',    inStock: true },
+      { name: 'Red',         hex: '#cc2222', viewerKey: 'red',     inStock: true },
+      { name: 'Orange',      hex: '#e8680a', viewerKey: 'orange',  inStock: true },
+      { name: 'Yellow',      hex: '#e8c914', viewerKey: 'yellow',  inStock: true },
+      { name: 'Green',       hex: '#2a9d50', viewerKey: 'green',   inStock: true },
+      { name: 'Blue',        hex: '#2255cc', viewerKey: 'blue',    inStock: true },
+      { name: 'Teal',        hex: '#008888', viewerKey: 'green',   inStock: true },
+      { name: 'Pink',        hex: '#ee55aa', viewerKey: 'pink',    inStock: true },
+      { name: 'Purple',      hex: '#7722cc', viewerKey: 'purple',  inStock: true },
+      { name: 'Brown',       hex: '#6b3d1e', viewerKey: 'custom',  inStock: true },
+      { name: 'Translucent', hex: '#dff0f8', viewerKey: 'natural', inStock: true },
+    ],
+  },
+  {
+    id: 'polymaker-panchroma-matte', name: 'Panchroma Matte PLA', brand: 'Polymaker', pricingKey: 'PLA',
+    colors: [
+      { name: 'Matte Black',  hex: '#2a2a2a', viewerKey: 'black',   inStock: true },
+      { name: 'Matte White',  hex: '#f0f0f0', viewerKey: 'white',   inStock: true },
+      { name: 'Matte Grey',   hex: '#9a9a9a', viewerKey: 'gray',    inStock: true },
+      { name: 'Matte Red',    hex: '#b83030', viewerKey: 'red',     inStock: true },
+      { name: 'Matte Blue',   hex: '#3355aa', viewerKey: 'blue',    inStock: true },
+      { name: 'Matte Green',  hex: '#3a8a50', viewerKey: 'green',   inStock: true },
+      { name: 'Matte Yellow', hex: '#d4b830', viewerKey: 'yellow',  inStock: true },
+      { name: 'Matte Orange', hex: '#d45a10', viewerKey: 'orange',  inStock: true },
+      { name: 'Matte Pink',   hex: '#d4608a', viewerKey: 'pink',    inStock: true },
+      { name: 'Matte Purple', hex: '#6b3a9a', viewerKey: 'purple',  inStock: true },
+      { name: 'Matte Teal',   hex: '#2a7a7a', viewerKey: 'green',   inStock: true },
+      { name: 'Matte Brown',  hex: '#7a4a2a', viewerKey: 'custom',  inStock: true },
+    ],
+  },
+  {
+    id: 'polymaker-polylite-petg', name: 'PolyLite PETG', brand: 'Polymaker', pricingKey: 'PETG',
+    colors: [
+      { name: 'Black',            hex: '#1c1c1c', viewerKey: 'black',   inStock: true },
+      { name: 'White',            hex: '#f5f5f5', viewerKey: 'white',   inStock: true },
+      { name: 'Grey',             hex: '#8c8c8c', viewerKey: 'gray',    inStock: true },
+      { name: 'Red',              hex: '#cc2222', viewerKey: 'red',     inStock: true },
+      { name: 'Blue',             hex: '#2255cc', viewerKey: 'blue',    inStock: true },
+      { name: 'Green',            hex: '#2a9d50', viewerKey: 'green',   inStock: true },
+      { name: 'Teal',             hex: '#008888', viewerKey: 'green',   inStock: true },
+      { name: 'Translucent',      hex: '#dff0f8', viewerKey: 'natural', inStock: true },
+      { name: 'Translucent Blue', hex: '#b0c8ff', viewerKey: 'blue',    inStock: true },
+      { name: 'Translucent Red',  hex: '#ffb0b0', viewerKey: 'red',     inStock: true },
+    ],
+  },
+];
+
+// ── Material / Color Library UI Functions ─────────────────────────────────────
+
+let _libBrand    = 'all';   // active brand filter
+let _libMatId    = null;    // selected material library id
+let _libColorIdx = null;    // selected color index within that material
+window._libColorHex = null; // hex of the currently selected library color
+
+function setLibBrand(brand, btn) {
+  _libBrand = brand;
+  document.querySelectorAll('#brandFilterBtns .brand-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderMatLibDropdown(true);
+}
+
+function renderMatLibDropdown(resetColor) {
+  const sel = document.getElementById('matLibSelect');
+  if (!sel) return;
+  const list = _libBrand === 'all'
+    ? MATERIAL_COLOR_LIBRARY
+    : MATERIAL_COLOR_LIBRARY.filter(m => m.brand === _libBrand);
+  sel.innerHTML = list.map(m =>
+    `<option value="${m.id}">${m.brand} — ${m.name}</option>`
+  ).join('');
+  // Restore previous selection if still visible, else default to first
+  if (_libMatId && [...sel.options].some(o => o.value === _libMatId)) {
+    sel.value = _libMatId;
+  } else {
+    _libMatId = sel.options[0] ? sel.options[0].value : null;
+    if (sel.options[0]) sel.value = _libMatId;
+  }
+  onMatLibChange(resetColor !== false);
+}
+
+function onMatLibChange(resetColor) {
+  const sel = document.getElementById('matLibSelect');
+  if (!sel) return;
+  _libMatId = sel.value;
+  const mat = MATERIAL_COLOR_LIBRARY.find(m => m.id === _libMatId);
+  if (!mat) return;
+  // Sync hidden pricing select
+  const matSel = document.getElementById('materialType');
+  if (matSel) {
+    matSel.value = mat.pricingKey;
+    if (!matSel.value) matSel.value = matSel.options[0] ? matSel.options[0].value : 'PLA';
+  }
+  if (typeof onMaterialChange === 'function') onMaterialChange();
+  if (resetColor !== false) {
+    _libColorIdx = null;
+    window._libColorHex = null;
+    clearColorPickerUI(false); // false = don't re-run calc yet
+  }
+  renderColorOptions();
+}
+
+function renderColorOptions() {
+  const grid = document.getElementById('colorGrid');
+  if (!grid) return;
+  const mat = MATERIAL_COLOR_LIBRARY.find(m => m.id === _libMatId);
+  if (!mat) {
+    grid.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:4px 2px;">Select a material above.</div>';
+    return;
+  }
+  const showOOS = document.getElementById('showOOS') ? document.getElementById('showOOS').checked : false;
+  const visible = mat.colors.filter(c => showOOS || c.inStock);
+  if (!visible.length) {
+    grid.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:4px 2px;">No colors available.</div>';
+    return;
+  }
+  grid.innerHTML = visible.map(c => {
+    const realIdx = mat.colors.indexOf(c);
+    const sel     = realIdx === _libColorIdx ? ' selected' : '';
+    const oos     = !c.inStock ? ' oos' : '';
+    const click   = c.inStock ? `onclick="pickLibColor(${realIdx})"` : '';
+    const title   = c.name + (!c.inStock ? ' — Out of Stock' : '');
+    return `<div class="color-option${sel}${oos}" ${click} title="${title}">
+      <span class="color-swatch-sm" style="background:${c.hex};"></span>
+      <span>${c.name}</span>
+      ${!c.inStock ? '<span class="oos-badge">OOS</span>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function pickLibColor(colorIdx) {
+  const mat = MATERIAL_COLOR_LIBRARY.find(m => m.id === _libMatId);
+  if (!mat) return;
+  const color = mat.colors[colorIdx];
+  if (!color || !color.inStock) return;
+
+  _libColorIdx        = colorIdx;
+  window._libColorHex = color.hex;
+
+  // Update hidden printColor: 'black' if black (no surcharge), else 'white' ($5 surcharge)
+  const isBlack = color.viewerKey === 'black';
+  const pSel = document.getElementById('printColor');
+  if (pSel) pSel.innerHTML = `<option value="${isBlack ? 'black' : 'white'}" selected>${color.name}</option>`;
+
+  // Update 3D viewer with actual hex
+  if (window.setSTLViewerColorHex) window.setSTLViewerColorHex(color.hex);
+
+  // Update picker button
+  document.getElementById('cpSwatch').style.background = color.hex;
+  document.getElementById('cpLabel').textContent = color.name;
+
+  // Close dropdown
+  document.getElementById('colorDropdown').style.display = 'none';
+  document.getElementById('colorPickerBtn').classList.remove('open');
+
+  // Show preview swatch
+  const row = document.getElementById('colorPreviewRow');
+  row.style.display = 'flex';
+  document.getElementById('colorPreviewLarge').style.background = color.hex;
+  document.getElementById('colorPreviewName').textContent = color.name;
+  document.getElementById('colorPreviewMeta').textContent = mat.brand + ' — ' + mat.name;
+
+  renderColorOptions(); // refresh selected state
+  if (typeof calc === 'function') calc();
+}
+
+function clearColorPickerUI(runCalc) {
+  window._libColorHex = null;
+  const cpSwatch = document.getElementById('cpSwatch');
+  const cpLabel  = document.getElementById('cpLabel');
+  const row      = document.getElementById('colorPreviewRow');
+  const pSel     = document.getElementById('printColor');
+  if (cpSwatch) cpSwatch.style.background = '#cccccc';
+  if (cpLabel)  cpLabel.textContent = 'Select a color…';
+  if (row)      row.style.display = 'none';
+  if (pSel)     pSel.innerHTML = '<option value="black" selected>Black</option>';
+  if (runCalc !== false && typeof calc === 'function') calc();
+}
+
+function toggleColorPicker() {
+  const dd  = document.getElementById('colorDropdown');
+  const btn = document.getElementById('colorPickerBtn');
+  if (!dd) return;
+  const isOpen = dd.style.display !== 'none';
+  dd.style.display = isOpen ? 'none' : 'block';
+  btn.classList.toggle('open', !isOpen);
+  if (!isOpen) renderColorOptions(); // refresh on open
+}
+
+// Close color dropdown when clicking outside
+document.addEventListener('click', function(e) {
+  const wrap = document.getElementById('colorPickerWrap');
+  if (wrap && !wrap.contains(e.target)) {
+    const dd  = document.getElementById('colorDropdown');
+    const btn = document.getElementById('colorPickerBtn');
+    if (dd)  dd.style.display = 'none';
+    if (btn) btn.classList.remove('open');
+  }
+});
+
+function resetLibPicker() {
+  _libBrand    = 'all';
+  _libMatId    = null;
+  _libColorIdx = null;
+  // Reset brand buttons
+  document.querySelectorAll('#brandFilterBtns .brand-btn').forEach((b, i) => {
+    b.classList.toggle('active', i === 0);
+  });
+  renderMatLibDropdown(true);
+}
+
+// ── End of library UI ─────────────────────────────────────────────────────────
+
 const DEFAULT_MATERIALS = [
   { name: 'PLA',              midpoint: 21.5, range: '$18–$25',  notes: 'Easy to print' },
   { name: 'PETG',             midpoint: 26,   range: '$22–$30',  notes: 'Durable, flexible' },
@@ -1772,8 +2129,7 @@ function toggleSection(header) { header.closest('.section-card').classList.toggl
 function resetCalc() {
   document.getElementById('partName').value = '';
   document.getElementById('qty').value = 1;
-  const sel = document.getElementById('materialType');
-  if (materials.length) { sel.value = materials[0].name; onMaterialChange(); }
+  resetLibPicker(); // resets brand filter, material, and color picker
   document.getElementById('materialGrams').value = 50;
   document.getElementById('printHours').value    = 4.5;
   loadSettings(); // restore saved pricing settings
@@ -2194,6 +2550,18 @@ document.addEventListener('DOMContentLoaded', () => {
     _currentMaterial.shininess = isLight ? 25 : 35;
   };
 
+  // Set viewer color from a CSS hex string (e.g. '#2255cc') — used by the color library
+  window.setSTLViewerColorHex = function (hexStr) {
+    if (!_currentMaterial) return;
+    var num = parseInt(hexStr.replace('#', ''), 16);
+    _currentMaterial.color.setHex(num);
+    var r = (num >> 16) & 0xff, g = (num >> 8) & 0xff, b = num & 0xff;
+    var brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    var isLight = brightness > 180;
+    _currentMaterial.specular.setHex(isLight ? 0x555555 : 0x2a2a2a);
+    _currentMaterial.shininess = isLight ? 25 : 35;
+  };
+
   window.initSTLViewer = function (buffer, fileName, fileSize) {
     if (typeof THREE === 'undefined' || !THREE.STLLoader) {
       console.warn('[STL Viewer] Three.js not loaded');
@@ -2291,6 +2659,22 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('stlFileInfo').textContent = fileName + '  \u00b7  ' + kb;
   };
 }());
+
+// When a library color is active, route setSTLViewerColor through the stored hex
+// so calc()'s generic color call doesn't override the precise library color.
+(function () {
+  var _origSetColor = window.setSTLViewerColor;
+  window.setSTLViewerColor = function (colorName) {
+    if (window._libColorHex && window.setSTLViewerColorHex) {
+      window.setSTLViewerColorHex(window._libColorHex);
+    } else if (_origSetColor) {
+      _origSetColor(colorName);
+    }
+  };
+}());
+
+// Initialize material/color library UI (all DOM + functions now available)
+renderMatLibDropdown(true);
 </script>
 
 <script>
