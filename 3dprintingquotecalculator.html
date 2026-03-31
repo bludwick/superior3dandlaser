@@ -120,6 +120,8 @@
     transition: border-color .2s, box-shadow .2s;
   }
   .section-card:focus-within { border-color: rgba(185,28,28,.4); box-shadow: 0 0 0 3px rgba(185,28,28,.06); }
+  /* Allow color picker dropdown to escape card clipping */
+  .section-card.color-picker-open { overflow: visible; }
 
   .section-header {
     display: flex;
@@ -128,6 +130,7 @@
     padding: 14px 20px;
     background: var(--bg-light);
     border-bottom: 1px solid var(--border);
+    border-radius: var(--radius) var(--radius) 0 0;
     cursor: pointer;
     user-select: none;
   }
@@ -270,6 +273,9 @@
   .save-note.saved { color: var(--accent); }
   .rates-full-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
   @media (max-width: 700px) { .rates-full-grid { grid-template-columns: 1fr; } }
+  .ref-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .ref-table-scroll .ref-table { min-width: 520px; }
+
   /* Material color panel */
   .mat-color-toggle { background:none; border:1px solid var(--border); border-radius:5px; padding:3px 8px; font-size:11px; font-family:var(--font); font-weight:600; color:var(--muted); cursor:pointer; white-space:nowrap; transition:all .15s; }
   .mat-color-toggle:hover, .mat-color-toggle.open { border-color:var(--accent); color:var(--accent); background:rgba(185,28,28,.05); }
@@ -700,6 +706,7 @@
   .color-picker-btn.open .color-picker-arrow { transform:rotate(180deg); }
 
   .color-dropdown { position:absolute; top:calc(100% + 4px); left:0; right:0; background:var(--bg); border:1.5px solid var(--border); border-radius:10px; box-shadow:0 8px 32px rgba(0,0,0,.14); z-index:300; padding:10px; max-height:260px; overflow-y:auto; }
+  @media (max-width:600px) { .color-dropdown { max-height:200px; } }
   .color-grid { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:8px; }
   .color-option { display:flex; align-items:center; gap:7px; padding:5px 8px; border-radius:6px; cursor:pointer; font-size:12px; font-weight:500; color:var(--text); transition:background .12s; border:1.5px solid transparent; white-space:nowrap; }
   .color-option:hover { background:var(--bg-light); }
@@ -1124,10 +1131,12 @@
             <h3>🧱 Material Cost Guide (per kg)</h3>
             <button class="add-row-btn" onclick="addMaterialRow()">+ Add Material</button>
           </div>
+          <div class="ref-table-scroll">
           <table class="ref-table">
             <thead><tr><th>Material</th><th>$/kg</th><th>Type</th><th>Notes</th><th>Colors</th><th></th></tr></thead>
             <tbody id="matTableBody"></tbody>
           </table>
+          </div>
           <div class="rates-save-bar">
             <span class="save-note" id="matSaveNote">Changes update the Calculator dropdown automatically</span>
             <button class="btn btn-secondary" style="padding:6px 14px;font-size:11px;" onclick="resetMaterials()">↺ Reset Defaults</button>
@@ -1723,6 +1732,9 @@ function pickLibColor(colorIdx) {
   // Close dropdown
   document.getElementById('colorDropdown').style.display = 'none';
   document.getElementById('colorPickerBtn').classList.remove('open');
+  const _cpWrap = document.getElementById('colorPickerWrap');
+  const _cpCard = _cpWrap && _cpWrap.closest('.section-card');
+  if (_cpCard) _cpCard.classList.remove('color-picker-open');
 
   // Show preview swatch
   const row = document.getElementById('colorPreviewRow');
@@ -1751,12 +1763,16 @@ function clearColorPickerUI(runCalc) {
 }
 
 function toggleColorPicker() {
-  const dd  = document.getElementById('colorDropdown');
-  const btn = document.getElementById('colorPickerBtn');
+  const dd   = document.getElementById('colorDropdown');
+  const btn  = document.getElementById('colorPickerBtn');
+  const wrap = document.getElementById('colorPickerWrap');
   if (!dd) return;
   const isOpen = dd.style.display !== 'none';
   dd.style.display = isOpen ? 'none' : 'block';
   btn.classList.toggle('open', !isOpen);
+  // Allow dropdown to escape the section-card overflow:hidden clip
+  const card = wrap && wrap.closest('.section-card');
+  if (card) card.classList.toggle('color-picker-open', !isOpen);
   if (!isOpen) renderColorOptions(); // refresh on open
 }
 
@@ -1764,10 +1780,12 @@ function toggleColorPicker() {
 document.addEventListener('click', function(e) {
   const wrap = document.getElementById('colorPickerWrap');
   if (wrap && !wrap.contains(e.target)) {
-    const dd  = document.getElementById('colorDropdown');
-    const btn = document.getElementById('colorPickerBtn');
+    const dd   = document.getElementById('colorDropdown');
+    const btn  = document.getElementById('colorPickerBtn');
     if (dd)  dd.style.display = 'none';
     if (btn) btn.classList.remove('open');
+    const card = wrap.closest('.section-card');
+    if (card) card.classList.remove('color-picker-open');
   }
 });
 
