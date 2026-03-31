@@ -832,22 +832,9 @@
               <option value="custom">Custom…</option>
             </select>
           </div>
-          <div class="field">
-            <label>Infill Density</label>
-            <select id="slicerInfill" onchange="reestimate()">
-              <option value="0.10">10% — Minimal</option>
-              <option value="0.15">15%</option>
-              <option value="0.20" selected>20% — Standard</option>
-              <option value="0.25">25%</option>
-              <option value="0.40">40%</option>
-              <option value="0.50">50% — Dense</option>
-              <option value="0.75">75%</option>
-              <option value="1.00">100% — Solid</option>
-            </select>
-          </div>
           <input type="hidden" id="slicerSupport" value="auto">
           <!-- Color — library-driven swatch picker -->
-          <div class="field full">
+          <div class="field">
             <label>Color</label>
             <div class="color-picker-wrap" id="colorPickerWrap">
               <div id="colorPickerBtn" class="color-picker-btn" onclick="toggleColorPicker()">
@@ -875,6 +862,19 @@
             <!-- hidden printColor for pricing/viewer/cart integration -->
             <select id="printColor" style="display:none;" onchange="calc()">
               <option value="black" selected>Black</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Infill Density</label>
+            <select id="slicerInfill" onchange="reestimate()">
+              <option value="0.10">10% — Minimal</option>
+              <option value="0.15">15%</option>
+              <option value="0.20" selected>20% — Standard</option>
+              <option value="0.25">25%</option>
+              <option value="0.40">40%</option>
+              <option value="0.50">50% — Dense</option>
+              <option value="0.75">75%</option>
+              <option value="1.00">100% — Solid</option>
             </select>
           </div>
         </div>
