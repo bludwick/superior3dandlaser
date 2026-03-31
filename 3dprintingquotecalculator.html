@@ -827,15 +827,18 @@
             <select id="matLibSelect" onchange="onMatLibChange()"><!-- populated by JS --></select>
             <!-- hidden select kept for pricing/slicer integration -->
             <select id="materialType" style="display:none;" onchange="onMaterialChange()">
-              <option value="PLA" selected>PLA</option>
+              <option value="HT-PLA" selected>HT-PLA</option>
               <option value="PETG">PETG</option>
               <option value="ABS">ABS</option>
               <option value="ASA">ASA</option>
               <option value="TPU (95A)">TPU (95A)</option>
-              <option value="Nylon PA12">Nylon PA12</option>
-              <option value="CF-Nylon">CF-Nylon</option>
+              <option value="PA12-CF">PA12-CF</option>
+              <option value="PA6-CF20">PA6-CF20</option>
               <option value="RESIN (std)">RESIN (std)</option>
               <option value="RESIN (ABS-like)">RESIN (ABS-like)</option>
+              <option value="PPS-CF">PPS-CF</option>
+              <option value="ASA-CF">ASA-CF</option>
+              <option value="PPS-GF">PPS-GF</option>
               <option value="custom">Custom…</option>
             </select>
           </div>
@@ -1798,15 +1801,70 @@ function resetLibPicker() {
 // ── End of library UI ─────────────────────────────────────────────────────────
 
 const DEFAULT_MATERIALS = [
-  { name: 'PLA',              midpoint: 21.5, type: 'FDM', notes: 'Easy to print',     colors: [] },
-  { name: 'PETG',             midpoint: 26,   type: 'FDM', notes: 'Durable, flexible', colors: [] },
-  { name: 'ABS',              midpoint: 23,   type: 'FDM', notes: 'Heat resistant',    colors: [] },
-  { name: 'ASA',              midpoint: 31.5, type: 'FDM', notes: 'UV resistant',      colors: [] },
-  { name: 'TPU (95A)',        midpoint: 34,   type: 'FDM', notes: 'Flexible/rubber',   colors: [] },
-  { name: 'Nylon PA12',       midpoint: 55,   type: 'FDM', notes: 'High strength',     colors: [] },
-  { name: 'CF-Nylon',         midpoint: 75,   type: 'FDM', notes: 'Stiff & light',     colors: [] },
-  { name: 'RESIN (std)',      midpoint: 37.5, type: 'SLA', notes: 'High detail',       colors: [] },
-  { name: 'RESIN (ABS-like)', midpoint: 55,   type: 'SLA', notes: 'Tougher blend',     colors: [] },
+  { name: 'HT-PLA', midpoint: 24.99, type: 'FDM', notes: 'Easy to print', colors: [
+    { name: 'Black',  hex: '#070707', viewerKey: 'black',   inStock: true },
+    { name: 'White',  hex: '#F3F3F1', viewerKey: 'white',   inStock: true },
+    { name: 'Grey',   hex: '#6C7477', viewerKey: 'gray',    inStock: true },
+    { name: 'Red',    hex: '#AC0200', viewerKey: 'red',     inStock: true },
+    { name: 'Blue',   hex: '#0F5EA0', viewerKey: 'blue',    inStock: true },
+    { name: 'Green',  hex: '#05AF47', viewerKey: 'green',   inStock: true },
+    { name: 'Yellow', hex: '#F0C940', viewerKey: 'yellow',  inStock: true },
+    { name: 'Orange', hex: '#DC6E38', viewerKey: 'orange',  inStock: true },
+    { name: 'Brown',  hex: '#4D2D1C', viewerKey: 'custom',  inStock: true },
+  ]},
+  { name: 'PETG', midpoint: 18.99, type: 'FDM', notes: 'Durable, flexible', colors: [
+    { name: 'Black',      hex: '#070908', viewerKey: 'black',   inStock: true },
+    { name: 'Grey',       hex: '#A7AEB2', viewerKey: 'gray',    inStock: true },
+    { name: 'White',      hex: '#F8FAF8', viewerKey: 'white',   inStock: true },
+    { name: 'Red',        hex: '#C23320', viewerKey: 'red',     inStock: true },
+    { name: 'Dark Green', hex: '#223622', viewerKey: 'green',   inStock: true },
+    { name: 'Dark Blue',  hex: '#081B36', viewerKey: 'blue',    inStock: true },
+    { name: 'Orange',     hex: '#DC7C40', viewerKey: 'orange',  inStock: true },
+  ]},
+  { name: 'ABS', midpoint: 19.99, type: 'FDM', notes: 'Heat resistant', colors: [
+    { name: 'Black',  hex: '#16161A', viewerKey: 'black',   inStock: true },
+    { name: 'White',  hex: '#F0EBE8', viewerKey: 'white',   inStock: true },
+    { name: 'Grey',   hex: '#8C8D93', viewerKey: 'gray',    inStock: true },
+    { name: 'Blue',   hex: '#003276', viewerKey: 'blue',    inStock: true },
+    { name: 'Red',    hex: '#F3442B', viewerKey: 'red',     inStock: true },
+    { name: 'Green',  hex: '#479161', viewerKey: 'green',   inStock: true },
+    { name: 'Yellow', hex: '#EDA900', viewerKey: 'yellow',  inStock: true },
+    { name: 'Orange', hex: '#F57517', viewerKey: 'orange',  inStock: true },
+  ]},
+  { name: 'ASA', midpoint: 26.99, type: 'FDM', notes: 'UV resistant', colors: [
+    { name: 'Black',  hex: '#17161A', viewerKey: 'black',   inStock: false },
+    { name: 'White',  hex: '#DBD7D6', viewerKey: 'white',   inStock: false },
+    { name: 'Grey',   hex: '#8D8E92', viewerKey: 'gray',    inStock: false },
+    { name: 'Blue',   hex: '#003576', viewerKey: 'blue',    inStock: false },
+    { name: 'Red',    hex: '#D82B1C', viewerKey: 'red',     inStock: false },
+    { name: 'Green',  hex: '#2E784D', viewerKey: 'green',   inStock: false },
+    { name: 'Orange', hex: '#F37716', viewerKey: 'orange',  inStock: false },
+  ]},
+  { name: 'TPU (95A)', midpoint: 49.99, type: 'FDM', notes: 'Flexible/rubber', colors: [
+    { name: 'Black', hex: '#16161A', viewerKey: 'black', inStock: true },
+    { name: 'White', hex: '#F0EBE8', viewerKey: 'white', inStock: true },
+  ]},
+  { name: 'PA12-CF', midpoint: 139.98, type: 'FDM', notes: 'High strength', colors: [
+    { name: 'Black', hex: '#302F2F', viewerKey: 'black', inStock: true },
+  ]},
+  { name: 'PA6-CF20', midpoint: 79.98, type: 'FDM', notes: 'Stiff & light', colors: [
+    { name: 'Black', hex: '#312F2F', viewerKey: 'black', inStock: true },
+  ]},
+  { name: 'RESIN (std)',      midpoint: 37.5, type: 'SLA', notes: 'High detail',    colors: [] },
+  { name: 'RESIN (ABS-like)', midpoint: 55,   type: 'SLA', notes: 'Tougher blend',  colors: [] },
+  { name: 'PPS-CF', midpoint: 139.98, type: 'FDM', notes: 'Engineered for Extreme Environments', colors: [
+    { name: 'Black', hex: '#302E2F', viewerKey: 'black', inStock: true },
+  ]},
+  { name: 'ASA-CF', midpoint: 39.98, type: 'FDM', notes: 'Engineered for Performance', colors: [
+    { name: 'Dark Grey',   hex: '#4D5E70', viewerKey: 'gray',    inStock: true },
+    { name: 'Black',       hex: '#000000', viewerKey: 'black',   inStock: true },
+    { name: 'Navy Blue',   hex: '#30548E', viewerKey: 'blue',    inStock: true },
+    { name: 'Dark Red',    hex: '#855261', viewerKey: 'red',     inStock: true },
+    { name: 'Desert Sand', hex: '#CEB69C', viewerKey: 'natural', inStock: true },
+  ]},
+  { name: 'PPS-GF', midpoint: 119.98, type: 'FDM', notes: 'Engineered for Performance', colors: [
+    { name: 'Grey', hex: '#75787B', viewerKey: 'gray', inStock: true },
+  ]},
 ];
 const DEFAULT_LABOUR = [
   { context: 'Hobbyist',       rate: '$5–$15',  notes: 'Time cost only' },
@@ -1830,6 +1888,11 @@ function save(key, data) {
 }
 
 let materials   = load('3dp_materials', DEFAULT_MATERIALS);
+// Cache-bust: if stored data still has old generic material names, reset to current defaults
+if (materials.some(m => m.name === 'PLA' || m.name === 'Nylon PA12' || m.name === 'CF-Nylon')) {
+  materials = JSON.parse(JSON.stringify(DEFAULT_MATERIALS));
+  save('3dp_materials', materials);
+}
 // Migrate: ensure every material has type and colors fields
 materials = materials.map(m => ({
   type:   m.name && m.name.toLowerCase().includes('resin') ? 'SLA' : 'FDM',
