@@ -270,6 +270,18 @@
   .save-note.saved { color: var(--accent); }
   .rates-full-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
   @media (max-width: 700px) { .rates-full-grid { grid-template-columns: 1fr; } }
+  /* Material color panel */
+  .mat-color-toggle { background:none; border:1px solid var(--border); border-radius:5px; padding:3px 8px; font-size:11px; font-family:var(--font); font-weight:600; color:var(--muted); cursor:pointer; white-space:nowrap; transition:all .15s; }
+  .mat-color-toggle:hover, .mat-color-toggle.open { border-color:var(--accent); color:var(--accent); background:rgba(185,28,28,.05); }
+  .color-panel-row td { background:rgba(185,28,28,.03); padding:10px 14px !important; }
+  .color-panel { display:flex; flex-direction:column; gap:0; }
+  .mat-color-row { display:flex; align-items:center; gap:6px; padding:4px 0; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+  .mat-color-row:last-child { border-bottom:none; }
+  .mat-color-row .color-swatch-edit { width:22px; height:22px; border-radius:4px; border:1.5px solid rgba(0,0,0,.15); flex-shrink:0; cursor:default; }
+  select.ref-cell { background:var(--input-bg); border:1px solid transparent; color:var(--text); font-family:var(--font); font-size:12px; padding:5px 4px; border-radius:4px; outline:none; transition:all .15s; }
+  select.ref-cell:focus { background:var(--bg-light); border-color:var(--accent); }
+  .instock-lbl { font-size:11px; color:var(--muted); display:flex; align-items:center; gap:3px; white-space:nowrap; cursor:pointer; }
+  .color-panel-empty { font-size:12px; color:var(--muted); padding:4px 2px; font-style:italic; }
 
   /* TOAST */
   .toast { position: fixed; bottom: 24px; right: 24px; background: var(--bg-card); border: 1px solid var(--accent); border-radius: 10px; padding: 14px 20px; font-size: 13px; font-weight: 600; color: var(--accent); box-shadow: var(--shadow); display: flex; align-items: center; gap: 10px; transform: translateY(80px); opacity: 0; transition: all .3s cubic-bezier(.34,1.56,.64,1); z-index: 100; }
@@ -1120,7 +1132,7 @@
             <button class="add-row-btn" onclick="addMaterialRow()">+ Add Material</button>
           </div>
           <table class="ref-table">
-            <thead><tr><th>Material</th><th>$/kg (midpoint)</th><th>Range</th><th>Notes</th><th></th></tr></thead>
+            <thead><tr><th>Material</th><th>$/kg</th><th>Type</th><th>Notes</th><th>Colors</th><th></th></tr></thead>
             <tbody id="matTableBody"></tbody>
           </table>
           <div class="rates-save-bar">
@@ -1605,6 +1617,9 @@ const MATERIAL_COLOR_LIBRARY = [
 
 // ── Material / Color Library UI Functions ─────────────────────────────────────
 
+// Keys must match the COLOR_MAP in the Three.js IIFE (used for 3D viewer)
+const VIEWER_KEYS = ['black','white','gray','red','blue','green','yellow','orange','purple','pink','natural','custom'];
+
 let _libBrand    = 'all';   // active brand filter
 let _libMatId    = null;    // selected material library id
 let _libColorIdx = null;    // selected color index within that material
@@ -1624,7 +1639,16 @@ function setLibBrand(brand, btn) {
 function getActiveLibraryEntries() {
   const matNames  = new Set(materials.map(m => m.name));
   const covered   = new Set(MATERIAL_COLOR_LIBRARY.map(m => m.pricingKey));
-  const libActive = MATERIAL_COLOR_LIBRARY.filter(m => matNames.has(m.pricingKey));
+  // Library entries whose pricingKey exists in admin materials.
+  // Colors: prefer admin-managed colors when set; fall back to library colors.
+  const libActive = MATERIAL_COLOR_LIBRARY
+    .filter(m => matNames.has(m.pricingKey))
+    .map(m => {
+      const adminMat    = materials.find(a => a.name === m.pricingKey);
+      const adminColors = adminMat && adminMat.colors && adminMat.colors.length > 0
+        ? adminMat.colors : null;
+      return adminColors ? { ...m, colors: adminColors } : m;
+    });
   const adminOnly = materials
     .filter(m => !covered.has(m.name))
     .map(m => ({
@@ -1632,7 +1656,7 @@ function getActiveLibraryEntries() {
       name:       m.name,
       brand:      '',
       pricingKey: m.name,
-      colors:     [],
+      colors:     m.colors || [],
       _adminOnly: true,
     }));
   return [...libActive, ...adminOnly];
@@ -1801,15 +1825,15 @@ function resetLibPicker() {
 // ── End of library UI ─────────────────────────────────────────────────────────
 
 const DEFAULT_MATERIALS = [
-  { name: 'PLA',              midpoint: 21.5, range: '$18–$25',  notes: 'Easy to print' },
-  { name: 'PETG',             midpoint: 26,   range: '$22–$30',  notes: 'Durable, flexible' },
-  { name: 'ABS',              midpoint: 23,   range: '$18–$28',  notes: 'Heat resistant' },
-  { name: 'ASA',              midpoint: 31.5, range: '$25–$38',  notes: 'UV resistant' },
-  { name: 'TPU (95A)',        midpoint: 34,   range: '$28–$40',  notes: 'Flexible/rubber' },
-  { name: 'Nylon PA12',       midpoint: 55,   range: '$45–$65',  notes: 'High strength' },
-  { name: 'CF-Nylon',         midpoint: 75,   range: '$60–$90',  notes: 'Stiff & light' },
-  { name: 'RESIN (std)',      midpoint: 37.5, range: '$25–$50',  notes: 'High detail' },
-  { name: 'RESIN (ABS-like)', midpoint: 55,   range: '$40–$70',  notes: 'Tougher blend' },
+  { name: 'PLA',              midpoint: 21.5, type: 'FDM', notes: 'Easy to print',     colors: [] },
+  { name: 'PETG',             midpoint: 26,   type: 'FDM', notes: 'Durable, flexible', colors: [] },
+  { name: 'ABS',              midpoint: 23,   type: 'FDM', notes: 'Heat resistant',    colors: [] },
+  { name: 'ASA',              midpoint: 31.5, type: 'FDM', notes: 'UV resistant',      colors: [] },
+  { name: 'TPU (95A)',        midpoint: 34,   type: 'FDM', notes: 'Flexible/rubber',   colors: [] },
+  { name: 'Nylon PA12',       midpoint: 55,   type: 'FDM', notes: 'High strength',     colors: [] },
+  { name: 'CF-Nylon',         midpoint: 75,   type: 'FDM', notes: 'Stiff & light',     colors: [] },
+  { name: 'RESIN (std)',      midpoint: 37.5, type: 'SLA', notes: 'High detail',       colors: [] },
+  { name: 'RESIN (ABS-like)', midpoint: 55,   type: 'SLA', notes: 'Tougher blend',     colors: [] },
 ];
 const DEFAULT_LABOUR = [
   { context: 'Hobbyist',       rate: '$5–$15',  notes: 'Time cost only' },
@@ -1833,21 +1857,105 @@ function save(key, data) {
 }
 
 let materials   = load('3dp_materials', DEFAULT_MATERIALS);
+// Migrate: ensure every material has type and colors fields
+materials = materials.map(m => ({
+  type:   m.name && m.name.toLowerCase().includes('resin') ? 'SLA' : 'FDM',
+  colors: [],
+  ...m,
+}));
 let labourRates = load('3dp_labour',    DEFAULT_LABOUR);
 let insertRef   = load('3dp_inserts',   DEFAULT_INSERTS);
 
 function renderMaterials() {
   const tbody = document.getElementById('matTableBody');
-  tbody.innerHTML = materials.map((m, i) => `
-    <tr>
-      <td><input class="ref-cell name-cell" value="${esc(m.name)}" oninput="materials[${i}].name=this.value; saveMaterials()" placeholder="Material name"></td>
-      <td><input class="ref-cell price-cell" type="number" value="${m.midpoint}" step="0.5" oninput="materials[${i}].midpoint=+this.value; saveMaterials()" style="width:80px"></td>
-      <td><input class="ref-cell" value="${esc(m.range)}" oninput="materials[${i}].range=this.value; saveMaterials()" placeholder="$xx–$xx" style="width:90px"></td>
-      <td><input class="ref-cell" value="${esc(m.notes)}" oninput="materials[${i}].notes=this.value; saveMaterials()" placeholder="Notes"></td>
-      <td><button class="batch-del" onclick="deleteMaterial(${i})" title="Delete">✕</button></td>
-    </tr>
-  `).join('');
+  tbody.innerHTML = materials.map((m, i) => {
+    const colors   = m.colors || [];
+    const colorCnt = colors.length;
+    const colorRows = colors.length
+      ? colors.map((c, j) => `
+          <div class="mat-color-row">
+            <div class="color-swatch-edit" style="background:${c.hex || '#ccc'};"></div>
+            <input class="ref-cell" value="${esc(c.name)}" oninput="materials[${i}].colors[${j}].name=this.value; saveMaterials()" placeholder="Color name" style="width:110px;">
+            <input class="ref-cell" value="${esc(c.hex || '')}" oninput="materials[${i}].colors[${j}].hex=this.value; updateMatColorSwatch(${i},${j},this.value); saveMaterials()" placeholder="#rrggbb" style="width:78px;" maxlength="7">
+            <select class="ref-cell" onchange="materials[${i}].colors[${j}].viewerKey=this.value; saveMaterials()" style="width:82px;" title="3D Viewer color mapping">
+              ${VIEWER_KEYS.map(k => `<option value="${k}"${(c.viewerKey||'custom')===k?' selected':''}>${k}</option>`).join('')}
+            </select>
+            <label class="instock-lbl" title="Uncheck to mark out of stock">
+              <input type="checkbox" ${c.inStock!==false?'checked':''} onchange="materials[${i}].colors[${j}].inStock=this.checked; saveMaterials()"> In stock
+            </label>
+            <button class="batch-del" onclick="removeMaterialColor(${i},${j})" title="Remove color">✕</button>
+          </div>`).join('')
+      : `<div class="color-panel-empty">No colors added yet.</div>`;
+
+    return `
+      <tr>
+        <td><input class="ref-cell name-cell" value="${esc(m.name)}" oninput="materials[${i}].name=this.value; saveMaterials()" placeholder="Material name"></td>
+        <td><input class="ref-cell price-cell" type="number" value="${m.midpoint}" step="0.5" oninput="materials[${i}].midpoint=+this.value; saveMaterials()" style="width:72px"></td>
+        <td>
+          <select class="ref-cell" onchange="materials[${i}].type=this.value; saveMaterials()" style="width:64px;">
+            <option value="FDM"${(m.type||'FDM')==='FDM'?' selected':''}>FDM</option>
+            <option value="SLA"${m.type==='SLA'?' selected':''}>SLA</option>
+          </select>
+        </td>
+        <td><input class="ref-cell" value="${esc(m.notes)}" oninput="materials[${i}].notes=this.value; saveMaterials()" placeholder="Notes"></td>
+        <td>
+          <button class="mat-color-toggle" id="color-btn-${i}" onclick="toggleMatColors(${i})"
+            title="Edit colors for this material">
+            🎨 ${colorCnt} color${colorCnt !== 1 ? 's' : ''}
+          </button>
+        </td>
+        <td><button class="batch-del" onclick="deleteMaterial(${i})" title="Delete">✕</button></td>
+      </tr>
+      <tr id="color-panel-${i}" class="color-panel-row" style="display:none;">
+        <td colspan="6">
+          <div class="color-panel">
+            ${colorRows}
+            <button class="add-row-btn" onclick="addMaterialColor(${i})" style="margin-top:8px;">+ Add Color</button>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
   rebuildMaterialDropdown();
+}
+
+function toggleMatColors(i) {
+  const panel = document.getElementById('color-panel-' + i);
+  const btn   = document.getElementById('color-btn-' + i);
+  if (!panel) return;
+  const opening = panel.style.display === 'none';
+  panel.style.display = opening ? '' : 'none';
+  if (btn) btn.classList.toggle('open', opening);
+}
+
+function addMaterialColor(i) {
+  if (!materials[i].colors) materials[i].colors = [];
+  materials[i].colors.push({ name: 'New Color', hex: '#cccccc', viewerKey: 'custom', inStock: true });
+  renderMaterials();
+  saveMaterials();
+  // Re-open the panel that was just collapsed by re-render
+  const panel = document.getElementById('color-panel-' + i);
+  const btn   = document.getElementById('color-btn-' + i);
+  if (panel) { panel.style.display = ''; }
+  if (btn)   { btn.classList.add('open'); }
+}
+
+function removeMaterialColor(i, j) {
+  materials[i].colors.splice(j, 1);
+  renderMaterials();
+  saveMaterials();
+  const panel = document.getElementById('color-panel-' + i);
+  const btn   = document.getElementById('color-btn-' + i);
+  if (panel && materials[i].colors.length >= 0) { panel.style.display = ''; }
+  if (btn)   { btn.classList.add('open'); }
+}
+
+function updateMatColorSwatch(i, j, hex) {
+  // Live-update the swatch preview as the hex value is typed
+  const rows = document.querySelectorAll(`#color-panel-${i} .mat-color-row`);
+  if (rows[j]) {
+    const swatch = rows[j].querySelector('.color-swatch-edit');
+    if (swatch) swatch.style.background = hex;
+  }
 }
 
 function renderLabour() {
@@ -1944,7 +2052,7 @@ function resetPricingDefaults() {
 }
 
 function addMaterialRow() {
-  materials.push({ name: 'New Material', midpoint: 30, range: '$xx–$xx', notes: '' });
+  materials.push({ name: 'New Material', midpoint: 30, type: 'FDM', notes: '', colors: [] });
   renderMaterials(); saveMaterials();
   const rows = document.querySelectorAll('#matTableBody tr');
   if (rows.length) rows[rows.length-1].querySelector('input').focus();
