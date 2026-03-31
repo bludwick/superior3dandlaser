@@ -1612,54 +1612,31 @@ const MATERIAL_COLOR_LIBRARY = [
 // Keys must match the COLOR_MAP in the Three.js IIFE (used for 3D viewer)
 const VIEWER_KEYS = ['black','white','gray','red','blue','green','yellow','orange','purple','pink','natural','custom'];
 
-let _libMatId    = null;    // selected material library id
-let _libColorIdx = null;    // selected color index within that material
-window._libColorHex = null; // hex of the currently selected library color
+let _libMatId    = null;    // selected material name (matches materials[i].name)
+let _libColorIdx = null;    // selected color index within that material's color list
+window._libColorHex = null; // hex of the currently selected color
 
-// Returns the combined active material list:
-//   1. Library entries whose pricingKey exists in the admin materials table
-//   2. Admin materials that have no library entry (shown without colors)
-// This keeps the calculator dropdown in sync with the Material Cost Guide.
-function getActiveLibraryEntries() {
-  const matNames  = new Set(materials.map(m => m.name));
-  const covered   = new Set(MATERIAL_COLOR_LIBRARY.map(m => m.pricingKey));
-  // Library entries whose pricingKey exists in admin materials.
-  // Colors: prefer admin-managed colors when set; fall back to library colors.
-  const libActive = MATERIAL_COLOR_LIBRARY
-    .filter(m => matNames.has(m.pricingKey))
-    .map(m => {
-      const adminMat    = materials.find(a => a.name === m.pricingKey);
-      const adminColors = adminMat && adminMat.colors && adminMat.colors.length > 0
-        ? adminMat.colors : null;
-      return adminColors ? { ...m, colors: adminColors } : m;
-    });
-  const adminOnly = materials
-    .filter(m => !covered.has(m.name))
-    .map(m => ({
-      id:         'admin-' + m.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-      name:       m.name,
-      brand:      '',
-      pricingKey: m.name,
-      colors:     m.colors || [],
-      _adminOnly: true,
-    }));
-  return [...libActive, ...adminOnly];
+// Returns colors for a material: admin-managed colors if any have been added,
+// otherwise falls back to aggregated colors from MATERIAL_COLOR_LIBRARY.
+function getMatColors(matName) {
+  const m = materials.find(a => a.name === matName);
+  if (m && m.colors && m.colors.length > 0) return m.colors;
+  // Fallback: deduplicated union of all library entries for this pricing key
+  const seen = new Set();
+  return MATERIAL_COLOR_LIBRARY
+    .filter(e => e.pricingKey === matName)
+    .flatMap(e => e.colors)
+    .filter(c => { if (seen.has(c.name)) return false; seen.add(c.name); return true; });
 }
 
-// Look up a material entry from the active combined list by id
-function findActiveMat(id) {
-  return getActiveLibraryEntries().find(m => m.id === id) || null;
-}
-
+// Populate the dropdown with exactly the rows from the Material Cost Guide
 function renderMatLibDropdown(resetColor) {
   const sel = document.getElementById('matLibSelect');
   if (!sel) return;
-  const list = getActiveLibraryEntries();
-  sel.innerHTML = list.map(m => {
-    const label = m.brand ? `${m.brand} — ${m.name}` : m.name;
-    return `<option value="${m.id}">${label}</option>`;
-  }).join('');
-  // Restore previous selection if still visible, else default to first
+  sel.innerHTML = materials.map(m =>
+    `<option value="${m.name}">${m.name}</option>`
+  ).join('');
+  // Restore previous selection if still present, else default to first
   if (_libMatId && [...sel.options].some(o => o.value === _libMatId)) {
     sel.value = _libMatId;
   } else {
@@ -1672,20 +1649,18 @@ function renderMatLibDropdown(resetColor) {
 function onMatLibChange(resetColor) {
   const sel = document.getElementById('matLibSelect');
   if (!sel) return;
-  _libMatId = sel.value;
-  const mat = findActiveMat(_libMatId);
-  if (!mat) return;
+  _libMatId = sel.value; // material name, e.g. 'PLA'
   // Sync hidden pricing select
   const matSel = document.getElementById('materialType');
   if (matSel) {
-    matSel.value = mat.pricingKey;
+    matSel.value = _libMatId;
     if (!matSel.value) matSel.value = matSel.options[0] ? matSel.options[0].value : 'PLA';
   }
   if (typeof onMaterialChange === 'function') onMaterialChange();
   if (resetColor !== false) {
     _libColorIdx = null;
     window._libColorHex = null;
-    clearColorPickerUI(false); // false = don't re-run calc yet
+    clearColorPickerUI(false);
   }
   renderColorOptions();
 }
@@ -1693,45 +1668,44 @@ function onMatLibChange(resetColor) {
 function renderColorOptions() {
   const grid = document.getElementById('colorGrid');
   if (!grid) return;
-  const mat = findActiveMat(_libMatId);
-  if (!mat) {
+  if (!_libMatId) {
     grid.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:4px 2px;">Select a material above.</div>';
     return;
   }
-  if (!mat.colors || mat.colors.length === 0) {
-    grid.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:4px 2px;">No colors configured for this material — <a href="contact.html" style="color:var(--accent);font-weight:600;text-decoration:none;">contact us</a>.</div>';
+  const colors = getMatColors(_libMatId);
+  if (!colors.length) {
+    grid.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:4px 2px;">No colors configured — <a href="contact.html" style="color:var(--accent);font-weight:600;text-decoration:none;">contact us</a>.</div>';
     return;
   }
   const showOOS = document.getElementById('showOOS') ? document.getElementById('showOOS').checked : false;
-  const visible = mat.colors.filter(c => showOOS || c.inStock);
+  const visible = colors.filter(c => showOOS || c.inStock !== false);
   if (!visible.length) {
-    grid.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:4px 2px;">No colors available.</div>';
+    grid.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:4px 2px;">No colors in stock.</div>';
     return;
   }
   grid.innerHTML = visible.map(c => {
-    const realIdx = mat.colors.indexOf(c);
-    const sel     = realIdx === _libColorIdx ? ' selected' : '';
-    const oos     = !c.inStock ? ' oos' : '';
-    const click   = c.inStock ? `onclick="pickLibColor(${realIdx})"` : '';
-    const title   = c.name + (!c.inStock ? ' — Out of Stock' : '');
-    return `<div class="color-option${sel}${oos}" ${click} title="${title}">
+    const realIdx = colors.indexOf(c);
+    const isSel   = realIdx === _libColorIdx ? ' selected' : '';
+    const oos     = c.inStock === false ? ' oos' : '';
+    const click   = c.inStock !== false ? `onclick="pickLibColor(${realIdx})"` : '';
+    const title   = c.name + (c.inStock === false ? ' — Out of Stock' : '');
+    return `<div class="color-option${isSel}${oos}" ${click} title="${title}">
       <span class="color-swatch-sm" style="background:${c.hex};"></span>
       <span>${c.name}</span>
-      ${!c.inStock ? '<span class="oos-badge">OOS</span>' : ''}
+      ${c.inStock === false ? '<span class="oos-badge">OOS</span>' : ''}
     </div>`;
   }).join('');
 }
 
 function pickLibColor(colorIdx) {
-  const mat = findActiveMat(_libMatId);
-  if (!mat) return;
-  const color = mat.colors[colorIdx];
-  if (!color || !color.inStock) return;
+  const colors = getMatColors(_libMatId);
+  const color  = colors[colorIdx];
+  if (!color || color.inStock === false) return;
 
   _libColorIdx        = colorIdx;
   window._libColorHex = color.hex;
 
-  // Update hidden printColor: 'black' if black (no surcharge), else 'white' ($5 surcharge)
+  // Update hidden printColor: 'black' = no surcharge, anything else = $5 surcharge
   const isBlack = color.viewerKey === 'black';
   const pSel = document.getElementById('printColor');
   if (pSel) pSel.innerHTML = `<option value="${isBlack ? 'black' : 'white'}" selected>${color.name}</option>`;
@@ -1752,9 +1726,9 @@ function pickLibColor(colorIdx) {
   row.style.display = 'flex';
   document.getElementById('colorPreviewLarge').style.background = color.hex;
   document.getElementById('colorPreviewName').textContent = color.name;
-  document.getElementById('colorPreviewMeta').textContent = mat.brand + ' — ' + mat.name;
+  document.getElementById('colorPreviewMeta').textContent = _libMatId;
 
-  renderColorOptions(); // refresh selected state
+  renderColorOptions();
   if (typeof calc === 'function') calc();
 }
 
