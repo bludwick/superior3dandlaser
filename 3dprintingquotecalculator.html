@@ -1617,15 +1617,43 @@ function setLibBrand(brand, btn) {
   renderMatLibDropdown(true);
 }
 
+// Returns the combined active material list:
+//   1. Library entries whose pricingKey exists in the admin materials table
+//   2. Admin materials that have no library entry (shown without colors)
+// This keeps the calculator dropdown in sync with the Material Cost Guide.
+function getActiveLibraryEntries() {
+  const matNames  = new Set(materials.map(m => m.name));
+  const covered   = new Set(MATERIAL_COLOR_LIBRARY.map(m => m.pricingKey));
+  const libActive = MATERIAL_COLOR_LIBRARY.filter(m => matNames.has(m.pricingKey));
+  const adminOnly = materials
+    .filter(m => !covered.has(m.name))
+    .map(m => ({
+      id:         'admin-' + m.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      name:       m.name,
+      brand:      '',
+      pricingKey: m.name,
+      colors:     [],
+      _adminOnly: true,
+    }));
+  return [...libActive, ...adminOnly];
+}
+
+// Look up a material entry from the active combined list by id
+function findActiveMat(id) {
+  return getActiveLibraryEntries().find(m => m.id === id) || null;
+}
+
 function renderMatLibDropdown(resetColor) {
   const sel = document.getElementById('matLibSelect');
   if (!sel) return;
-  const list = _libBrand === 'all'
-    ? MATERIAL_COLOR_LIBRARY
-    : MATERIAL_COLOR_LIBRARY.filter(m => m.brand === _libBrand);
-  sel.innerHTML = list.map(m =>
-    `<option value="${m.id}">${m.brand} — ${m.name}</option>`
-  ).join('');
+  const active = getActiveLibraryEntries();
+  const list   = _libBrand === 'all'
+    ? active
+    : active.filter(m => m.brand === _libBrand);
+  sel.innerHTML = list.map(m => {
+    const label = m.brand ? `${m.brand} — ${m.name}` : m.name;
+    return `<option value="${m.id}">${label}</option>`;
+  }).join('');
   // Restore previous selection if still visible, else default to first
   if (_libMatId && [...sel.options].some(o => o.value === _libMatId)) {
     sel.value = _libMatId;
@@ -1640,7 +1668,7 @@ function onMatLibChange(resetColor) {
   const sel = document.getElementById('matLibSelect');
   if (!sel) return;
   _libMatId = sel.value;
-  const mat = MATERIAL_COLOR_LIBRARY.find(m => m.id === _libMatId);
+  const mat = findActiveMat(_libMatId);
   if (!mat) return;
   // Sync hidden pricing select
   const matSel = document.getElementById('materialType');
@@ -1660,9 +1688,13 @@ function onMatLibChange(resetColor) {
 function renderColorOptions() {
   const grid = document.getElementById('colorGrid');
   if (!grid) return;
-  const mat = MATERIAL_COLOR_LIBRARY.find(m => m.id === _libMatId);
+  const mat = findActiveMat(_libMatId);
   if (!mat) {
     grid.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:4px 2px;">Select a material above.</div>';
+    return;
+  }
+  if (!mat.colors || mat.colors.length === 0) {
+    grid.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:4px 2px;">No colors configured for this material — <a href="contact.html" style="color:var(--accent);font-weight:600;text-decoration:none;">contact us</a>.</div>';
     return;
   }
   const showOOS = document.getElementById('showOOS') ? document.getElementById('showOOS').checked : false;
@@ -1686,7 +1718,7 @@ function renderColorOptions() {
 }
 
 function pickLibColor(colorIdx) {
-  const mat = MATERIAL_COLOR_LIBRARY.find(m => m.id === _libMatId);
+  const mat = findActiveMat(_libMatId);
   if (!mat) return;
   const color = mat.colors[colorIdx];
   if (!color || !color.inStock) return;
@@ -1938,11 +1970,14 @@ function resetInserts() {
 }
 
 function rebuildMaterialDropdown() {
+  // Keep hidden pricing select in sync
   const sel = document.getElementById('materialType');
   if (!sel) return;
   const current = sel.value;
   sel.innerHTML = materials.map(m => `<option value="${esc(m.name)}">${esc(m.name)}</option>`).join('') + `<option value="custom">Custom…</option>`;
   if ([...sel.options].some(o => o.value === current)) sel.value = current;
+  // Re-filter visible library dropdown to match admin material list
+  if (typeof renderMatLibDropdown === 'function') renderMatLibDropdown(false);
 }
 
 function getMatPrice(name) {
