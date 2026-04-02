@@ -2656,6 +2656,9 @@ document.addEventListener('DOMContentLoaded', () => {
     _baseHrs       = null;
   };
 
+  window.getSTLMeshVol  = function ()  { return _cachedMeshMM3; };
+  window.setSTLMeshVol  = function (v) { _cachedMeshMM3 = v; };
+
   window.handleSTLUpload = async function (file) {
     if (!file) return;
     document.getElementById('stlFileName').textContent = file.name;
@@ -2960,6 +2963,7 @@ function addToCart() {
     colorSurcharge:  lc.colorSurcharge || 0,
     lineTotal:       lc.total, // unitPrice × qty + colorSurcharge (flat)
     thumbnail:       thumbnail,
+    meshVol:         (typeof window.getSTLMeshVol === 'function') ? window.getSTLMeshVol() : null,
     chkPost:         document.getElementById('chkPost').checked,
     postLevel:       document.getElementById('postLevel').value,
     postHrs:         document.getElementById('postHrs').value,
@@ -3091,6 +3095,9 @@ function cartEditItem(id) {
     eb.style.display = 'flex';
     document.getElementById('editModeBannerName').textContent = item.fileName;
   }
+
+  // Restore mesh volume so reestimate() recalculates when infill changes
+  if (typeof window.setSTLMeshVol === 'function') window.setSTLMeshVol(item.meshVol ?? null);
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
   calc();
