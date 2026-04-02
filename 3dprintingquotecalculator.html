@@ -767,6 +767,10 @@
   <!-- CALCULATOR -->
   <div id="panel-calculator" class="panel active">
     <div class="admin-banner">🔓 Admin mode — internal fields visible</div>
+    <div id="editModeBanner" style="display:none;background:rgba(29,78,216,.07);border:1px solid rgba(29,78,216,.3);border-radius:8px;padding:8px 14px;font-size:11px;font-weight:700;color:#1d4ed8;letter-spacing:.04em;margin-bottom:16px;align-items:center;gap:8px;">
+      ✏ Editing: <span id="editModeBannerName" style="font-weight:400;"></span>
+      <button onclick="resetCalc()" style="background:none;border:none;cursor:pointer;color:#1d4ed8;font-family:var(--font);font-size:11px;font-weight:700;margin-left:auto;text-decoration:underline;padding:0;">Cancel</button>
+    </div>
 
     <div class="section-card">
       <div class="section-header" onclick="toggleSection(this)">
@@ -808,6 +812,10 @@
             </div>
             <div style="font-size:13px;font-weight:600;margin-top:10px;">Click to upload STL file</div>
             <div style="font-size:11px;color:var(--muted);margin-top:4px;">Auto-fills material &amp; print time estimate</div>
+          </div>
+          <div id="stlEditPreview" style="display:none;margin-top:12px;">
+            <img id="stlEditThumb" src="" alt="Stored preview" style="width:100%;height:300px;object-fit:contain;border-radius:var(--radius);background:#141414;display:block;">
+            <div style="font-size:11px;color:var(--muted);margin-top:6px;padding:0 2px;">Stored preview — upload a new STL to update the 3D view</div>
           </div>
           <div id="stlViewerWrap" style="display:none;">
             <div id="stlViewerContainer" class="stl-viewer-canvas"></div>
@@ -1074,6 +1082,7 @@
         <div class="btn-row">
           <button class="btn btn-primary admin-only" onclick="addToBatch()">+ Add to Batch</button>
           <button class="btn-add-cart" id="addToCartBtn" onclick="addToCart()">🛒 Add to Cart</button>
+          <button class="btn-add-cart" id="updateCartBtn" onclick="updateCartItem()" style="display:none;background:#1d4ed8;">✏ Update Cart</button>
           <button class="btn btn-secondary" onclick="resetCalc()">↺ Reset</button>
         </div>
       </div>
@@ -2197,10 +2206,15 @@ function calc() {
   document.getElementById('t-total').textContent = hasSTL ? fmt(total)     : '$0.00';
   window._lastCalc = { matCost, printCost, printLabourCost, addonCost, overhead, unitPrice, qty, colorSurcharge, total };
 
-  // Show Add to Cart button once a valid STL-based quote is calculated
+  // Show Add to Cart / Update Cart button based on mode
   const _acBtn = document.getElementById('addToCartBtn');
-  if (_acBtn) {
-    _acBtn.style.display = (total > 0 && hasSTL) ? 'flex' : 'none';
+  const _ucBtn = document.getElementById('updateCartBtn');
+  if (window._editingCartItemId) {
+    if (_acBtn) _acBtn.style.display = 'none';
+    if (_ucBtn) _ucBtn.style.display = (total > 0 && hasSTL) ? 'flex' : 'none';
+  } else {
+    if (_acBtn) _acBtn.style.display = (total > 0 && hasSTL) ? 'flex' : 'none';
+    if (_ucBtn) _ucBtn.style.display = 'none';
   }
 
   // Update print time & filament weight display to reflect current qty
@@ -2305,12 +2319,22 @@ function switchTab(name) {
 
 function toggleSection(header) { header.closest('.section-card').classList.toggle('collapsed'); }
 
-function resetCalc() {
+function resetCalc(silent) {
+  // Clear edit mode if active
+  window._editingCartItemId = null;
+  document.getElementById('updateCartBtn').style.display = 'none';
+  const _eb = document.getElementById('editModeBanner');
+  if (_eb) _eb.style.display = 'none';
+  document.getElementById('stlEditPreview').style.display = 'none';
+
+  // Clear cached STL data so reestimate() can't re-populate prices
+  if (typeof window.clearSTLCache === 'function') window.clearSTLCache();
+
   document.getElementById('partName').value = '';
   document.getElementById('qty').value = 1;
   resetLibPicker(); // resets brand filter, material, and color picker
-  document.getElementById('materialGrams').value = 50;
-  document.getElementById('printHours').value    = 4.5;
+  document.getElementById('materialGrams').value = 0;
+  document.getElementById('printHours').value    = 0;
   loadSettings(); // restore saved pricing settings
   document.getElementById('printColor').value = 'black';
   // Reset add-ons
@@ -2328,7 +2352,7 @@ function resetCalc() {
   document.getElementById('stlInput').value = '';
   document.getElementById('stlFileName').textContent = 'No file selected';
   calc();
-  showToast('Calculator reset to defaults');
+  if (!silent) showToast('Calculator reset to defaults');
 }
 
 const ADMIN_PASS = 'Leeagles41!';
@@ -2626,6 +2650,12 @@ document.addEventListener('DOMContentLoaded', () => {
     applyEstimate(_cachedMeshMM3);
   };
 
+  window.clearSTLCache = function () {
+    _cachedMeshMM3 = null;
+    _baseWeightG   = null;
+    _baseHrs       = null;
+  };
+
   window.handleSTLUpload = async function (file) {
     if (!file) return;
     document.getElementById('stlFileName').textContent = file.name;
@@ -2866,6 +2896,7 @@ const TAX_RATE = 0.085; // Tennessee sales tax
 
 // ── Cart state ────────────────────────────────────────────────────────────────
 let cart = loadCart();
+window._editingCartItemId = null;
 
 function loadCart() {
   try {
@@ -2908,8 +2939,12 @@ function addToCart() {
   const item = {
     id:              Date.now(),
     fileName:        fileName,
+    projectName:     document.getElementById('projectName').value || '',
     material:        material,
+    libMatId:        _libMatId,
+    libColorIdx:     _libColorIdx,
     infill:          infill,
+    infillVal:       document.getElementById('slicerInfill').value,
     supports:        supports,
     color:           color,
     qty:             qty,
@@ -2925,6 +2960,14 @@ function addToCart() {
     colorSurcharge:  lc.colorSurcharge || 0,
     lineTotal:       lc.total, // unitPrice × qty + colorSurcharge (flat)
     thumbnail:       thumbnail,
+    chkPost:         document.getElementById('chkPost').checked,
+    postLevel:       document.getElementById('postLevel').value,
+    postHrs:         document.getElementById('postHrs').value,
+    chkInserts:      document.getElementById('chkInserts').checked,
+    insertCount:     document.getElementById('insertCount').value,
+    chkAssembly:     document.getElementById('chkAssembly').checked,
+    assemblyLevel:   document.getElementById('assemblyLevel').value,
+    assemblyHrs:     document.getElementById('assemblyHrs').value,
   };
 
   cart.push(item);
@@ -2942,6 +2985,7 @@ function addToCart() {
       btn.innerHTML = orig;
       btn.classList.remove('added');
       btn.disabled = false;
+      resetCalc(true);
     }, 1800);
   }
 }
@@ -2975,6 +3019,128 @@ function updateCartBadge() {
     b.textContent = count;
     b.style.display = count > 0 ? 'inline-flex' : 'none';
   });
+}
+
+// ── Edit Cart Item ────────────────────────────────────────────────────────────
+function cartEditItem(id) {
+  const item = cart.find(i => i.id === id);
+  if (!item) return;
+  closeCart();
+  switchTab('calculator');
+
+  window._editingCartItemId = id;
+
+  // Restore project name
+  document.getElementById('projectName').value = item.projectName || '';
+
+  // Restore material (without resetting color)
+  _libMatId = item.libMatId;
+  const matSel = document.getElementById('matLibSelect');
+  if (matSel) matSel.value = _libMatId;
+  onMatLibChange(false);
+
+  // Restore color
+  if (item.libColorIdx !== null && item.libColorIdx !== undefined) {
+    pickLibColor(item.libColorIdx);
+  }
+
+  // Restore infill and qty
+  document.getElementById('slicerInfill').value = item.infillVal || '0.20';
+  document.getElementById('qty').value = item.qty;
+
+  // Restore hidden STL data so calc() produces the right price
+  document.getElementById('materialGrams').value = item.filamentG || 0;
+  document.getElementById('printHours').value    = item.printHours || 0;
+
+  // Restore slicer chips
+  document.getElementById('slicerTimeDisp').textContent   = item.printTimeStr || '—';
+  document.getElementById('slicerWeightDisp').textContent = item.filamentStr  || '—';
+  document.getElementById('slicerResults').style.display  = 'block';
+  document.getElementById('stlFileName').textContent      = item.fileName;
+
+  // Show stored preview instead of live 3D viewer
+  document.getElementById('stlViewerPlaceholder').style.display = 'none';
+  document.getElementById('stlViewerWrap').style.display         = 'none';
+  const ep = document.getElementById('stlEditPreview');
+  ep.style.display = 'block';
+  const et = document.getElementById('stlEditThumb');
+  if (item.thumbnail) { et.src = item.thumbnail; et.style.display = 'block'; }
+  else { et.style.display = 'none'; }
+
+  // Restore add-ons
+  const setAddon = (chkId, ctrlId, on) => {
+    const chk = document.getElementById(chkId);
+    const ctrl = document.getElementById(ctrlId);
+    if (chk)  chk.checked = on;
+    if (ctrl) ctrl.style.display = on ? 'flex' : 'none';
+  };
+  setAddon('chkPost',     'ctrl-post',      !!item.chkPost);
+  setAddon('chkInserts',  'ctrl-inserts',   !!item.chkInserts);
+  setAddon('chkAssembly', 'ctrl-assembly',  !!item.chkAssembly);
+  if (item.postLevel)     document.getElementById('postLevel').value     = item.postLevel;
+  if (item.postHrs)       document.getElementById('postHrs').value       = item.postHrs;
+  document.getElementById('post-custom').style.display     = item.postLevel === 'custom'     ? 'flex' : 'none';
+  if (item.insertCount)   document.getElementById('insertCount').value   = item.insertCount;
+  if (item.assemblyLevel) document.getElementById('assemblyLevel').value = item.assemblyLevel;
+  if (item.assemblyHrs)   document.getElementById('assemblyHrs').value   = item.assemblyHrs;
+  document.getElementById('assembly-custom').style.display = item.assemblyLevel === 'custom' ? 'flex' : 'none';
+
+  // Show edit mode banner
+  const eb = document.getElementById('editModeBanner');
+  if (eb) {
+    eb.style.display = 'flex';
+    document.getElementById('editModeBannerName').textContent = item.fileName;
+  }
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  calc();
+}
+
+function updateCartItem() {
+  const id = window._editingCartItemId;
+  if (!id) return;
+  const idx = cart.findIndex(i => i.id === id);
+  if (idx === -1) return;
+  const lc = window._lastCalc;
+  if (!lc || lc.total <= 0) { showToast('Cannot update — no valid quote'); return; }
+
+  const infillSel = document.getElementById('slicerInfill');
+  const colorSel  = document.getElementById('printColor');
+  cart[idx] = {
+    ...cart[idx],
+    projectName:   document.getElementById('projectName').value || '',
+    material:      document.getElementById('materialType').value,
+    libMatId:      _libMatId,
+    libColorIdx:   _libColorIdx,
+    infill:        infillSel.options[infillSel.selectedIndex].text,
+    infillVal:     infillSel.value,
+    supports:      document.getElementById('slicerSupport').value === 'auto' ? 'Auto' : 'None',
+    color:         colorSel.options[colorSel.selectedIndex].text.replace(/ \+\$5\.00/, ''),
+    qty:           Math.max(1, parseFloat(document.getElementById('qty').value) || 1),
+    printTimeStr:  document.getElementById('slicerTimeDisp').textContent   || cart[idx].printTimeStr,
+    filamentStr:   document.getElementById('slicerWeightDisp').textContent || cart[idx].filamentStr,
+    printHours:    parseFloat(document.getElementById('printHours').value)    || cart[idx].printHours,
+    filamentG:     parseFloat(document.getElementById('materialGrams').value) || cart[idx].filamentG,
+    unitPrice:     lc.unitPrice,
+    matCost:       lc.matCost,
+    printCost:     lc.printCost,
+    addonCost:     lc.addonCost,
+    overhead:      lc.overhead,
+    colorSurcharge: lc.colorSurcharge || 0,
+    lineTotal:     lc.total,
+    chkPost:       document.getElementById('chkPost').checked,
+    postLevel:     document.getElementById('postLevel').value,
+    postHrs:       document.getElementById('postHrs').value,
+    chkInserts:    document.getElementById('chkInserts').checked,
+    insertCount:   document.getElementById('insertCount').value,
+    chkAssembly:   document.getElementById('chkAssembly').checked,
+    assemblyLevel: document.getElementById('assemblyLevel').value,
+    assemblyHrs:   document.getElementById('assemblyHrs').value,
+  };
+  saveCart();
+  updateCartBadge();
+  showToast('Cart updated');
+  resetCalc(true);
 }
 
 // ── Cart Panel ────────────────────────────────────────────────────────────────
@@ -3011,14 +3177,14 @@ function renderCart() {
   list.innerHTML = cart.map(item => {
     const hasColor = (item.colorSurcharge || 0) > 0;
     const thumbHtml = item.thumbnail
-      ? `<img class="cart-item-thumb" src="${item.thumbnail}" alt="${escHtml(item.fileName)}">`
-      : `<div class="cart-item-thumb cart-item-thumb-ph"><img src="3dprint-icon.svg" style="width:32px;height:auto;opacity:0.3;" alt=""></div>`;
+      ? `<img class="cart-item-thumb" src="${item.thumbnail}" alt="${escHtml(item.fileName)}" onclick="cartEditItem(${item.id})" style="cursor:pointer;" title="Click to edit">`
+      : `<div class="cart-item-thumb cart-item-thumb-ph" onclick="cartEditItem(${item.id})" style="cursor:pointer;" title="Click to edit"><img src="3dprint-icon.svg" style="width:32px;height:auto;opacity:0.3;" alt=""></div>`;
     return `
     <div class="cart-item" id="cart-item-${item.id}">
       <div class="cart-item-top">
         ${thumbHtml}
         <div class="cart-item-info">
-          <div class="cart-item-name" title="${escHtml(item.fileName)}">${escHtml(item.fileName)}</div>
+          <div class="cart-item-name" title="${escHtml(item.fileName)}" onclick="cartEditItem(${item.id})" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px;">${escHtml(item.fileName)}</div>
           <div class="cart-item-meta">
             ${escHtml(item.material)} · ${escHtml(item.infill)} infill · ${escHtml(item.color)}<br>
             Supports: ${escHtml(item.supports)} · ⏱ ${escHtml(item.printTimeStr)} · ⚖ ${escHtml(item.filamentStr)}
