@@ -928,7 +928,7 @@
           </div>
           <div class="field admin-only">
             <label>Print Labour (per order)</label>
-            <div class="input-wrap"><input type="number" id="printLabourHrs" value="0.5" step="0.05" oninput="calc()"><span class="unit-tag">hrs</span></div>
+            <div class="input-wrap"><input type="number" id="printLabourHrs" value="0.25" step="0.05" oninput="calc()"><span class="unit-tag">hrs</span></div>
             <span class="hint">Flat labour hours billed at professional rate</span>
           </div>
           <div class="field admin-only">
@@ -1026,7 +1026,7 @@
           </div>
           <div class="field">
             <label>Desired Profit Margin</label>
-            <div class="input-wrap"><input type="number" id="profitMargin" value="0.50" step="0.01" oninput="calc()"><span class="unit-tag">%</span></div>
+            <div class="input-wrap"><input type="number" id="profitMargin" value="0.25" step="0.01" oninput="calc()"><span class="unit-tag">%</span></div>
             <span class="hint">0.50 = 50% mark-up on cost</span>
           </div>
         </div>
@@ -2045,12 +2045,12 @@ function saveInserts()   { save('3dp_inserts', insertRef);  flashNote('insertSav
 const PRICING_DEFAULTS = {
   wasteFactor:       1.10,
   printerCost:       0.15,
-  printLabourHrs:    0.5,
+  printLabourHrs:    0.25,
   failureRate:       0.05,
   labourRate:        50,
   insertUnitCost:    0.50,
   overheadRate:      0.50,
-  profitMargin:      0.50,
+  profitMargin:      0.25,
   expediteSurcharge: 50,    // flat $50 fee for 1-2 day orders
   rushSurcharge:     25,    // flat $25 fee for 3-5 day orders
 };
@@ -2064,7 +2064,7 @@ function saveSettings() {
   localStorage.setItem('3dp_settings', JSON.stringify(s));
 }
 
-const SETTINGS_VERSION = 4; // bump when defaults change in a breaking way
+const SETTINGS_VERSION = 5; // bump when defaults change in a breaking way
 
 function loadSettings() {
   let s = PRICING_DEFAULTS;
