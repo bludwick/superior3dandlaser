@@ -2964,7 +2964,8 @@ function addToCart() {
     addonCost:       lc.addonCost,
     overhead:        lc.overhead,
     colorSurcharge:  lc.colorSurcharge || 0,
-    lineTotal:       lc.total, // unitPrice × qty + colorSurcharge (flat)
+    printLabourFlat: lc.printLabourFlat || 0,
+    lineTotal:       lc.total, // unitPrice × qty + printLabourFlat + colorSurcharge
     thumbnail:       thumbnail,
     meshVol:         (typeof window.getSTLMeshVol === 'function') ? window.getSTLMeshVol() : null,
     chkPost:         document.getElementById('chkPost').checked,
@@ -3136,9 +3137,10 @@ function updateCartItem() {
     printCost:     lc.printCost,
     addonCost:     lc.addonCost,
     overhead:      lc.overhead,
-    colorSurcharge: lc.colorSurcharge || 0,
-    lineTotal:     lc.total,
-    chkPost:       document.getElementById('chkPost').checked,
+    colorSurcharge:  lc.colorSurcharge || 0,
+    printLabourFlat: lc.printLabourFlat || 0,
+    lineTotal:       lc.total,
+    chkPost:         document.getElementById('chkPost').checked,
     postLevel:     document.getElementById('postLevel').value,
     postHrs:       document.getElementById('postHrs').value,
     chkInserts:    document.getElementById('chkInserts').checked,
@@ -3221,7 +3223,7 @@ function cartChangeQty(id, delta) {
   const item = cart.find(i => i.id === id);
   if (!item) return;
   item.qty = Math.max(1, item.qty + delta);
-  item.lineTotal = item.unitPrice * item.qty + (item.colorSurcharge || 0);
+  item.lineTotal = item.unitPrice * item.qty + (item.printLabourFlat || 0) + (item.colorSurcharge || 0);
   saveCart();
   renderCart();
 }
