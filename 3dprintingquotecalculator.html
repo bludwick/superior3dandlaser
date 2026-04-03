@@ -923,7 +923,7 @@
           </div>
           <div class="field admin-only">
             <label>Printer Operating Cost</label>
-            <div class="input-wrap"><input type="number" id="printerCost" value="1.75" step="0.01" oninput="calc()"><span class="unit-tag">$/hr</span></div>
+            <div class="input-wrap"><input type="number" id="printerCost" value="0.15" step="0.01" oninput="calc()"><span class="unit-tag">$/hr</span></div>
             <span class="hint">Electricity + depreciation</span>
           </div>
           <div class="field admin-only">
@@ -1021,7 +1021,7 @@
         <div class="fields">
           <div class="field">
             <label>Overhead Rate</label>
-            <div class="input-wrap"><input type="number" id="overheadRate" value="0.15" step="0.01" oninput="calc()"><span class="unit-tag">%</span></div>
+            <div class="input-wrap"><input type="number" id="overheadRate" value="0.50" step="0.01" oninput="calc()"><span class="unit-tag">%</span></div>
             <span class="hint">0.15 = 15% of direct costs</span>
           </div>
           <div class="field">
@@ -2044,12 +2044,12 @@ function saveInserts()   { save('3dp_inserts', insertRef);  flashNote('insertSav
 // ── Pricing settings persistence ─────────────────────────────────────────────
 const PRICING_DEFAULTS = {
   wasteFactor:       1.10,
-  printerCost:       1.75,
+  printerCost:       0.15,
   printLabourHrs:    0.5,
   failureRate:       0.05,
   labourRate:        50,
   insertUnitCost:    0.50,
-  overheadRate:      0.15,
+  overheadRate:      0.50,
   profitMargin:      0.50,
   expediteSurcharge: 50,    // flat $50 fee for 1-2 day orders
   rushSurcharge:     25,    // flat $25 fee for 3-5 day orders
@@ -2064,7 +2064,7 @@ function saveSettings() {
   localStorage.setItem('3dp_settings', JSON.stringify(s));
 }
 
-const SETTINGS_VERSION = 3; // bump when defaults change in a breaking way
+const SETTINGS_VERSION = 4; // bump when defaults change in a breaking way
 
 function loadSettings() {
   let s = PRICING_DEFAULTS;
