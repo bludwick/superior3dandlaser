@@ -780,13 +780,7 @@
       </div>
       <div class="section-body">
         <input type="hidden" id="partName">
-        <div class="project-grid">
-          <div class="field"><label>Project Name</label><input type="text" id="projectName" placeholder="My Print Project"></div>
-          <div class="field">
-            <label>Quantity of Parts</label>
-            <div class="input-wrap"><input type="number" id="qty" value="1" min="1" oninput="calc()"><span class="unit-tag">pcs</span></div>
-          </div>
-        </div>
+        <div class="field"><label>Project Name</label><input type="text" id="projectName" placeholder="My Print Project"></div>
       </div>
     </div>
 
@@ -1068,6 +1062,10 @@
           <div class="summary-row"><span class="label">Add-ons</span><span class="val" id="s-addons">$0.00</span></div>
           <div class="summary-row"><span class="label">Overhead</span><span class="val" id="s-overhead">$0.00</span></div>
           <div class="summary-row" id="s-color-row" style="display:none;"><span class="label">Color Surcharge <span style="font-weight:400;font-size:10px;">(per order)</span></span><span class="val" id="s-color"></span></div>
+        </div>
+        <div class="field" style="margin-bottom:16px;">
+          <label>Quantity of Parts</label>
+          <div class="input-wrap" style="max-width:180px;"><input type="number" id="qty" value="1" min="1" oninput="calc()"><span class="unit-tag">pcs</span></div>
         </div>
         <div class="total-box">
           <div class="total-left">
@@ -2204,9 +2202,10 @@ function calc() {
   if (scv) scv.textContent = colorSurcharge > 0 ? fmt(colorSurcharge) : '';
   const hasSTL = parseFloat(document.getElementById('materialGrams').value) > 0
                  && parseFloat(document.getElementById('printHours').value) > 0;
-  document.getElementById('t-unit').textContent  = hasSTL ? fmt(unitPrice) : '$0.00';
+  const displayUnitPrice = unitPrice + (qty > 0 ? printLabourFlat / qty : 0);
+  document.getElementById('t-unit').textContent  = hasSTL ? fmt(displayUnitPrice) : '$0.00';
   document.getElementById('t-qty').textContent   = qty;
-  document.getElementById('t-total').textContent = hasSTL ? fmt(total)     : '$0.00';
+  document.getElementById('t-total').textContent = hasSTL ? fmt(total)            : '$0.00';
   window._lastCalc = { matCost, printCost, printLabourCost, printLabourFlat, addonCost, overhead, unitPrice, qty, colorSurcharge, total };
 
   // Show Add to Cart / Update Cart button based on mode
