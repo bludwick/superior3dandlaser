@@ -43,7 +43,7 @@ async function sendEmail(payload) {
 
 function buildContactEmail(fields) {
   return {
-    to:      ['sales@superior3dandlaser.com'],
+    to:      ['blake@superior3dandlaser.com'],
     subject: `New Contact Message — ${fields.firstName || ''} ${fields.lastName || ''}`.trim(),
     text: `
 New Contact Message — Superior 3D and Laser
