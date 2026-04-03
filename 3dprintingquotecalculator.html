@@ -933,7 +933,7 @@
             <span class="hint">Electricity + depreciation</span>
           </div>
           <div class="field admin-only">
-            <label>Print Labour (per part)</label>
+            <label>Print Labour (per order)</label>
             <div class="input-wrap"><input type="number" id="printLabourHrs" value="0.25" step="0.05" oninput="calc()"><span class="unit-tag">hrs</span></div>
             <span class="hint">Flat labour hours billed at professional rate</span>
           </div>
@@ -1064,7 +1064,7 @@
         <div class="summary-grid admin-only">
           <div class="summary-row"><span class="label">Material Cost</span><span class="val" id="s-material">$0.00</span></div>
           <div class="summary-row"><span class="label">Print Time Cost</span><span class="val" id="s-print">$0.00</span></div>
-          <div class="summary-row"><span class="label">Print Labour</span><span class="val" id="s-print-labour">$0.00</span></div>
+          <div class="summary-row"><span class="label">Print Labour <span style="font-weight:400;font-size:10px;">(per order)</span></span><span class="val" id="s-print-labour">$0.00</span></div>
           <div class="summary-row"><span class="label">Add-ons</span><span class="val" id="s-addons">$0.00</span></div>
           <div class="summary-row"><span class="label">Overhead</span><span class="val" id="s-overhead">$0.00</span></div>
           <div class="summary-row" id="s-color-row" style="display:none;"><span class="label">Color Surcharge <span style="font-weight:400;font-size:10px;">(per order)</span></span><span class="val" id="s-color"></span></div>
@@ -2179,17 +2179,20 @@ function calc() {
   const colorSurcharge = printColorVal !== 'black' ? 5.00 : 0;
   if (window.setSTLViewerColor) window.setSTLViewerColor(printColorVal);
   const addonCost  = postCost + insertCost + asmCost; // color is per-order, handled separately
-  const directCost = matCost + printCost + printLabourCost + addonCost;
+  // directCost is per-unit (print labour excluded — it's a flat per-line-item charge)
+  const directCost = matCost + printCost + addonCost;
   const overhead   = directCost * g('overheadRate');
   const unitPrice  = (directCost + overhead) * (1 + g('profitMargin'));
   const qty        = Math.max(1, g('qty'));
-  const total      = unitPrice * qty + colorSurcharge; // color added once flat
+  // Print labour: flat per line item (not × qty), with overhead + margin applied
+  const printLabourFlat = printLabourCost * (1 + g('overheadRate')) * (1 + g('profitMargin'));
+  const total      = unitPrice * qty + printLabourFlat + colorSurcharge;
 
   const rpt = document.getElementById('res-print-total');
   if (rpt) rpt.textContent = fmt(directCost);
   document.getElementById('s-material').textContent      = fmt(matCost);
   document.getElementById('s-print').textContent         = fmt(printCost);
-  document.getElementById('s-print-labour').textContent  = fmt(printLabourCost);
+  document.getElementById('s-print-labour').textContent  = fmt(printLabourFlat);
   document.getElementById('s-addons').textContent        = fmt(addonCost);
   document.getElementById('s-overhead').textContent = fmt(overhead);
   const cp = document.getElementById('cost-post');    if (cp) cp.textContent    = postEnabled  ? fmt(postCost)   : '';
@@ -2204,7 +2207,7 @@ function calc() {
   document.getElementById('t-unit').textContent  = hasSTL ? fmt(unitPrice) : '$0.00';
   document.getElementById('t-qty').textContent   = qty;
   document.getElementById('t-total').textContent = hasSTL ? fmt(total)     : '$0.00';
-  window._lastCalc = { matCost, printCost, printLabourCost, addonCost, overhead, unitPrice, qty, colorSurcharge, total };
+  window._lastCalc = { matCost, printCost, printLabourCost, printLabourFlat, addonCost, overhead, unitPrice, qty, colorSurcharge, total };
 
   // Show Add to Cart / Update Cart button based on mode
   const _acBtn = document.getElementById('addToCartBtn');
