@@ -43,7 +43,7 @@ async function sendEmail(payload) {
 
 function buildContactEmail(fields) {
   return {
-    to:      ['blake@superior3dandlaser.com'],
+    to:      ['blake.ludwick@superiormetrology.com'],
     subject: `New Contact Message — ${fields.firstName || ''} ${fields.lastName || ''}`.trim(),
     text: `
 New Contact Message — Superior 3D and Laser
@@ -64,7 +64,7 @@ ${fields.message || ''}
 
 function buildQuoteEmail(fields, fileName, downloadUrl) {
   return {
-    to:      ['blake@superior3dandlaser.com'],
+    to:      ['blake.ludwick@superiormetrology.com'],
     subject: `New Quote Request — ${fields.firstName || ''} ${fields.lastName || ''}`.trim(),
     text: `
 New Quote Request — Superior 3D and Laser
@@ -89,7 +89,7 @@ ${downloadUrl ? `Uploaded File: ${fileName}\nDownload Link: ${downloadUrl}` : 'N
 
 function buildCartOrderEmail(fields) {
   return {
-    to:      ['blake@superior3dandlaser.com'],
+    to:      ['blake.ludwick@superiormetrology.com'],
     subject: `New Order Request — ${fields.name || ''} — ${fields.orderTotal || ''}`.trim(),
     text: `
 New Cart Order Request — Superior 3D and Laser
