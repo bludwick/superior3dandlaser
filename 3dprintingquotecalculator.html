@@ -998,6 +998,7 @@
         <!-- SLA-only: chips (auto-filled) -->
         <div class="sla-only" id="slaVolumeRow" style="display:none; margin-top:12px;">
           <div class="slicer-chips">
+            <div class="slicer-chip"><span class="chip-label">Resin Volume</span><span class="chip-val" id="slaVolDisp">—</span></div>
             <div class="slicer-chip"><span class="chip-label">Layer Count</span><span class="chip-val" id="slaLayerDisp">—</span></div>
             <div class="slicer-chip"><span class="chip-label">Print Time</span><span class="chip-val" id="slicerTimeDisp">—</span></div>
           </div>
@@ -2978,6 +2979,8 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('printHours').value    = '0';
 
       // Update SLA chip display
+      const volDisp = document.getElementById('slaVolDisp');
+      if (volDisp) volDisp.textContent = resinMl.toFixed(1) + ' mL';
       const layDisp = document.getElementById('slaLayerDisp');
       if (layDisp) layDisp.textContent = layerCount.toLocaleString();
       const slaVolumeRow = document.getElementById('slaVolumeRow');
