@@ -995,11 +995,11 @@
           </div>
           <!-- FDM-only: color picker — move outside the fields grid so it spans full width correctly -->
         </div>
-        <!-- SLA-only: resin volume chip (auto-filled) -->
+        <!-- SLA-only: chips (auto-filled) -->
         <div class="sla-only" id="slaVolumeRow" style="display:none; margin-top:12px;">
           <div class="slicer-chips">
-            <div class="slicer-chip"><span class="chip-label">Resin Volume</span><span class="chip-val" id="slaVolDisp">—</span></div>
             <div class="slicer-chip"><span class="chip-label">Layer Count</span><span class="chip-val" id="slaLayerDisp">—</span></div>
+            <div class="slicer-chip"><span class="chip-label">Print Time</span><span class="chip-val" id="slicerTimeDisp">—</span></div>
           </div>
         </div>
         <!-- Hidden inputs for SLA pricing data -->
@@ -1011,10 +1011,9 @@
           <span>Estimating from geometry…</span>
         </div>
         <div id="slicerResults" style="display:none;">
-          <div class="slicer-chips">
-            <div class="slicer-chip"><span class="chip-label">Print Time</span><span class="chip-val" id="slicerTimeDisp">—</span></div>
-            <div class="slicer-chip fdm-only"><span class="chip-label">Filament Weight</span><span class="chip-val" id="slicerWeightDisp">—</span></div>
-            <div class="slicer-chip sla-only" style="display:none;"><span class="chip-label">Resin Used</span><span class="chip-val" id="slicerWeightDispSla">—</span></div>
+          <div class="slicer-chips fdm-only">
+            <div class="slicer-chip"><span class="chip-label">Print Time</span><span class="chip-val" id="slicerTimeDispFdm">—</span></div>
+            <div class="slicer-chip"><span class="chip-label">Filament Weight</span><span class="chip-val" id="slicerWeightDisp">—</span></div>
           </div>
           <div class="slicer-ok-note">✓ Volume-based estimate — actual values may vary ±20%</div>
         </div>
@@ -2952,13 +2951,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const totalHrs     = _baseHrs * qty;
     const h = Math.floor(totalHrs), m = Math.round((totalHrs - h) * 60);
     const timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
-    document.getElementById('slicerTimeDisp').textContent   = timeStr;
     if (window._printMode === 'sla') {
-      const resinMl = parseFloat(document.getElementById('slaResinMl').value) || 0;
-      const wdSla = document.getElementById('slicerWeightDispSla');
-      if (wdSla) wdSla.textContent = resinMl.toFixed(1) + ' mL';
-      document.getElementById('res-slicer').textContent = `~${timeStr} · ~${resinMl.toFixed(1)} mL resin`;
+      document.getElementById('slicerTimeDisp').textContent = timeStr;
+      document.getElementById('res-slicer').textContent = `~${timeStr} · ${parseFloat(document.getElementById('slaLayerDisp').textContent.replace(/,/g,''))||0} layers`;
     } else {
+      const fdmTd = document.getElementById('slicerTimeDispFdm');
+      if (fdmTd) fdmTd.textContent = timeStr;
       document.getElementById('slicerWeightDisp').textContent = totalWeightG.toFixed(1) + ' g';
       document.getElementById('res-slicer').textContent       = `~${timeStr} · ~${totalWeightG.toFixed(1)} g`;
     }
@@ -2980,8 +2978,6 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('printHours').value    = '0';
 
       // Update SLA chip display
-      const volDisp = document.getElementById('slaVolDisp');
-      if (volDisp) volDisp.textContent = resinMl.toFixed(1) + ' mL';
       const layDisp = document.getElementById('slaLayerDisp');
       if (layDisp) layDisp.textContent = layerCount.toLocaleString();
       const slaVolumeRow = document.getElementById('slaVolumeRow');
@@ -3051,12 +3047,13 @@ document.addEventListener('DOMContentLoaded', () => {
       _cachedMeshMM3 = meshMM3;
       applyEstimate(meshMM3);
       slicerState('done');
-      const t = document.getElementById('slicerTimeDisp').textContent;
       let toastMsg;
       if (window._printMode === 'sla') {
-        const resinMl = parseFloat(document.getElementById('slaResinMl').value) || 0;
-        toastMsg = `Estimated: ~${t} · ~${resinMl.toFixed(1)} mL resin`;
+        const t = document.getElementById('slicerTimeDisp').textContent;
+        const layers = document.getElementById('slaLayerDisp')?.textContent || '—';
+        toastMsg = `Estimated: ~${t} · ${layers} layers`;
       } else {
+        const t = document.getElementById('slicerTimeDispFdm')?.textContent || '—';
         const w = document.getElementById('slicerWeightDisp').textContent;
         toastMsg = `Estimated: ~${t} · ~${w}`;
       }
@@ -3297,7 +3294,9 @@ function addToCart() {
   const color      = colorSel.options[colorSel.selectedIndex].text.replace(/ \+\$5\.00/, '');
   const qty        = Math.max(1, parseFloat(document.getElementById('qty').value) || 1);
   const weightDisp = document.getElementById('slicerWeightDisp').textContent || '—';
-  const timeDisp   = document.getElementById('slicerTimeDisp').textContent   || '—';
+  const timeDisp   = (window._printMode === 'sla'
+    ? document.getElementById('slicerTimeDisp')
+    : document.getElementById('slicerTimeDispFdm'))?.textContent || '—';
 
   const thumbnail = (typeof window.captureSTLViewerSnapshot === 'function')
     ? window.captureSTLViewerSnapshot()
@@ -3422,7 +3421,8 @@ function cartEditItem(id) {
   document.getElementById('printHours').value    = item.printHours || 0;
 
   // Restore slicer chips
-  document.getElementById('slicerTimeDisp').textContent   = item.printTimeStr || '—';
+  const _tdFdm = document.getElementById('slicerTimeDispFdm');
+  if (_tdFdm) _tdFdm.textContent = item.printTimeStr || '—';
   document.getElementById('slicerWeightDisp').textContent = item.filamentStr  || '—';
   document.getElementById('slicerResults').style.display  = 'block';
   document.getElementById('stlFileName').textContent      = item.fileName;
@@ -3489,7 +3489,9 @@ function updateCartItem() {
     supports:      document.getElementById('slicerSupport').value === 'auto' ? 'Auto' : 'None',
     color:         colorSel.options[colorSel.selectedIndex].text.replace(/ \+\$5\.00/, ''),
     qty:           Math.max(1, parseFloat(document.getElementById('qty').value) || 1),
-    printTimeStr:  document.getElementById('slicerTimeDisp').textContent   || cart[idx].printTimeStr,
+    printTimeStr:  (window._printMode === 'sla'
+      ? document.getElementById('slicerTimeDisp')
+      : document.getElementById('slicerTimeDispFdm'))?.textContent || cart[idx].printTimeStr,
     filamentStr:   document.getElementById('slicerWeightDisp').textContent || cart[idx].filamentStr,
     printHours:    parseFloat(document.getElementById('printHours').value)    || cart[idx].printHours,
     filamentG:     parseFloat(document.getElementById('materialGrams').value) || cart[idx].filamentG,
