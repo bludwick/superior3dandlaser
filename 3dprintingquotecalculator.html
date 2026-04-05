@@ -2641,6 +2641,7 @@ function toggleSection(header) { header.closest('.section-card').classList.toggl
 function resetCalc(silent) {
   // Clear edit mode if active
   window._editingCartItemId = null;
+  window._currentSTLFile    = null;
   document.getElementById('updateCartBtn').style.display = 'none';
   const _eb = document.getElementById('editModeBanner');
   if (_eb) _eb.style.display = 'none';
@@ -3020,6 +3021,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.handleSTLUpload = async function (file) {
     if (!file) return;
+    window._currentSTLFile = file;
     document.getElementById('stlFileName').textContent = file.name;
     document.getElementById('partName').value = file.name.replace(/\.stl$/i, '');
     slicerState('slicing');
@@ -3267,6 +3269,8 @@ const TAX_RATE = 0.085; // Tennessee sales tax
 // ── Cart state ────────────────────────────────────────────────────────────────
 let cart = loadCart();
 window._editingCartItemId = null;
+window._currentSTLFile    = null;  // File object for the currently loaded STL
+window._cartSTLFiles      = {};    // Map of cart item id → File object
 
 function loadCart() {
   try {
@@ -3345,6 +3349,9 @@ function addToCart() {
   };
 
   cart.push(item);
+  if (window._currentSTLFile) {
+    window._cartSTLFiles[item.id] = window._currentSTLFile;
+  }
   saveCart();
   updateCartBadge();
 
@@ -3481,6 +3488,10 @@ function updateCartItem() {
   if (idx === -1) return;
   const lc = window._lastCalc;
   if (!lc || lc.total <= 0) { showToast('Cannot update — no valid quote'); return; }
+  // If the user re-uploaded an STL while editing, update the stored file
+  if (window._currentSTLFile) {
+    window._cartSTLFiles[id] = window._currentSTLFile;
+  }
 
   const infillSel = document.getElementById('slicerInfill');
   const colorSel  = document.getElementById('printColor');
@@ -3791,6 +3802,14 @@ async function submitOrderToBackend(orderData, paymentId) {
     `--- Items ---\n${itemsSummary}\n\n--- Totals ---\nSubtotal: ${fmtPrice(subtotal)}\n${ltLine}Tax (8.5%): ${fmtPrice(tax)}\nORDER TOTAL: ${fmtPrice(total)}\n\n` +
     `--- Notes ---\n${notes || 'None'}\n\nPayment: Pending — to be collected upon confirmation`
   );
+
+  // Attach STL files for each cart item (if available in memory)
+  items.forEach(item => {
+    const stlFile = window._cartSTLFiles && window._cartSTLFiles[item.id];
+    if (stlFile instanceof File) {
+      body.append(`stlFile_${item.id}`, stlFile, stlFile.name);
+    }
+  });
 
   const res = await fetch('/.netlify/functions/submit-quote', { method: 'POST', body });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);

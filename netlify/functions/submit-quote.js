@@ -2,33 +2,52 @@ const busboy        = require('busboy');
 const { getStore }  = require('@netlify/blobs');
 const { Resend }    = require('resend');
 
-// Parse multipart form data from the event
+// Parse multipart form data — returns all files as an array
 function parseForm(event) {
   return new Promise((resolve, reject) => {
     const fields = {};
-    let fileBuffer = null;
-    let fileName   = null;
-    let fileMime   = null;
+    const files  = []; // [{ fieldName, buffer, fileName, fileMime }]
 
     const bb = busboy({ headers: event.headers });
 
     bb.on('field', (name, value) => { fields[name] = value; });
 
-    bb.on('file', (name, stream, info) => {
-      fileName = info.filename;
-      fileMime = info.mimeType;
+    bb.on('file', (fieldName, stream, info) => {
+      const { filename, mimeType } = info;
       const chunks = [];
-      stream.on('data',  chunk => chunks.push(chunk));
-      stream.on('end',   ()    => { fileBuffer = Buffer.concat(chunks); });
+      stream.on('data', chunk => chunks.push(chunk));
+      stream.on('end', () => {
+        if (chunks.length > 0) {
+          files.push({
+            fieldName,
+            buffer:   Buffer.concat(chunks),
+            fileName: filename,
+            fileMime: mimeType,
+          });
+        }
+      });
     });
 
-    bb.on('finish', () => resolve({ fields, fileBuffer, fileName, fileMime }));
+    bb.on('finish', () => resolve({ fields, files }));
     bb.on('error',  reject);
 
     const body = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8');
     bb.write(body);
     bb.end();
   });
+}
+
+// Save a file buffer to the 'uploads' Netlify Blobs store; returns download URL
+async function saveBlobFile(buffer, fileName, fileMime) {
+  const store         = getStore({ name: 'uploads', consistency: 'strong' });
+  const savedFileName = `${Date.now()}-${fileName}`;
+  await store.set(savedFileName, buffer, {
+    metadata: { contentType: fileMime, originalName: fileName },
+  });
+  return {
+    key: savedFileName,
+    url: `${process.env.SITE_URL}/.netlify/blobs/site:uploads/${savedFileName}`,
+  };
 }
 
 // ── Resend email sender ───────────────────────────────────────────────────────
@@ -43,7 +62,7 @@ async function sendEmail(payload) {
 
 function buildContactEmail(fields) {
   return {
-    to:      ['blake.ludwick@superiormetrology.com'],
+    to:      ['ludwick.blake@gmail.com'],
     subject: `New Contact Message — ${fields.firstName || ''} ${fields.lastName || ''}`.trim(),
     text: `
 New Contact Message — Superior 3D and Laser
@@ -64,7 +83,7 @@ ${fields.message || ''}
 
 function buildQuoteEmail(fields, fileName, downloadUrl) {
   return {
-    to:      ['blake.ludwick@superiormetrology.com'],
+    to:      ['ludwick.blake@gmail.com'],
     subject: `New Quote Request — ${fields.firstName || ''} ${fields.lastName || ''}`.trim(),
     text: `
 New Quote Request — Superior 3D and Laser
@@ -87,9 +106,14 @@ ${downloadUrl ? `Uploaded File: ${fileName}\nDownload Link: ${downloadUrl}` : 'N
   };
 }
 
-function buildCartOrderEmail(fields) {
+function buildCartOrderEmail(fields, stlFiles) {
+  const filesSection = stlFiles && stlFiles.length > 0
+    ? `\n--- STL Files (${stlFiles.length}) ---\n` +
+      stlFiles.map(f => `${f.fileName}: ${f.url}`).join('\n')
+    : '';
+
   return {
-    to:      ['blake.ludwick@superiormetrology.com'],
+    to:      ['ludwick.blake@gmail.com'],
     subject: `New Order Request — ${fields.name || ''} — ${fields.orderTotal || ''}`.trim(),
     text: `
 New Cart Order Request — Superior 3D and Laser
@@ -110,7 +134,7 @@ ORDER TOTAL: ${fields.orderTotal  || ''}
 
 --- Notes ---
 ${fields.orderNotes || 'None'}
-
+${filesSection}
 Payment Status: ${fields.paymentStatus || 'Pending'}
 ${fields.paymentId ? `Payment ID: ${fields.paymentId}` : ''}
 ===============================================
@@ -126,26 +150,31 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { fields, fileBuffer, fileName, fileMime } = await parseForm(event);
+    const { fields, files } = await parseForm(event);
 
-    // Save uploaded file to Netlify Blobs (quote form only)
-    let downloadUrl = null;
-    if (fileBuffer && fileName) {
-      const store         = getStore({ name: 'uploads', consistency: 'strong' });
-      const savedFileName = `${Date.now()}-${fileName}`;
-      await store.set(savedFileName, fileBuffer, {
-        metadata: { contentType: fileMime, originalName: fileName },
-      });
-      downloadUrl = `${process.env.SITE_URL}/.netlify/blobs/site:uploads/${savedFileName}`;
+    // Save all uploaded files to Netlify Blobs
+    const savedFiles = [];
+    for (const f of files) {
+      try {
+        const { key, url } = await saveBlobFile(f.buffer, f.fileName, f.fileMime);
+        savedFiles.push({ fieldName: f.fieldName, fileName: f.fileName, key, url, buffer: f.buffer, fileMime: f.fileMime });
+      } catch (blobErr) {
+        console.error('[submit-quote] Blob save error for', f.fileName, ':', blobErr.message);
+      }
     }
 
     // Route to the correct email template
     const formType = fields.formType || (fields.orderType === 'cart-order' ? 'cart' : 'quote');
     let mailOptions;
+
     if (formType === 'contact') {
       mailOptions = buildContactEmail(fields);
+
     } else if (formType === 'cart' || fields.orderType === 'cart-order') {
-      mailOptions = buildCartOrderEmail(fields);
+      // STL files for cart orders are appended as stlFile_<itemId>
+      const stlFiles = savedFiles.filter(f => f.fieldName.startsWith('stlFile'));
+      mailOptions = buildCartOrderEmail(fields, stlFiles);
+
       // Save order to Netlify Blobs for admin dashboard
       try {
         const orderStore = getStore({ name: 'orders', consistency: 'strong' });
@@ -162,26 +191,31 @@ exports.handler = async (event) => {
           notes:         fields.orderNotes || '',
           leadTime:      fields.leadTime   || 'Standard',
           items:         parsedItems,
-          subtotal:      parseFloat(fields.subtotalRaw)  || 0,
-          tax:           parseFloat(fields.taxRaw)       || 0,
-          total:         parseFloat(fields.orderTotalRaw)|| 0,
+          subtotal:      parseFloat(fields.subtotalRaw)   || 0,
+          tax:           parseFloat(fields.taxRaw)        || 0,
+          total:         parseFloat(fields.orderTotalRaw) || 0,
+          stlFiles:      stlFiles.map(f => ({ fileName: f.fileName, url: f.url })),
           status:        'pending',
           createdAt:     new Date().toISOString(),
         });
       } catch (saveErr) {
-        // Non-fatal: log but don't block the order email
         console.error('[submit-quote] Order save error:', saveErr.message);
       }
-    } else {
-      mailOptions = buildQuoteEmail(fields, fileName, downloadUrl);
-    }
 
-    // Attach uploaded file directly to the email (base64 for Resend)
-    if (fileBuffer && fileName) {
-      mailOptions.attachments = [{
-        filename: fileName,
-        content:  fileBuffer.toString('base64'),
-      }];
+    } else {
+      // Quote form — primary file is the one named 'file'
+      const primary     = savedFiles.find(f => f.fieldName === 'file') || savedFiles[0];
+      const downloadUrl = primary?.url    || null;
+      const fileName    = primary?.fileName || null;
+      mailOptions = buildQuoteEmail(fields, fileName, downloadUrl);
+
+      // Attach file directly to the email
+      if (primary?.buffer) {
+        mailOptions.attachments = [{
+          filename: primary.fileName,
+          content:  primary.buffer.toString('base64'),
+        }];
+      }
     }
 
     await sendEmail({
