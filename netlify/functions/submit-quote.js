@@ -156,7 +156,7 @@ exports.handler = async (event) => {
             });
           }));
         } catch (blobErr) {
-          console.error('Blobs upload error (cart):', blobErr.message);
+          console.error('Blobs upload error (cart):', blobErr.message, blobErr.stack);
         }
 
         // Attach all STL files to the email
@@ -182,7 +182,7 @@ exports.handler = async (event) => {
             metadata: { contentType: quoteFile.mime, originalName: quoteFile.name },
           });
         } catch (blobErr) {
-          console.error('Blobs upload error (quote):', blobErr.message);
+          console.error('Blobs upload error (quote):', blobErr.message, blobErr.stack);
         }
       }
 

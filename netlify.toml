@@ -5,6 +5,8 @@
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
+  # Keep these packages un-bundled so they can detect the Netlify runtime context
+  external_node_modules = ["@netlify/blobs", "bcryptjs"]
 
 [[edge_functions]]
   path = "/admin"
