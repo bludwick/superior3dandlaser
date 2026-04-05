@@ -146,14 +146,18 @@ exports.handler = async (event) => {
 
       const stlFiles = files.filter(f => f.fieldName.startsWith('stl_'));
       if (stlFiles.length) {
-        // Save each STL to Netlify Blobs for internal storage
-        const store = getStore({ name: 'uploads', consistency: 'strong' });
-        await Promise.all(stlFiles.map(f => {
-          const savedName = `cart-${Date.now()}-${f.name}`;
-          return store.set(savedName, f.buffer, {
-            metadata: { contentType: f.mime || 'application/octet-stream', originalName: f.name },
-          });
-        }));
+        // Save each STL to Netlify Blobs (best-effort — failure won't block email)
+        try {
+          const store = getStore('uploads');
+          await Promise.all(stlFiles.map(f => {
+            const savedName = `cart-${Date.now()}-${f.name}`;
+            return store.set(savedName, f.buffer, {
+              metadata: { contentType: f.mime || 'application/octet-stream', originalName: f.name },
+            });
+          }));
+        } catch (blobErr) {
+          console.error('Blobs upload error (cart):', blobErr.message);
+        }
 
         // Attach all STL files to the email
         mailOptions.attachments = stlFiles.map(f => ({
@@ -170,12 +174,16 @@ exports.handler = async (event) => {
       const quoteFile = files[0];
 
       if (quoteFile) {
-        // Save to Netlify Blobs for internal storage
-        const store     = getStore({ name: 'uploads', consistency: 'strong' });
-        const savedName = `${Date.now()}-${quoteFile.name}`;
-        await store.set(savedName, quoteFile.buffer, {
-          metadata: { contentType: quoteFile.mime, originalName: quoteFile.name },
-        });
+        // Save to Netlify Blobs (best-effort — failure won't block email)
+        try {
+          const store     = getStore('uploads');
+          const savedName = `${Date.now()}-${quoteFile.name}`;
+          await store.set(savedName, quoteFile.buffer, {
+            metadata: { contentType: quoteFile.mime, originalName: quoteFile.name },
+          });
+        } catch (blobErr) {
+          console.error('Blobs upload error (quote):', blobErr.message);
+        }
       }
 
       mailOptions = buildQuoteEmail(fields, quoteFile?.name);
