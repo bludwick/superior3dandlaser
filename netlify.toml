@@ -45,3 +45,13 @@
   from = "/api/admin/jobs/*"
   to = "/.netlify/functions/manage-jobs"
   status = 200
+
+[[redirects]]
+  from = "/api/invoice"
+  to = "/.netlify/functions/get-invoice"
+  status = 200
+
+[[redirects]]
+  from = "/api/checkout"
+  to = "/.netlify/functions/create-checkout"
+  status = 200

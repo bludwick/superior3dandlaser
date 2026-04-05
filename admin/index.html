@@ -203,6 +203,9 @@
   .status-badge.ready    { background: rgba(124,58,237,.1); color: #6d28d9; border: 1px solid rgba(124,58,237,.25); }
   .status-badge.complete { background: rgba(15,118,110,.1); color: #0f766e; border: 1px solid rgba(15,118,110,.25); }
   .status-badge.confirmed { background: rgba(21,128,61,.1); color: #15803d; border: 1px solid rgba(21,128,61,.25); }
+  .status-badge.quoted   { background: rgba(234,179,8,.12); color: #854d0e; border: 1px solid rgba(234,179,8,.3); cursor: default !important; }
+  .invoice-btn { font-size: 11px; font-weight: 700; color: var(--muted); background: var(--bg-light); border: 1px solid var(--border); border-radius: 5px; padding: 3px 8px; cursor: pointer; transition: all .15s; }
+  .invoice-btn:hover { color: var(--accent); border-color: var(--accent); }
 
   /* ── FILTER PILLS ── */
   .filter-row { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -599,9 +602,12 @@ function renderOrders(orders) {
   let html = '<table><thead><tr><th>Date</th><th>Customer</th><th>Email</th><th>Lead Time</th><th>Items</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>';
   orders.forEach((o, idx) => {
     const date    = o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
-    const status  = o.status === 'confirmed' ? 'confirmed' : 'pending';
-    const label   = status === 'confirmed' ? '✓ Confirmed' : '⏳ Pending';
+    const isQuoted = o.status === 'quoted';
+    const status  = isQuoted ? 'quoted' : (o.status === 'confirmed' ? 'confirmed' : 'pending');
+    const label   = isQuoted ? '📋 Quoted' : (status === 'confirmed' ? '✓ Confirmed' : '⏳ Pending');
+    const clickAttr = isQuoted ? '' : `onclick="toggleStatus('${esc(o.id)}', '${status}', this)"`;
     const itemCount = (o.items || []).length;
+    const invoiceHref = o.invoiceToken ? `/invoice.html?job=${esc(o.id)}&token=${esc(o.invoiceToken)}` : null;
 
     html += `<tr>
       <td style="white-space:nowrap;color:var(--muted);">${date}</td>
@@ -610,9 +616,11 @@ function renderOrders(orders) {
       <td>${esc(o.leadTime || '—')}</td>
       <td>${itemCount} part${itemCount !== 1 ? 's' : ''}</td>
       <td class="order-total">$${parseFloat(o.total || 0).toFixed(2)}</td>
-      <td><span class="status-badge ${status}" onclick="toggleStatus('${esc(o.id)}', '${status}', this)">${label}</span></td>
+      <td><span class="status-badge ${status}" ${clickAttr}>${label}</span></td>
       <td style="white-space:nowrap;">
-        <button class="job-create-btn" onclick="openJobOverlay(_orders[${idx}])">→ Job</button>
+        ${isQuoted && invoiceHref
+          ? `<a class="invoice-btn" href="${invoiceHref}" target="_blank">📄 Invoice</a>`
+          : `<button class="job-create-btn" onclick="openJobOverlay(_orders[${idx}])">→ Job</button>`}
         <button class="expand-btn" onclick="toggleExpand('row-${idx}', this)">▾</button>
       </td>
     </tr>
@@ -737,9 +745,12 @@ async function loadJobs() {
   const container = document.getElementById('jobsContainer');
   if (container) container.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div>Loading…</div></div>';
   try {
-    const res = await fetch('/api/admin/jobs');
+    const res = await fetch('/api/admin/jobs', { cache: 'no-store', credentials: 'include' });
     if (res.status === 401 || res.status === 403) { window.location.href = '/admin/login.html'; return; }
-    if (!res.ok) throw new Error('HTTP ' + res.status);
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      throw new Error(e.error || 'HTTP ' + res.status);
+    }
     _jobs = await res.json();
     renderJobs(_jobFilter);
     // Update sidebar badge for active jobs
@@ -784,6 +795,7 @@ function renderJobs(filter) {
       <td><span class="status-badge ${esc(j.status)}">${label}</span></td>
       <td style="white-space:nowrap;">
         ${canAdv ? `<button class="advance-btn" onclick="advanceJobStatus('${esc(j.id)}', this)">Advance ›</button>` : ''}
+        ${j.invoiceToken ? `<a class="invoice-btn" href="/invoice.html?job=${esc(j.id)}&token=${esc(j.invoiceToken)}" target="_blank">📄 Invoice</a>` : ''}
         <button class="expand-btn" onclick="toggleExpand('jrow-${idx}', this)">▾</button>
       </td>
     </tr>

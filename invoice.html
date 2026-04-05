@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invoice — Superior 3D and Laser</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f3f4f6; color: #111827; min-height: 100vh; }
+
+    .page { max-width: 800px; margin: 40px auto; background: #fff; border-radius: 12px; box-shadow: 0 4px 32px rgba(0,0,0,.1); overflow: hidden; }
+
+    /* Header */
+    .inv-header { background: #b91c1c; color: #fff; padding: 32px 40px; }
+    .inv-header h1 { font-size: 22px; font-weight: 800; letter-spacing: -.02em; margin-bottom: 4px; }
+    .inv-header p  { opacity: .8; font-size: 13px; }
+    .inv-header-row { display: flex; justify-content: space-between; align-items: flex-end; }
+    .inv-num { text-align: right; }
+    .inv-num .label { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; opacity: .7; }
+    .inv-num .value { font-size: 18px; font-weight: 800; }
+
+    /* Body */
+    .inv-body { padding: 36px 40px; }
+
+    /* Meta grid */
+    .inv-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; padding-bottom: 28px; border-bottom: 2px solid #f3f4f6; }
+    .inv-meta-block .label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #6b7280; margin-bottom: 6px; }
+    .inv-meta-block .name  { font-size: 16px; font-weight: 700; }
+    .inv-meta-block .sub   { font-size: 13px; color: #6b7280; margin-top: 2px; }
+
+    /* Status badge */
+    .status-pill { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+    .s-confirmed { background: #dcfce7; color: #15803d; }
+    .s-printing  { background: #dbeafe; color: #1d4ed8; }
+    .s-ready     { background: #ede9fe; color: #7c3aed; }
+    .s-complete  { background: #f0fdfa; color: #0f766e; }
+    .s-quoted    { background: #fef9c3; color: #854d0e; }
+
+    /* Items table */
+    .inv-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    .inv-table th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: #6b7280; font-weight: 700; padding: 8px 10px; border-bottom: 2px solid #e5e7eb; }
+    .inv-table td { padding: 12px 10px; border-bottom: 1px solid #f3f4f6; font-size: 14px; }
+    .inv-table tbody tr:last-child td { border-bottom: none; }
+    .inv-table .r { text-align: right; }
+    .inv-table .c { text-align: center; }
+
+    /* Totals */
+    .inv-totals { width: 260px; margin-left: auto; }
+    .inv-totals td { padding: 6px 10px; font-size: 14px; }
+    .inv-totals .grand td { font-size: 17px; font-weight: 800; color: #b91c1c; border-top: 2px solid #e5e7eb; padding-top: 12px; }
+
+    /* Notes */
+    .inv-notes { background: #f9fafb; border-radius: 8px; padding: 14px 16px; font-size: 13px; color: #4b5563; margin-bottom: 24px; }
+    .inv-notes strong { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: #9ca3af; margin-bottom: 4px; }
+
+    /* Paid banner */
+    .paid-banner { background: #f0fdf4; border: 2px solid #86efac; border-radius: 8px; padding: 16px 20px; margin-bottom: 24px; color: #15803d; font-weight: 700; font-size: 14px; text-align: center; }
+
+    /* Action buttons */
+    .inv-actions { display: flex; gap: 12px; flex-wrap: wrap; padding-top: 24px; border-top: 2px solid #f3f4f6; margin-bottom: 24px; }
+    .btn { padding: 11px 22px; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; border: 2px solid transparent; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-red     { background: #b91c1c; color: #fff; border-color: #b91c1c; }
+    .btn-red:hover { background: #991b1b; border-color: #991b1b; }
+    .btn-outline { background: #fff; color: #374151; border-color: #d1d5db; }
+    .btn-outline:hover { border-color: #b91c1c; color: #b91c1c; }
+    .btn:disabled, .btn-dim { opacity: .5; cursor: not-allowed; }
+
+    /* PO / bank transfer block */
+    .po-block { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; }
+    .po-block h3 { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+    .po-block p  { font-size: 13px; color: #6b7280; line-height: 1.6; }
+    .po-block a  { color: #b91c1c; }
+
+    /* Loading / error */
+    .center-msg { text-align: center; padding: 80px 40px; color: #6b7280; }
+    .center-msg h2 { font-size: 18px; color: #111; margin-bottom: 8px; }
+
+    /* Print styles */
+    @media print {
+      body  { background: #fff; }
+      .page { box-shadow: none; margin: 0; border-radius: 0; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+<div class="page" id="root">
+  <div class="center-msg"><p>Loading invoice…</p></div>
+</div>
+
+<script>
+let _jobId, _token;
+
+const STATUS_LABEL = { confirmed: '✓ Confirmed', printing: '🖨 Printing', ready: '📦 Ready for Pickup', complete: '✅ Complete', quoted: '📋 Quoted' };
+const STATUS_CLASS = { confirmed: 's-confirmed', printing: 's-printing', ready: 's-ready', complete: 's-complete', quoted: 's-quoted' };
+
+window.addEventListener('DOMContentLoaded', async () => {
+  const p = new URLSearchParams(window.location.search);
+  _jobId = p.get('job');
+  _token = p.get('token');
+  const paid = p.get('paid') === '1';
+
+  const root = document.getElementById('root');
+
+  if (!_jobId || !_token) {
+    root.innerHTML = '<div class="center-msg"><h2>Invalid Link</h2><p>This invoice link is missing required parameters.</p></div>';
+    return;
+  }
+
+  let job;
+  try {
+    const res = await fetch(`/api/invoice?job=${encodeURIComponent(_jobId)}&token=${encodeURIComponent(_token)}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(res.status === 403 ? 'Invalid token' : 'Not found');
+    job = await res.json();
+  } catch (err) {
+    root.innerHTML = `<div class="center-msg"><h2>Invoice Not Found</h2><p>This link may be invalid or expired. Contact <a href="mailto:sales@superior3dandlaser.com" style="color:#b91c1c;">sales@superior3dandlaser.com</a> for help.</p></div>`;
+    return;
+  }
+
+  document.title = `Invoice #${job.id.slice(0, 8).toUpperCase()} — Superior 3D and Laser`;
+
+  const date   = job.createdAt ? new Date(job.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '—';
+  const estEnd = job.estEndTime ? new Date(job.estEndTime).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : null;
+
+  const itemRows = (job.items || []).map(it => `
+    <tr>
+      <td><strong>${esc(it.partName || 'Part')}</strong></td>
+      <td>${esc(it.material || '—')}</td>
+      <td>${esc(it.color || '—')}</td>
+      <td class="c">${it.qty || 1}</td>
+      <td class="r">$${parseFloat(it.unitPrice || 0).toFixed(2)}</td>
+      <td class="r" style="font-weight:600;">$${parseFloat(it.lineTotal || 0).toFixed(2)}</td>
+    </tr>`).join('');
+
+  root.innerHTML = `
+    <div class="inv-header">
+      <div class="inv-header-row">
+        <div>
+          <h1>Superior 3D and Laser</h1>
+          <p>3D Printing · Laser Cutting · Laser Engraving</p>
+        </div>
+        <div class="inv-num">
+          <div class="label">Invoice</div>
+          <div class="value">#${job.id.slice(0, 8).toUpperCase()}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="inv-body">
+
+      ${paid ? '<div class="paid-banner">✅ Payment received — thank you!</div>' : ''}
+
+      <div class="inv-meta">
+        <div class="inv-meta-block">
+          <div class="label">Bill To</div>
+          <div class="name">${esc(job.customerName || '—')}</div>
+          ${job.customerEmail ? `<div class="sub">${esc(job.customerEmail)}</div>` : ''}
+          ${job.customerPhone ? `<div class="sub">${esc(job.customerPhone)}</div>` : ''}
+        </div>
+        <div class="inv-meta-block">
+          <div class="label">Details</div>
+          <div class="sub" style="margin-top:0;">Date: ${date}</div>
+          ${job.printer ? `<div class="sub">Printer: ${esc(job.printer)}</div>` : ''}
+          ${estEnd ? `<div class="sub">Est. Completion: ${estEnd}</div>` : ''}
+          <div class="sub" style="margin-top:6px;">
+            Status: <span class="status-pill ${STATUS_CLASS[job.status] || ''}">${STATUS_LABEL[job.status] || job.status}</span>
+          </div>
+        </div>
+      </div>
+
+      ${job.items && job.items.length > 0 ? `
+      <table class="inv-table">
+        <thead>
+          <tr>
+            <th>Part / Description</th>
+            <th>Material</th>
+            <th>Color</th>
+            <th class="c">Qty</th>
+            <th class="r">Unit Price</th>
+            <th class="r">Total</th>
+          </tr>
+        </thead>
+        <tbody>${itemRows}</tbody>
+      </table>
+      <table class="inv-totals">
+        <tbody>
+          <tr><td>Subtotal</td><td class="r">$${parseFloat(job.subtotal || 0).toFixed(2)}</td></tr>
+          <tr><td>Tax (8.5%)</td><td class="r">$${parseFloat(job.tax || 0).toFixed(2)}</td></tr>
+          <tr class="grand"><td>Total Due</td><td class="r">$${parseFloat(job.total || 0).toFixed(2)}</td></tr>
+        </tbody>
+      </table>` : `
+      <p style="color:#6b7280;margin-bottom:20px;font-size:14px;">Contact us for a detailed quote breakdown.</p>`}
+
+      ${job.notes ? `<div class="inv-notes" style="margin-top:20px;"><strong>Notes</strong>${esc(job.notes)}</div>` : ''}
+
+      ${!paid ? `
+      <div class="inv-actions no-print">
+        <button class="btn btn-red" id="payBtn" onclick="startPayment()">💳 Pay Online</button>
+        <button class="btn btn-outline" onclick="window.print()">🖨 Print / Save PDF</button>
+      </div>` : `
+      <div class="inv-actions no-print">
+        <button class="btn btn-outline" onclick="window.print()">🖨 Print / Save PDF</button>
+      </div>`}
+
+      <div id="payMsg" style="display:none;margin-bottom:16px;"></div>
+
+      <div class="po-block">
+        <h3>Pay via Purchase Order or Bank Transfer</h3>
+        <p>To pay by check, ACH transfer, or purchase order, reply to your confirmation email or contact us directly at
+          <a href="mailto:sales@superior3dandlaser.com">sales@superior3dandlaser.com</a>.
+          We'll send wiring instructions or a PO form.</p>
+      </div>
+
+    </div>
+  `;
+
+  // Check if online payment is available
+  if (!paid) checkPaymentAvailable();
+});
+
+async function checkPaymentAvailable() {
+  const btn = document.getElementById('payBtn');
+  if (!btn) return;
+  try {
+    const r = await fetch('/api/checkout', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ jobId: _jobId, token: _token }),
+      cache:   'no-store',
+    });
+    if (r.status === 503) {
+      btn.textContent = '💳 Pay Online (Coming Soon)';
+      btn.disabled = true;
+    }
+  } catch { /* ignore network errors — button stays active */ }
+}
+
+async function startPayment() {
+  const btn    = document.getElementById('payBtn');
+  const msgDiv = document.getElementById('payMsg');
+  btn.disabled = true;
+  btn.textContent = 'Redirecting…';
+  try {
+    const r = await fetch('/api/checkout', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ jobId: _jobId, token: _token }),
+      cache:   'no-store',
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Payment unavailable');
+    window.location.href = data.url;
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = '💳 Pay Online';
+    msgDiv.style.display = 'block';
+    msgDiv.innerHTML = `<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;padding:12px 16px;font-size:13px;color:#b91c1c;">${esc(err.message)}</div>`;
+  }
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+</script>
+</body>
+</html>

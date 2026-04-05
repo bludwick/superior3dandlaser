@@ -1,8 +1,9 @@
-const jwt       = require('jsonwebtoken');
+const jwt          = require('jsonwebtoken');
 const { getStore } = require('@netlify/blobs');
 const { Resend }   = require('resend');
 
-const STATUS_NEXT = { confirmed: 'printing', printing: 'ready', ready: 'complete' };
+const STATUS_NEXT  = { confirmed: 'printing', printing: 'ready', ready: 'complete' };
+const SITE_URL     = process.env.SITE_URL || 'https://superior3dandlaser.com';
 
 exports.handler = async function (event) {
   // ── Auth ────────────────────────────────────────────────────────────────────
@@ -11,18 +12,13 @@ exports.handler = async function (event) {
   const jwtSecret = process.env.JWT_SECRET || '';
   try { jwt.verify(token, jwtSecret); } catch { return authError(); }
 
-  // ── Route: GET /api/admin/jobs ───────────────────────────────────────────
-  if (event.httpMethod === 'GET') return listJobs();
-
-  // ── Route: POST /api/admin/jobs ──────────────────────────────────────────
-  if (event.httpMethod === 'POST') return createJob(event.body);
-
-  // ── Route: PATCH /api/admin/jobs/{id}/status ─────────────────────────────
+  // ── Routes ───────────────────────────────────────────────────────────────────
+  if (event.httpMethod === 'GET')   return listJobs();
+  if (event.httpMethod === 'POST')  return createJob(event.body, event.isBase64Encoded);
   if (event.httpMethod === 'PATCH') {
     const match = (event.path || '').match(/\/([^/]+)\/status$/);
     if (match) return advanceJobStatus(match[1]);
   }
-
   return { statusCode: 405, body: 'Method Not Allowed' };
 };
 
@@ -33,8 +29,8 @@ async function listJobs() {
     const { blobs } = await store.list();
 
     const jobs = await Promise.all(
-      blobs.map(async (blob) => {
-        try { return await store.get(blob.key, { type: 'json' }); }
+      blobs.map(async (b) => {
+        try { return await store.get(b.key, { type: 'json' }); }
         catch { return null; }
       })
     );
@@ -46,18 +42,29 @@ async function listJobs() {
     return jsonResponse(200, valid);
   } catch (err) {
     console.error('[manage-jobs] listJobs error:', err.message);
-    return jsonResponse(500, { error: 'Failed to load jobs' });
+    return jsonResponse(500, { error: 'Failed to load jobs: ' + err.message });
   }
 }
 
 // ── Create a job ──────────────────────────────────────────────────────────────
-async function createJob(body) {
-  let data;
-  try { data = JSON.parse(body || '{}'); } catch { return jsonResponse(400, { error: 'Invalid body' }); }
+async function createJob(rawBody, isBase64) {
+  // Handle Netlify's optional base64 encoding of POST bodies
+  let bodyStr = rawBody || '{}';
+  if (isBase64) {
+    try { bodyStr = Buffer.from(rawBody, 'base64').toString('utf8'); }
+    catch { bodyStr = '{}'; }
+  }
 
-  const id  = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  let data;
+  try { data = JSON.parse(bodyStr); }
+  catch { return jsonResponse(400, { error: 'Invalid JSON body' }); }
+
+  const id           = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const invoiceToken = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+
   const job = {
     id,
+    invoiceToken,
     source:        data.source        || 'manual',
     orderId:       data.orderId       || null,
     customerName:  data.customerName  || '',
@@ -75,61 +82,132 @@ async function createJob(body) {
     createdAt:     new Date().toISOString(),
   };
 
+  // Save to jobs store
   try {
-    const store = getStore('jobs');
+    const store = getStore({ name: 'jobs', consistency: 'strong' });
     await store.setJSON(`job_${id}`, job);
   } catch (err) {
-    console.error('[manage-jobs] createJob store error:', err.message);
-    return jsonResponse(500, { error: 'Failed to save job' });
+    console.error('[manage-jobs] jobs store write error:', err.message);
+    return jsonResponse(500, { error: 'Failed to save job: ' + err.message });
   }
 
-  // Send confirmation email to customer
-  if (job.customerEmail) {
-    try { await sendStatusEmail(job, 'confirmed'); } catch (err) {
-      console.error('[manage-jobs] email error on create:', err.message);
+  // Also mirror as an order with status 'quoted'
+  try {
+    const ordersStore = getStore({ name: 'orders', consistency: 'strong' });
+    await ordersStore.setJSON(`order_${id}`, {
+      id,
+      customerName:  job.customerName,
+      customerEmail: job.customerEmail,
+      phone:         job.customerPhone,
+      items: job.items.map(it => ({
+        projectName: it.partName  || 'Part',
+        material:    it.material  || '',
+        color:       it.color     || '',
+        qty:         it.qty       || 1,
+        unitPrice:   it.unitPrice || 0,
+        lineTotal:   it.lineTotal || 0,
+      })),
+      subtotal:     job.subtotal,
+      tax:          job.tax,
+      total:        job.total,
+      notes:        job.notes,
+      status:       'quoted',
+      source:       'manual',
+      invoiceToken: job.invoiceToken,
+      jobId:        id,
+      createdAt:    job.createdAt,
+    });
+  } catch (err) {
+    // Non-fatal — job was saved; order mirror is best-effort
+    console.error('[manage-jobs] orders mirror write error:', err.message);
+  }
+
+  // Build URLs
+  const invoiceUrl = `${SITE_URL}/invoice.html?job=${id}&token=${invoiceToken}`;
+
+  // Stripe payment link (only when STRIPE_SECRET_KEY is configured)
+  let paymentUrl = null;
+  if (process.env.STRIPE_SECRET_KEY) {
+    try {
+      const Stripe = require('stripe');
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+      const lineItems = job.items.length > 0
+        ? job.items.map(it => ({
+            price_data: {
+              currency:     'usd',
+              product_data: { name: it.partName || 'Print Job Part' },
+              unit_amount:  Math.round((it.unitPrice || 0) * 100),
+            },
+            quantity: it.qty || 1,
+          }))
+        : [{
+            price_data: {
+              currency:     'usd',
+              product_data: { name: `Print Job — ${job.printer}` },
+              unit_amount:  Math.round(job.total * 100),
+            },
+            quantity: 1,
+          }];
+
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items:  lineItems,
+        mode:        'payment',
+        success_url: `${SITE_URL}/invoice.html?job=${id}&token=${invoiceToken}&paid=1`,
+        cancel_url:  invoiceUrl,
+        customer_email: job.customerEmail || undefined,
+        metadata:    { jobId: id },
+      });
+      paymentUrl = session.url;
+    } catch (err) {
+      console.error('[manage-jobs] Stripe error:', err.message);
     }
   }
 
-  return jsonResponse(200, { id });
+  // Send confirmation email
+  if (job.customerEmail) {
+    try { await sendStatusEmail(job, 'confirmed', invoiceUrl, paymentUrl); }
+    catch (err) { console.error('[manage-jobs] email error:', err.message); }
+  }
+
+  return jsonResponse(200, { id, invoiceToken, invoiceUrl });
 }
 
 // ── Advance job status ────────────────────────────────────────────────────────
 async function advanceJobStatus(jobId) {
   try {
-    const store = getStore('jobs');
+    const store = getStore({ name: 'jobs', consistency: 'strong' });
     const { blobs } = await store.list();
 
-    let targetKey = null;
-    let job       = null;
+    let targetKey = null, job = null;
     for (const blob of blobs) {
       const j = await store.get(blob.key, { type: 'json' }).catch(() => null);
       if (j && j.id === jobId) { targetKey = blob.key; job = j; break; }
     }
     if (!targetKey) return jsonResponse(404, { error: 'Job not found' });
-    if (job.status === 'complete') return jsonResponse(400, { error: 'Job is already complete' });
+    if (job.status === 'complete') return jsonResponse(400, { error: 'Already complete' });
 
     const newStatus = STATUS_NEXT[job.status];
-    if (!newStatus) return jsonResponse(400, { error: 'Cannot advance from status: ' + job.status });
+    if (!newStatus) return jsonResponse(400, { error: 'Cannot advance from: ' + job.status });
 
     job.status = newStatus;
     await store.setJSON(targetKey, job);
 
-    // Email customer on Ready
-    if ((newStatus === 'ready') && job.customerEmail) {
-      try { await sendStatusEmail(job, newStatus); } catch (err) {
-        console.error('[manage-jobs] email error on advance:', err.message);
-      }
+    if (newStatus === 'ready' && job.customerEmail) {
+      const invoiceUrl = `${SITE_URL}/invoice.html?job=${job.id}&token=${job.invoiceToken || ''}`;
+      try { await sendStatusEmail(job, 'ready', invoiceUrl, null); }
+      catch (err) { console.error('[manage-jobs] email error on advance:', err.message); }
     }
 
     return jsonResponse(200, { ok: true, status: newStatus });
   } catch (err) {
     console.error('[manage-jobs] advanceJobStatus error:', err.message);
-    return jsonResponse(500, { error: 'Failed to update job' });
+    return jsonResponse(500, { error: 'Failed to update job: ' + err.message });
   }
 }
 
-// ── Email helpers ─────────────────────────────────────────────────────────────
-async function sendStatusEmail(job, status) {
+// ── Email ─────────────────────────────────────────────────────────────────────
+async function sendStatusEmail(job, status, invoiceUrl, paymentUrl) {
   const resend = new Resend(process.env.RESEND_API_KEY);
 
   const itemLines = (job.items || []).map(it =>
@@ -139,42 +217,54 @@ async function sendStatusEmail(job, status) {
   let subject, body;
 
   if (status === 'confirmed') {
-    subject = 'Your order is confirmed — Superior 3D and Laser';
-    body = `Hi ${job.customerName || 'there'},
-
-Your order has been confirmed and is queued for printing on our ${job.printer || 'printer'}.
-
-${job.estEndTime ? `Estimated completion: ${new Date(job.estEndTime).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}` : ''}
-
-Order Summary:
-${itemLines || '  (No items listed)'}
-
-Subtotal: $${job.subtotal.toFixed(2)}
-Tax:      $${job.tax.toFixed(2)}
-Total:    $${job.total.toFixed(2)}
-
-${job.notes ? `Notes: ${job.notes}\n` : ''}We'll email you again when your order is ready for pickup or shipment.
-
-Thank you for choosing Superior 3D and Laser!
-`.trim();
+    subject = 'Your quote is confirmed — Superior 3D and Laser';
+    body = [
+      `Hi ${job.customerName || 'there'},`,
+      '',
+      `Your quote has been confirmed and is queued for printing on our ${job.printer || 'printer'}.`,
+      '',
+      job.estEndTime
+        ? `Estimated completion: ${new Date(job.estEndTime).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}`
+        : null,
+      '',
+      'Order Summary:',
+      itemLines || '  (Items to be determined)',
+      '',
+      `Subtotal: $${job.subtotal.toFixed(2)}`,
+      `Tax:      $${job.tax.toFixed(2)}`,
+      `Total:    $${job.total.toFixed(2)}`,
+      '',
+      paymentUrl ? `Pay online now: ${paymentUrl}` : null,
+      `View your invoice: ${invoiceUrl}`,
+      '',
+      job.notes ? `Notes: ${job.notes}` : null,
+      '',
+      "We'll send another email when your order is ready for pickup.",
+      '',
+      'Thank you for choosing Superior 3D and Laser!',
+    ].filter(l => l !== null).join('\n');
 
   } else if (status === 'ready') {
     subject = 'Your order is ready — Superior 3D and Laser';
-    body = `Hi ${job.customerName || 'there'},
+    body = [
+      `Hi ${job.customerName || 'there'},`,
+      '',
+      'Great news — your order is ready!',
+      '',
+      'Order Summary:',
+      itemLines || '  (See invoice for details)',
+      '',
+      `Total: $${job.total.toFixed(2)}`,
+      '',
+      `View your invoice: ${invoiceUrl}`,
+      '',
+      'Reply to this email to arrange pickup or shipping.',
+      '',
+      'Thank you for choosing Superior 3D and Laser!',
+    ].join('\n');
 
-Great news — your order is ready!
-
-Reply to this email to coordinate pickup or shipping.
-
-Order Summary:
-${itemLines || '  (No items listed)'}
-
-Total: $${job.total.toFixed(2)}
-
-Thank you for choosing Superior 3D and Laser!
-`.trim();
   } else {
-    return; // No email for other statuses
+    return;
   }
 
   await resend.emails.send({
@@ -187,19 +277,23 @@ Thank you for choosing Superior 3D and Laser!
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function getCookie(cookieHeader, name) {
-  const match = cookieHeader.split(';').map(s => s.trim()).find(s => s.startsWith(name + '='));
+function getCookie(header, name) {
+  const match = header.split(';').map(s => s.trim()).find(s => s.startsWith(name + '='));
   return match ? match.slice(name.length + 1) : null;
 }
 
 function authError() {
-  return { statusCode: 401, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Unauthorized' }) };
+  return {
+    statusCode: 401,
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+    body: JSON.stringify({ error: 'Unauthorized' }),
+  };
 }
 
 function jsonResponse(status, body) {
   return {
     statusCode: status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
     body: JSON.stringify(body),
   };
 }
