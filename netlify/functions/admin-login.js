@@ -47,15 +47,24 @@ exports.handler = async function (event) {
   }
 
   // ── Credential check ───────────────────────────────────────────────────────
-  const adminEmail = process.env.ADMIN_EMAIL        || '';
-  const adminHash  = process.env.ADMIN_PASSWORD_HASH || '';
-  const jwtSecret  = process.env.JWT_SECRET          || '';
+  const adminEmail    = process.env.ADMIN_EMAIL         || '';
+  const adminHash     = process.env.ADMIN_PASSWORD_HASH || '';
+  const adminPassword = process.env.ADMIN_PASSWORD      || '';
+  const jwtSecret     = process.env.JWT_SECRET           || '';
 
-  // Always run bcrypt to prevent timing-based email enumeration.
-  // On email mismatch, compare against a dummy that will never match.
-  const hashToCheck = email === adminEmail ? adminHash : '$2b$12$invalidhashxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
   let passwordOk = false;
-  try { passwordOk = await bcrypt.compare(password, hashToCheck); } catch { /* invalid hash → false */ }
+  if (email === adminEmail) {
+    if (adminHash) {
+      // Prefer bcrypt hash comparison
+      try { passwordOk = await bcrypt.compare(password, adminHash); } catch { /* invalid hash → false */ }
+    } else if (adminPassword) {
+      // Plain-text fallback (use when hash contains chars that break env var tools)
+      passwordOk = password === adminPassword;
+    }
+  } else {
+    // Run dummy bcrypt to prevent timing-based email enumeration
+    try { await bcrypt.compare(password, '$2b$12$invalidhashxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'); } catch { /* no-op */ }
+  }
 
   const success = email === adminEmail && passwordOk;
 
