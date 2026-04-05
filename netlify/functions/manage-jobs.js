@@ -29,7 +29,7 @@ exports.handler = async function (event) {
 // ── List all jobs ─────────────────────────────────────────────────────────────
 async function listJobs() {
   try {
-    const store = getStore('jobs');
+    const store = getStore({ name: 'jobs', consistency: 'strong' });
     const { blobs } = await store.list();
 
     const jobs = await Promise.all(

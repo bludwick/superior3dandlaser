@@ -846,7 +846,9 @@ function openJobOverlay(orderData) {
   document.getElementById('jf-printer').value = 'H2D-1';
   document.getElementById('jf-start').value = '';
   document.getElementById('jf-end').value   = '';
-  document.getElementById('jobItemsWrap').innerHTML = '<div style="font-size:12px;color:var(--muted);padding:10px 0;">No items imported yet.</div>';
+  const _resetWrap = document.getElementById('jobItemsWrap');
+  _resetWrap.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:10px 0;">No items imported yet.</div>';
+  delete _resetWrap.dataset.items; delete _resetWrap.dataset.subtotal; delete _resetWrap.dataset.tax; delete _resetWrap.dataset.total;
   document.getElementById('jobTotals').style.display = 'none';
 
   if (_jobPrefill) {
@@ -942,38 +944,46 @@ async function submitNewJob() {
   const email = document.getElementById('jf-email').value.trim();
   if (!name || !email) { showToast('Customer name and email are required'); return; }
 
-  const wrap     = document.getElementById('jobItemsWrap');
-  const items    = JSON.parse(wrap.dataset.items    || '[]');
-  const subtotal = parseFloat(wrap.dataset.subtotal || 0);
-  const tax      = parseFloat(wrap.dataset.tax      || 0);
-  const total    = parseFloat(wrap.dataset.total    || 0);
-
-  const payload = {
-    source:        _jobPrefill ? 'order' : 'manual',
-    orderId:       _jobPrefill ? (_jobPrefill.id || null) : null,
-    customerName:  name,
-    customerEmail: email,
-    customerPhone: document.getElementById('jf-phone').value.trim(),
-    items, subtotal, tax, total,
-    printer:       document.getElementById('jf-printer').value,
-    startTime:     document.getElementById('jf-start').value  || null,
-    estEndTime:    document.getElementById('jf-end').value    || null,
-    notes:         document.getElementById('jf-notes').value.trim(),
-  };
+  const btns = document.querySelectorAll('#jobOverlay .btn-primary');
+  btns.forEach(b => { b.disabled = true; b.textContent = 'Creating…'; });
 
   try {
+    const wrap     = document.getElementById('jobItemsWrap');
+    let items = [];
+    try { items = JSON.parse(wrap.dataset.items || '[]'); } catch { items = []; }
+    const subtotal = parseFloat(wrap.dataset.subtotal || 0);
+    const tax      = parseFloat(wrap.dataset.tax      || 0);
+    const total    = parseFloat(wrap.dataset.total    || 0);
+
+    const payload = {
+      source:        _jobPrefill ? 'order' : 'manual',
+      orderId:       _jobPrefill ? (_jobPrefill.id || null) : null,
+      customerName:  name,
+      customerEmail: email,
+      customerPhone: document.getElementById('jf-phone').value.trim(),
+      items, subtotal, tax, total,
+      printer:       document.getElementById('jf-printer').value,
+      startTime:     document.getElementById('jf-start').value  || null,
+      estEndTime:    document.getElementById('jf-end').value    || null,
+      notes:         document.getElementById('jf-notes').value.trim(),
+    };
+
     const res = await fetch('/api/admin/jobs', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify(payload),
     });
     if (res.status === 401 || res.status === 403) { window.location.href = '/admin/login.html'; return; }
-    if (!res.ok) throw new Error('HTTP ' + res.status);
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'HTTP ' + res.status);
+    }
     closeJobOverlay();
     showToast('Print job created — confirmation email sent');
-    if (document.getElementById('page-jobs').classList.contains('active')) loadJobs();
+    loadJobs();
   } catch (err) {
     showToast('Failed to create job: ' + err.message);
+    btns.forEach(b => { b.disabled = false; b.textContent = '✓ Create Job'; });
   }
 }
 
