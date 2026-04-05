@@ -2353,6 +2353,7 @@ function resetCalc(silent) {
   document.getElementById('stlViewerWrap').style.display = 'none';
   document.getElementById('stlInput').value = '';
   document.getElementById('stlFileName').textContent = 'No file selected';
+  window._pendingSTLFile = null;
   calc();
   if (!silent) showToast('Calculator reset to defaults');
 }
@@ -2664,6 +2665,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.handleSTLUpload = async function (file) {
     if (!file) return;
     document.getElementById('stlFileName').textContent = file.name;
+    window._pendingSTLFile = file;
     document.getElementById('partName').value = file.name.replace(/\.stl$/i, '');
     slicerState('slicing');
     document.getElementById('res-slicer').textContent = 'Estimating…';
@@ -2976,6 +2978,10 @@ function addToCart() {
     assemblyLevel:   document.getElementById('assemblyLevel').value,
     assemblyHrs:     document.getElementById('assemblyHrs').value,
   };
+
+  // Carry the pending STL File object so it can be uploaded at checkout
+  item.fileBlob = window._pendingSTLFile || null;
+  window._pendingSTLFile = null; // consume — don't carry to next item
 
   cart.push(item);
   saveCart();
@@ -3415,6 +3421,11 @@ async function submitOrderToBackend(orderData, paymentId) {
     `--- Items ---\n${itemsSummary}\n\n--- Totals ---\nSubtotal: ${fmtPrice(subtotal)}\n${ltLine}Tax (8.5%): ${fmtPrice(tax)}\nORDER TOTAL: ${fmtPrice(total)}\n\n` +
     `--- Notes ---\n${notes || 'None'}\n\nPayment: Pending — to be collected upon confirmation`
   );
+
+  // Attach STL files carried from the cart items (in-memory only — lost on page refresh)
+  items.forEach((item, i) => {
+    if (item.fileBlob) body.append(`stl_${i}`, item.fileBlob, item.fileName);
+  });
 
   const res = await fetch('/.netlify/functions/submit-quote', { method: 'POST', body });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);

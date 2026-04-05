@@ -2,27 +2,32 @@ const busboy        = require('busboy');
 const { getStore }  = require('@netlify/blobs');
 const { Resend }    = require('resend');
 
-// Parse multipart form data from the event
+// Parse multipart form data from the event — returns all files as an array
 function parseForm(event) {
   return new Promise((resolve, reject) => {
     const fields = {};
-    let fileBuffer = null;
-    let fileName   = null;
-    let fileMime   = null;
+    const files  = [];
 
     const bb = busboy({ headers: event.headers });
 
     bb.on('field', (name, value) => { fields[name] = value; });
 
-    bb.on('file', (name, stream, info) => {
-      fileName = info.filename;
-      fileMime = info.mimeType;
+    bb.on('file', (fieldName, stream, info) => {
       const chunks = [];
-      stream.on('data',  chunk => chunks.push(chunk));
-      stream.on('end',   ()    => { fileBuffer = Buffer.concat(chunks); });
+      stream.on('data', c => chunks.push(c));
+      stream.on('end', () => {
+        if (chunks.length) {
+          files.push({
+            buffer:    Buffer.concat(chunks),
+            name:      info.filename,
+            mime:      info.mimeType,
+            fieldName,
+          });
+        }
+      });
     });
 
-    bb.on('finish', () => resolve({ fields, fileBuffer, fileName, fileMime }));
+    bb.on('finish', () => resolve({ fields, files }));
     bb.on('error',  reject);
 
     const body = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8');
@@ -43,7 +48,7 @@ async function sendEmail(payload) {
 
 function buildContactEmail(fields) {
   return {
-    to:      ['blake@superior3dandlaser.com'],
+    to:      ['ludwick.blake@gmail.com'],
     subject: `New Contact Message — ${fields.firstName || ''} ${fields.lastName || ''}`.trim(),
     text: `
 New Contact Message — Superior 3D and Laser
@@ -62,9 +67,9 @@ ${fields.message || ''}
   };
 }
 
-function buildQuoteEmail(fields, fileName, downloadUrl) {
+function buildQuoteEmail(fields, fileName) {
   return {
-    to:      ['blake@superior3dandlaser.com'],
+    to:      ['ludwick.blake@gmail.com'],
     subject: `New Quote Request — ${fields.firstName || ''} ${fields.lastName || ''}`.trim(),
     text: `
 New Quote Request — Superior 3D and Laser
@@ -81,7 +86,7 @@ Material:    ${fields.material || 'Not provided'}
 Project Description:
 ${fields.message || ''}
 
-${downloadUrl ? `Uploaded File: ${fileName}\nDownload Link: ${downloadUrl}` : 'No file attached.'}
+${fileName ? `Uploaded File: ${fileName} (attached)` : 'No file attached.'}
 ==========================================
     `.trim(),
   };
@@ -89,7 +94,7 @@ ${downloadUrl ? `Uploaded File: ${fileName}\nDownload Link: ${downloadUrl}` : 'N
 
 function buildCartOrderEmail(fields) {
   return {
-    to:      ['blake@superior3dandlaser.com'],
+    to:      ['ludwick.blake@gmail.com'],
     subject: `New Order Request — ${fields.name || ''} — ${fields.orderTotal || ''}`.trim(),
     text: `
 New Cart Order Request — Superior 3D and Laser
@@ -126,36 +131,61 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { fields, fileBuffer, fileName, fileMime } = await parseForm(event);
+    const { fields, files } = await parseForm(event);
 
-    // Save uploaded file to Netlify Blobs (quote form only)
-    let downloadUrl = null;
-    if (fileBuffer && fileName) {
-      const store         = getStore({ name: 'uploads', consistency: 'strong' });
-      const savedFileName = `${Date.now()}-${fileName}`;
-      await store.set(savedFileName, fileBuffer, {
-        metadata: { contentType: fileMime, originalName: fileName },
-      });
-      downloadUrl = `${process.env.SITE_URL}/.netlify/blobs/site:uploads/${savedFileName}`;
-    }
-
-    // Route to the correct email template
     const formType = fields.formType || (fields.orderType === 'cart-order' ? 'cart' : 'quote');
     let mailOptions;
-    if (formType === 'contact') {
-      mailOptions = buildContactEmail(fields);
-    } else if (formType === 'cart' || fields.orderType === 'cart-order') {
-      mailOptions = buildCartOrderEmail(fields);
-    } else {
-      mailOptions = buildQuoteEmail(fields, fileName, downloadUrl);
-    }
 
-    // Attach uploaded file directly to the email (base64 for Resend)
-    if (fileBuffer && fileName) {
-      mailOptions.attachments = [{
-        filename: fileName,
-        content:  fileBuffer.toString('base64'),
-      }];
+    if (formType === 'contact') {
+      // ── Contact form — no file upload ──────────────────────────────────────
+      mailOptions = buildContactEmail(fields);
+
+    } else if (formType === 'cart' || fields.orderType === 'cart-order') {
+      // ── Cart order — may include STL files (stl_0, stl_1, …) ──────────────
+      mailOptions = buildCartOrderEmail(fields);
+
+      const stlFiles = files.filter(f => f.fieldName.startsWith('stl_'));
+      if (stlFiles.length) {
+        // Save each STL to Netlify Blobs for internal storage
+        const store = getStore({ name: 'uploads', consistency: 'strong' });
+        await Promise.all(stlFiles.map(f => {
+          const savedName = `cart-${Date.now()}-${f.name}`;
+          return store.set(savedName, f.buffer, {
+            metadata: { contentType: f.mime || 'application/octet-stream', originalName: f.name },
+          });
+        }));
+
+        // Attach all STL files to the email
+        mailOptions.attachments = stlFiles.map(f => ({
+          filename: f.name,
+          content:  f.buffer.toString('base64'),
+        }));
+
+        // Append file names to email body
+        mailOptions.text += `\n\n--- Attached STL Files ---\n${stlFiles.map(f => f.name).join('\n')}`;
+      }
+
+    } else {
+      // ── Quote form — single file upload ───────────────────────────────────
+      const quoteFile = files[0];
+
+      if (quoteFile) {
+        // Save to Netlify Blobs for internal storage
+        const store     = getStore({ name: 'uploads', consistency: 'strong' });
+        const savedName = `${Date.now()}-${quoteFile.name}`;
+        await store.set(savedName, quoteFile.buffer, {
+          metadata: { contentType: quoteFile.mime, originalName: quoteFile.name },
+        });
+      }
+
+      mailOptions = buildQuoteEmail(fields, quoteFile?.name);
+
+      if (quoteFile) {
+        mailOptions.attachments = [{
+          filename: quoteFile.name,
+          content:  quoteFile.buffer.toString('base64'),
+        }];
+      }
     }
 
     await sendEmail({
