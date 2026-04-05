@@ -37,17 +37,14 @@ function parseForm(event) {
   });
 }
 
-// Save a file buffer to the 'uploads' Netlify Blobs store; returns download URL
+// Save a file buffer to the 'uploads' Netlify Blobs store
 async function saveBlobFile(buffer, fileName, fileMime) {
-  const store         = getStore({ name: 'uploads', consistency: 'strong' });
+  const store         = getStore('uploads');
   const savedFileName = `${Date.now()}-${fileName}`;
   await store.set(savedFileName, buffer, {
     metadata: { contentType: fileMime, originalName: fileName },
   });
-  return {
-    key: savedFileName,
-    url: `${process.env.SITE_URL}/.netlify/blobs/site:uploads/${savedFileName}`,
-  };
+  return { key: savedFileName };
 }
 
 // ── Resend email sender ───────────────────────────────────────────────────────
@@ -81,7 +78,7 @@ ${fields.message || ''}
   };
 }
 
-function buildQuoteEmail(fields, fileName, downloadUrl) {
+function buildQuoteEmail(fields, fileName) {
   return {
     to:      ['ludwick.blake@gmail.com'],
     subject: `New Quote Request — ${fields.firstName || ''} ${fields.lastName || ''}`.trim(),
@@ -100,7 +97,7 @@ Material:    ${fields.material || 'Not provided'}
 Project Description:
 ${fields.message || ''}
 
-${downloadUrl ? `Uploaded File: ${fileName}\nDownload Link: ${downloadUrl}` : 'No file attached.'}
+${fileName ? `Uploaded File: ${fileName} (attached)` : 'No file attached.'}
 ==========================================
     `.trim(),
   };
@@ -108,8 +105,8 @@ ${downloadUrl ? `Uploaded File: ${fileName}\nDownload Link: ${downloadUrl}` : 'N
 
 function buildCartOrderEmail(fields, stlFiles) {
   const filesSection = stlFiles && stlFiles.length > 0
-    ? `\n--- STL Files (${stlFiles.length}) ---\n` +
-      stlFiles.map(f => `${f.fileName}: ${f.url}`).join('\n')
+    ? `\n--- Attached STL Files (${stlFiles.length}) ---\n` +
+      stlFiles.map(f => f.fileName).join('\n')
     : '';
 
   return {
@@ -156,10 +153,10 @@ exports.handler = async (event) => {
     const savedFiles = [];
     for (const f of files) {
       try {
-        const { key, url } = await saveBlobFile(f.buffer, f.fileName, f.fileMime);
-        savedFiles.push({ fieldName: f.fieldName, fileName: f.fileName, key, url, buffer: f.buffer, fileMime: f.fileMime });
+        const { key } = await saveBlobFile(f.buffer, f.fileName, f.fileMime);
+        savedFiles.push({ fieldName: f.fieldName, fileName: f.fileName, key, buffer: f.buffer, fileMime: f.fileMime });
       } catch (blobErr) {
-        console.error('[submit-quote] Blob save error for', f.fileName, ':', blobErr.message);
+        console.error('[submit-quote] Blob save error for', f.fileName, ':', blobErr.message, blobErr.stack);
       }
     }
 
@@ -175,9 +172,17 @@ exports.handler = async (event) => {
       const stlFiles = savedFiles.filter(f => f.fieldName.startsWith('stlFile'));
       mailOptions = buildCartOrderEmail(fields, stlFiles);
 
+      // Attach STL files directly to the email
+      if (stlFiles.length) {
+        mailOptions.attachments = stlFiles.map(f => ({
+          filename: f.fileName,
+          content:  f.buffer.toString('base64'),
+        }));
+      }
+
       // Save order to Netlify Blobs for admin dashboard
       try {
-        const orderStore = getStore({ name: 'orders', consistency: 'strong' });
+        const orderStore = getStore('orders');
         const orderId    = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         const orderKey   = `order_${orderId}`;
         let parsedItems  = [];
@@ -194,7 +199,7 @@ exports.handler = async (event) => {
           subtotal:      parseFloat(fields.subtotalRaw)   || 0,
           tax:           parseFloat(fields.taxRaw)        || 0,
           total:         parseFloat(fields.orderTotalRaw) || 0,
-          stlFiles:      stlFiles.map(f => ({ fileName: f.fileName, url: f.url })),
+          stlFiles:      stlFiles.map(f => ({ fileName: f.fileName, blobKey: f.key })),
           status:        'pending',
           createdAt:     new Date().toISOString(),
         });
@@ -204,10 +209,9 @@ exports.handler = async (event) => {
 
     } else {
       // Quote form — primary file is the one named 'file'
-      const primary     = savedFiles.find(f => f.fieldName === 'file') || savedFiles[0];
-      const downloadUrl = primary?.url    || null;
-      const fileName    = primary?.fileName || null;
-      mailOptions = buildQuoteEmail(fields, fileName, downloadUrl);
+      const primary  = savedFiles.find(f => f.fieldName === 'file') || savedFiles[0];
+      const fileName = primary?.fileName || null;
+      mailOptions = buildQuoteEmail(fields, fileName);
 
       // Attach file directly to the email
       if (primary?.buffer) {
