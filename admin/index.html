@@ -551,12 +551,10 @@ async function logout() {
 
 // ── Calculator deep-links ─────────────────────────────────────────────────────
 function openCalculator() {
-  localStorage.setItem('3dp_admin', '1');
-  window.open('/3dprintingquotecalculator.html', '_blank');
+  window.open('/3dprintingquotecalculator.html?admin=1', '_blank');
 }
 function openCalculatorRates() {
-  localStorage.setItem('3dp_admin', '1');
-  window.open('/3dprintingquotecalculator.html#rates', '_blank');
+  window.open('/3dprintingquotecalculator.html?admin=1', '_blank');
   // The calculator's tab system doesn't respond to hash, so open full calc — admin will switch tabs
 }
 
@@ -888,7 +886,6 @@ function openJobOverlay(orderData) {
     titleEl.textContent = 'Create Print Job';
     leftPane.classList.remove('hidden');
     importBtn.style.display = '';
-    localStorage.setItem('3dp_admin', '1');
     localStorage.removeItem('3dp_cart');
     const frame = document.getElementById('jobPricerFrame');
     frame.src = '/3dprintingquotecalculator.html';

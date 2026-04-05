@@ -2670,8 +2670,10 @@ function resetCalc(silent) {
   if (!silent) showToast('Calculator reset to defaults');
 }
 
-// Restore admin mode on page load — activated when opened from the admin dashboard
-if (localStorage.getItem('3dp_admin') === '1') {
+// Admin mode only activates via URL parameter — never from localStorage
+// This prevents the admin session from contaminating the public-facing calculator
+localStorage.removeItem('3dp_admin');
+if (new URLSearchParams(window.location.search).get('admin') === '1') {
   document.body.classList.add('admin-mode');
 }
 
