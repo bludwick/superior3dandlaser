@@ -386,6 +386,8 @@
     color: var(--muted);
   }
   .stl-viewer-meta .dims { font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+  .stl-oversize-error { display:none; margin-top:10px; background:#fef2f2; border:1.5px solid #fca5a5; border-radius:8px; padding:11px 14px; font-size:12px; line-height:1.55; color:#b91c1c; }
+  .stl-oversize-error strong { display:block; font-size:13px; margin-bottom:3px; }
 
   /* SITE NAV */
   .site-nav { position:sticky; top:0; z-index:50; background:rgba(255,255,255,.96); backdrop-filter:blur(8px); border-bottom:1px solid var(--border); overflow:visible; }
@@ -899,6 +901,14 @@
             <div class="stl-viewer-meta">
               <span class="dims" id="stlDims"></span>
               <span id="stlFileInfo"></span>
+            </div>
+            <div class="stl-oversize-error" id="stlOversizeError">
+              <strong>⚠ Part exceeds max print volume</strong>
+              Your part's bounding box (<span id="stlOversizeDims"></span>) does not fit within the
+              Bambu Lab H2D's maximum print volume of 350 × 320 × 325 mm in any orientation.
+              Please split or cut the model into smaller pieces, or use our
+              <a href="contact.html" style="color:#b91c1c;font-weight:700;">Custom Quote form</a>
+              and we'll work out the best approach for you.
             </div>
           </div>
           <span class="hint" id="res-slicer" style="color:var(--muted);font-weight:600;display:block;margin-top:6px;">Upload an STL to auto-estimate material &amp; time</span>
@@ -2351,10 +2361,13 @@ function calcSLA() {
 
   window._lastCalc = { matCost, printCost, printLabourCost, printLabourFlat, addonCost, overhead, unitPrice, qty, colorSurcharge: 0, washCureFlat, total };
 
-  // Show/hide cart button
+  // Show/hide cart button (suppressed when part exceeds print volume)
   const _acBtn = document.getElementById('addToCartBtn');
   const _ucBtn = document.getElementById('updateCartBtn');
-  if (window._editingCartItemId) {
+  if (window._stlOversized) {
+    if (_acBtn) _acBtn.style.display = 'none';
+    if (_ucBtn) _ucBtn.style.display = 'none';
+  } else if (window._editingCartItemId) {
     if (_acBtn) _acBtn.style.display = 'none';
     if (_ucBtn) _ucBtn.style.display = (total > 0 && hasData) ? 'flex' : 'none';
   } else {
@@ -2520,10 +2533,13 @@ function calc() {
   document.getElementById('t-total').textContent = hasSTL ? fmt(total)            : '$0.00';
   window._lastCalc = { matCost, printCost, printLabourCost, printLabourFlat, addonCost, overhead, unitPrice, qty, colorSurcharge, total };
 
-  // Show Add to Cart / Update Cart button based on mode
+  // Show Add to Cart / Update Cart button based on mode (suppressed when part exceeds print volume)
   const _acBtn = document.getElementById('addToCartBtn');
   const _ucBtn = document.getElementById('updateCartBtn');
-  if (window._editingCartItemId) {
+  if (window._stlOversized) {
+    if (_acBtn) _acBtn.style.display = 'none';
+    if (_ucBtn) _ucBtn.style.display = 'none';
+  } else if (window._editingCartItemId) {
     if (_acBtn) _acBtn.style.display = 'none';
     if (_ucBtn) _ucBtn.style.display = (total > 0 && hasSTL) ? 'flex' : 'none';
   } else {
@@ -2993,6 +3009,9 @@ document.addEventListener('DOMContentLoaded', () => {
   window.handleSTLUpload = async function (file) {
     if (!file) return;
     window._currentSTLFile = file;
+    window._stlOversized = false; // reset until viewer confirms otherwise
+    var errElReset = document.getElementById('stlOversizeError');
+    if (errElReset) errElReset.style.display = 'none';
     document.getElementById('stlFileName').textContent = file.name;
     document.getElementById('partName').value = file.name.replace(/\.stl$/i, '');
     slicerState('slicing');
@@ -3209,6 +3228,24 @@ document.addEventListener('DOMContentLoaded', () => {
       ? (fileSize / 1024).toFixed(1) + ' KB'
       : (fileSize / 1048576).toFixed(2) + ' MB';
     document.getElementById('stlFileInfo').textContent = fileName + '  \u00b7  ' + kb;
+
+    // ── Print volume check (Bambu Lab H2D: 350 × 320 × 325 mm) ───────────────
+    var H2D_SORTED = [320, 325, 350];
+    var partSorted = [size.x, size.y, size.z].slice().sort(function (a, b) { return a - b; });
+    var oversized   = partSorted.some(function (d, i) { return d > H2D_SORTED[i]; });
+    window._stlOversized = oversized;
+    var errEl  = document.getElementById('stlOversizeError');
+    var dimsEl = document.getElementById('stlOversizeDims');
+    if (oversized) {
+      dimsEl.textContent = L + ' \u00d7 ' + Wd + ' \u00d7 ' + Ht + ' mm';
+      errEl.style.display = 'block';
+      var acBtn = document.getElementById('addToCartBtn');
+      var ucBtn = document.getElementById('updateCartBtn');
+      if (acBtn) acBtn.style.display = 'none';
+      if (ucBtn) ucBtn.style.display = 'none';
+    } else {
+      errEl.style.display = 'none';
+    }
   };
 }());
 
