@@ -198,6 +198,79 @@
   .type-badge.sla { background: rgba(185,28,28,.08); color: var(--accent); }
   .price-col { color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
 
+  /* ── JOB STATUS BADGES ── */
+  .status-badge.printing { background: rgba(37,99,235,.1); color: #1d4ed8; border: 1px solid rgba(37,99,235,.25); }
+  .status-badge.ready    { background: rgba(124,58,237,.1); color: #6d28d9; border: 1px solid rgba(124,58,237,.25); }
+  .status-badge.complete { background: rgba(15,118,110,.1); color: #0f766e; border: 1px solid rgba(15,118,110,.25); }
+  .status-badge.confirmed { background: rgba(21,128,61,.1); color: #15803d; border: 1px solid rgba(21,128,61,.25); }
+
+  /* ── FILTER PILLS ── */
+  .filter-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .filter-pill {
+    padding: 5px 13px; border-radius: 20px; font-size: 12px; font-weight: 600;
+    cursor: pointer; border: 1px solid var(--border); background: var(--bg); color: var(--muted);
+    font-family: var(--font); transition: all .15s;
+  }
+  .filter-pill:hover { border-color: var(--accent); color: var(--accent); }
+  .filter-pill.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  /* ── JOB OVERLAY ── */
+  .job-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: var(--bg); display: flex; flex-direction: column;
+  }
+  .job-overlay.hidden { display: none; }
+  .overlay-topbar {
+    height: 56px; background: var(--bg); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; padding: 0 20px; gap: 14px; flex-shrink: 0;
+  }
+  .overlay-title { font-size: 15px; font-weight: 800; flex: 1; }
+  .overlay-body { flex: 1; display: flex; overflow: hidden; }
+  .overlay-left { flex: 0 0 60%; border-right: 1px solid var(--border); overflow: hidden; }
+  .overlay-left.hidden { display: none; }
+  .overlay-right { flex: 1; overflow-y: auto; padding: 22px 24px; display: flex; flex-direction: column; gap: 18px; }
+  .overlay-section-title { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--label); margin-bottom: 10px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-field { display: flex; flex-direction: column; gap: 5px; }
+  .form-field.full { grid-column: 1 / -1; }
+  .form-field label { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--label); }
+  .form-field input, .form-field select, .form-field textarea {
+    padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px;
+    font-family: var(--font); font-size: 13px; color: var(--text); background: var(--bg);
+    outline: none; transition: border-color .2s, box-shadow .2s;
+  }
+  .form-field input:focus, .form-field select:focus, .form-field textarea:focus {
+    border-color: var(--accent); box-shadow: 0 0 0 3px rgba(185,28,28,.10);
+  }
+  .form-field textarea { resize: vertical; min-height: 70px; }
+  .import-btn {
+    padding: 8px 14px; background: var(--bg-light); color: var(--text);
+    border: 1px solid var(--border); border-radius: 7px; font-family: var(--font);
+    font-size: 12px; font-weight: 700; cursor: pointer; transition: all .15s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .import-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .items-preview { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+  .items-preview th { padding: 6px 10px; text-align: left; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); }
+  .items-preview td { padding: 7px 10px; border-bottom: 1px solid var(--border); }
+  .items-preview tr:last-child td { border-bottom: none; }
+  .totals-row { display: flex; gap: 20px; font-size: 13px; padding: 10px 0; border-top: 1px solid var(--border); }
+  .overlay-footer { display: flex; gap: 10px; padding-top: 8px; border-top: 1px solid var(--border); margin-top: auto; flex-shrink: 0; }
+  .job-create-btn {
+    font-size: 11px; font-weight: 700; color: var(--accent);
+    background: rgba(185,28,28,.07); border: 1px solid rgba(185,28,28,.2);
+    border-radius: 5px; padding: 3px 8px; cursor: pointer; font-family: var(--font);
+    transition: all .15s; white-space: nowrap;
+  }
+  .job-create-btn:hover { background: rgba(185,28,28,.15); }
+  .advance-btn {
+    font-size: 12px; font-weight: 700; padding: 5px 12px;
+    border-radius: 6px; cursor: pointer; font-family: var(--font);
+    background: var(--bg-light); border: 1px solid var(--border); color: var(--text);
+    transition: all .15s;
+  }
+  .advance-btn:hover { border-color: var(--accent); color: var(--accent); }
+
   /* ── TOAST ── */
   .toast {
     position: fixed; bottom: 24px; right: 24px;
@@ -239,6 +312,11 @@
       <span class="nav-icon">📦</span>
       <span>Orders</span>
       <span class="nav-badge" id="pendingBadge" style="display:none;"></span>
+    </button>
+    <button class="nav-item" onclick="showPage('jobs', this)">
+      <span class="nav-icon">🖨</span>
+      <span>Print Jobs</span>
+      <span class="nav-badge" id="jobsBadge" style="display:none;"></span>
     </button>
     <span class="sidebar-section">Configuration</span>
     <button class="nav-item" onclick="showPage('pricing', this)">
@@ -312,6 +390,35 @@
       </div>
     </div>
 
+    <!-- ── PRINT JOBS PAGE ── -->
+    <div class="page" id="page-jobs">
+      <div class="page-header">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div class="page-title">Print Jobs</div>
+            <div class="page-sub">Track and manage active print jobs. Create manually or promote from an order.</div>
+          </div>
+          <button class="btn-primary" onclick="openJobOverlay()">+ Create Print Job</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-header">
+          <div class="filter-row" id="jobFilterRow">
+            <button class="filter-pill active" onclick="setJobFilter('all', this)">All</button>
+            <button class="filter-pill" onclick="setJobFilter('confirmed', this)">Confirmed</button>
+            <button class="filter-pill" onclick="setJobFilter('printing', this)">Printing</button>
+            <button class="filter-pill" onclick="setJobFilter('ready', this)">Ready</button>
+            <button class="filter-pill" onclick="setJobFilter('complete', this)">Complete</button>
+          </div>
+          <button class="refresh-btn" onclick="loadJobs()">↺ Refresh</button>
+        </div>
+        <div id="jobsContainer">
+          <div class="empty-state"><div class="empty-icon">⏳</div><div>Loading jobs…</div></div>
+        </div>
+      </div>
+    </div>
+
     <!-- ── MATERIALS PAGE ── -->
     <div class="page" id="page-materials">
       <div class="page-header">
@@ -340,6 +447,76 @@
   </main>
 </div>
 
+<!-- ── JOB OVERLAY ── -->
+<div class="job-overlay hidden" id="jobOverlay">
+  <div class="overlay-topbar">
+    <span class="overlay-title" id="overlayTitle">Create Print Job</span>
+    <button class="btn-secondary" style="padding:6px 14px;font-size:12px;" onclick="closeJobOverlay()">✕ Cancel</button>
+    <button class="btn-primary"   style="padding:6px 14px;font-size:12px;" onclick="submitNewJob()">✓ Create Job</button>
+  </div>
+  <div class="overlay-body">
+    <!-- Left: Calculator iframe (hidden when promoting from order) -->
+    <div class="overlay-left" id="overlayLeft">
+      <iframe id="jobPricerFrame" src="" style="width:100%;height:100%;border:none;display:block;" title="Instant Quote Calculator"></iframe>
+    </div>
+    <!-- Right: Job form -->
+    <div class="overlay-right">
+
+      <!-- Customer -->
+      <div>
+        <div class="overlay-section-title">Customer</div>
+        <div class="form-row">
+          <div class="form-field"><label>Name *</label><input type="text" id="jf-name" placeholder="Full name" required></div>
+          <div class="form-field"><label>Email *</label><input type="email" id="jf-email" placeholder="customer@email.com" required></div>
+          <div class="form-field"><label>Phone</label><input type="tel" id="jf-phone" placeholder="(optional)"></div>
+        </div>
+      </div>
+
+      <!-- Items -->
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div class="overlay-section-title" style="margin-bottom:0;">Order Items</div>
+          <button class="import-btn" id="importCartBtn" onclick="importFromCart()">📥 Import from Cart</button>
+        </div>
+        <div id="jobItemsWrap">
+          <div style="font-size:12px;color:var(--muted);padding:10px 0;">No items imported yet. Add items in the calculator then click "Import from Cart".</div>
+        </div>
+        <div class="totals-row" id="jobTotals" style="display:none;">
+          <span>Subtotal: <strong id="jf-subtotal">$0.00</strong></span>
+          <span>Tax (8.5%): <strong id="jf-tax">$0.00</strong></span>
+          <span>Total: <strong style="color:var(--accent);" id="jf-total">$0.00</strong></span>
+        </div>
+      </div>
+
+      <!-- Print Setup -->
+      <div>
+        <div class="overlay-section-title">Print Setup</div>
+        <div class="form-row">
+          <div class="form-field">
+            <label>Printer</label>
+            <select id="jf-printer">
+              <option value="H2D-1">H2D-1</option>
+              <option value="K1 Max">K1 Max</option>
+              <option value="Saturn Ultra 16K">Saturn Ultra 16K</option>
+            </select>
+          </div>
+          <div class="form-field"><label>Start Time</label><input type="datetime-local" id="jf-start"></div>
+          <div class="form-field"><label>Est. End Time</label><input type="datetime-local" id="jf-end"></div>
+        </div>
+        <div class="form-row" style="margin-top:10px;">
+          <div class="form-field full"><label>Notes</label><textarea id="jf-notes" placeholder="Internal notes…"></textarea></div>
+        </div>
+      </div>
+
+      <div class="overlay-footer">
+        <button class="btn-primary" onclick="submitNewJob()">✓ Create Job</button>
+        <button class="btn-secondary" onclick="closeJobOverlay()">Cancel</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -349,8 +526,9 @@ function showPage(id, btn) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
   btn.classList.add('active');
-  if (id === 'pricing') loadPricingSettings();
+  if (id === 'pricing')   loadPricingSettings();
   if (id === 'materials') loadMatPreview();
+  if (id === 'jobs')      loadJobs();
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
@@ -380,6 +558,7 @@ function openCalculatorRates() {
 }
 
 // ── Orders ────────────────────────────────────────────────────────────────────
+let _orders = [];
 async function loadOrders() {
   const container = document.getElementById('ordersContainer');
   container.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div>Loading…</div></div>';
@@ -396,6 +575,7 @@ async function loadOrders() {
 }
 
 function renderOrders(orders) {
+  _orders = orders;
   const container = document.getElementById('ordersContainer');
 
   // Stats
@@ -431,7 +611,10 @@ function renderOrders(orders) {
       <td>${itemCount} part${itemCount !== 1 ? 's' : ''}</td>
       <td class="order-total">$${parseFloat(o.total || 0).toFixed(2)}</td>
       <td><span class="status-badge ${status}" onclick="toggleStatus('${esc(o.id)}', '${status}', this)">${label}</span></td>
-      <td><button class="expand-btn" onclick="toggleExpand('row-${idx}', this)">▾</button></td>
+      <td style="white-space:nowrap;">
+        <button class="job-create-btn" onclick="openJobOverlay(_orders[${idx}])">→ Job</button>
+        <button class="expand-btn" onclick="toggleExpand('row-${idx}', this)">▾</button>
+      </td>
     </tr>
     <tr class="expand-row" id="row-${idx}">
       <td colspan="8">
@@ -541,6 +724,257 @@ function loadMatPreview() {
   });
   html += '</tbody></table>';
   el.innerHTML = html;
+}
+
+// ── Print Jobs ────────────────────────────────────────────────────────────────
+let _jobs      = [];
+let _jobFilter = 'all';
+
+const JOB_STATUS_NEXT  = { confirmed: 'printing', printing: 'ready', ready: 'complete' };
+const JOB_STATUS_LABEL = { confirmed: '✓ Confirmed', printing: '🖨 Printing', ready: '📦 Ready', complete: '✅ Complete' };
+
+async function loadJobs() {
+  const container = document.getElementById('jobsContainer');
+  if (container) container.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div>Loading…</div></div>';
+  try {
+    const res = await fetch('/api/admin/jobs');
+    if (res.status === 401 || res.status === 403) { window.location.href = '/admin/login.html'; return; }
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    _jobs = await res.json();
+    renderJobs(_jobFilter);
+    // Update sidebar badge for active jobs
+    const active = _jobs.filter(j => j.status !== 'complete').length;
+    const badge = document.getElementById('jobsBadge');
+    if (badge) { if (active > 0) { badge.textContent = active; badge.style.display = ''; } else badge.style.display = 'none'; }
+  } catch (err) {
+    if (container) container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div>Failed to load jobs: ${esc(err.message)}</div></div>`;
+  }
+}
+
+function setJobFilter(filter, btn) {
+  _jobFilter = filter;
+  document.querySelectorAll('#jobFilterRow .filter-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  renderJobs(filter);
+}
+
+function renderJobs(filter) {
+  const container = document.getElementById('jobsContainer');
+  if (!container) return;
+  const list = filter === 'all' ? _jobs : _jobs.filter(j => j.status === filter);
+  if (!list.length) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">🖨</div><div>No print jobs yet. Create one to get started.</div></div>';
+    return;
+  }
+  let html = '<table><thead><tr><th>Date</th><th>Customer</th><th>Printer</th><th>Items</th><th>Total</th><th>Est. End</th><th>Status</th><th></th></tr></thead><tbody>';
+  list.forEach((j, idx) => {
+    const date    = j.createdAt ? new Date(j.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+    const estEnd  = j.estEndTime ? new Date(j.estEndTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
+    const label   = JOB_STATUS_LABEL[j.status] || j.status;
+    const itemCnt = (j.items || []).length;
+    const canAdv  = j.status !== 'complete';
+    const jIdx    = _jobs.indexOf(j);
+    html += `<tr>
+      <td style="white-space:nowrap;color:var(--muted);">${date}</td>
+      <td style="font-weight:600;">${esc(j.customerName || '—')}</td>
+      <td style="color:var(--muted);">${esc(j.printer || '—')}</td>
+      <td>${itemCnt} part${itemCnt !== 1 ? 's' : ''}</td>
+      <td class="order-total">$${parseFloat(j.total || 0).toFixed(2)}</td>
+      <td style="color:var(--muted);">${estEnd}</td>
+      <td><span class="status-badge ${esc(j.status)}">${label}</span></td>
+      <td style="white-space:nowrap;">
+        ${canAdv ? `<button class="advance-btn" onclick="advanceJobStatus('${esc(j.id)}', this)">Advance ›</button>` : ''}
+        <button class="expand-btn" onclick="toggleExpand('jrow-${idx}', this)">▾</button>
+      </td>
+    </tr>
+    <tr class="expand-row" id="jrow-${idx}">
+      <td colspan="8">
+        <div class="expand-inner">
+          ${j.customerEmail ? `<div style="margin-bottom:6px;color:var(--muted);font-size:12px;">✉️ ${esc(j.customerEmail)}${j.customerPhone ? ' · ' + esc(j.customerPhone) : ''}</div>` : ''}
+          ${j.startTime ? `<div style="margin-bottom:4px;color:var(--muted);font-size:12px;">▶ Start: ${new Date(j.startTime).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'})}</div>` : ''}
+          ${j.estEndTime ? `<div style="margin-bottom:4px;color:var(--muted);font-size:12px;">⏱ Est. end: ${new Date(j.estEndTime).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'})}</div>` : ''}
+          ${j.notes ? `<div style="margin-bottom:6px;color:var(--muted);font-size:12px;">📝 ${esc(j.notes)}</div>` : ''}
+          <div class="expand-items">
+            ${(j.items || []).map(it => `
+              <div class="expand-item">
+                <div><strong>${esc(it.partName || 'Part')}</strong> &nbsp;×${it.qty || 1} &nbsp;<span style="font-size:11px;">${esc(it.material || '')} ${esc(it.color || '')}</span></div>
+                <div class="item-price">$${parseFloat(it.lineTotal || 0).toFixed(2)}</div>
+              </div>`).join('')}
+          </div>
+          <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);display:flex;gap:24px;font-size:12px;color:var(--muted);">
+            <span>Subtotal: <strong>$${parseFloat(j.subtotal || 0).toFixed(2)}</strong></span>
+            <span>Tax: <strong>$${parseFloat(j.tax || 0).toFixed(2)}</strong></span>
+            <span>Total: <strong style="color:var(--accent);">$${parseFloat(j.total || 0).toFixed(2)}</strong></span>
+          </div>
+          ${j.orderId ? `<div style="margin-top:8px;font-size:11px;color:var(--muted);">Promoted from order ${esc(j.orderId)}</div>` : ''}
+        </div>
+      </td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+async function advanceJobStatus(jobId, btn) {
+  btn.disabled = true;
+  btn.textContent = '…';
+  try {
+    const res = await fetch(`/api/admin/jobs/${encodeURIComponent(jobId)}/status`, { method: 'PATCH' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const { status } = await res.json();
+    showToast(`Job advanced to ${JOB_STATUS_LABEL[status] || status}`);
+    loadJobs();
+  } catch (err) {
+    showToast('Failed to advance job: ' + err.message);
+    btn.disabled = false;
+    btn.textContent = 'Advance ›';
+  }
+}
+
+// ── Job Overlay ───────────────────────────────────────────────────────────────
+let _jobPrefill = null; // order data when promoting, null for manual
+
+function openJobOverlay(orderData) {
+  _jobPrefill = orderData || null;
+  const overlay   = document.getElementById('jobOverlay');
+  const leftPane  = document.getElementById('overlayLeft');
+  const titleEl   = document.getElementById('overlayTitle');
+  const importBtn = document.getElementById('importCartBtn');
+
+  // Reset form
+  ['jf-name','jf-email','jf-phone','jf-notes'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('jf-printer').value = 'H2D-1';
+  document.getElementById('jf-start').value = '';
+  document.getElementById('jf-end').value   = '';
+  document.getElementById('jobItemsWrap').innerHTML = '<div style="font-size:12px;color:var(--muted);padding:10px 0;">No items imported yet.</div>';
+  document.getElementById('jobTotals').style.display = 'none';
+
+  if (_jobPrefill) {
+    // Promote from order — skip iframe, pre-fill customer + items
+    titleEl.textContent = 'Create Job from Order';
+    leftPane.classList.add('hidden');
+    importBtn.style.display = 'none';
+    // Fill customer
+    document.getElementById('jf-name').value  = orderData.customerName  || '';
+    document.getElementById('jf-email').value = orderData.customerEmail || '';
+    document.getElementById('jf-phone').value = orderData.phone         || '';
+    document.getElementById('jf-notes').value = orderData.notes         || '';
+    // Fill items from order
+    const items = (orderData.items || []).map(it => ({
+      partName:  it.fileName || it.projectName || 'Part',
+      material:  it.material || '',
+      color:     it.color    || '',
+      qty:       it.qty      || 1,
+      unitPrice: it.unitPrice|| 0,
+      lineTotal: it.lineTotal|| 0,
+    }));
+    renderJobItems(items, parseFloat(orderData.subtotal)||0, parseFloat(orderData.tax)||0, parseFloat(orderData.total)||0);
+  } else {
+    // Manual creation — show calculator iframe
+    titleEl.textContent = 'Create Print Job';
+    leftPane.classList.remove('hidden');
+    importBtn.style.display = '';
+    localStorage.setItem('3dp_admin', '1');
+    localStorage.removeItem('3dp_cart');
+    const frame = document.getElementById('jobPricerFrame');
+    frame.src = '/3dprintingquotecalculator.html';
+  }
+
+  overlay.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeJobOverlay() {
+  document.getElementById('jobOverlay').classList.add('hidden');
+  document.body.style.overflow = '';
+  document.getElementById('jobPricerFrame').src = '';
+  _jobPrefill = null;
+}
+
+function importFromCart() {
+  let cart = [];
+  try { cart = JSON.parse(localStorage.getItem('3dp_cart') || '[]'); } catch { cart = []; }
+  if (!cart.length) { showToast('Cart is empty — add items in the calculator first'); return; }
+
+  const items = cart.map(it => ({
+    partName:  it.fileName || it.projectName || 'Part',
+    material:  it.material || '',
+    color:     it.color    || '',
+    qty:       it.qty      || 1,
+    unitPrice: parseFloat(it.unitPrice) || 0,
+    lineTotal: parseFloat(it.lineTotal) || 0,
+  }));
+
+  const subtotal = items.reduce((s, it) => s + it.lineTotal, 0);
+  const tax      = subtotal * 0.085;
+  const total    = subtotal + tax;
+  renderJobItems(items, subtotal, tax, total);
+  showToast('Cart imported — ' + items.length + ' item(s)');
+}
+
+function renderJobItems(items, subtotal, tax, total) {
+  if (!items.length) return;
+  let html = '<table class="items-preview"><thead><tr><th>Part</th><th>Material</th><th>Color</th><th>Qty</th><th>Total</th></tr></thead><tbody>';
+  items.forEach(it => {
+    html += `<tr>
+      <td style="font-weight:600;">${esc(it.partName)}</td>
+      <td style="color:var(--muted);">${esc(it.material)}</td>
+      <td style="color:var(--muted);">${esc(it.color)}</td>
+      <td>${it.qty}</td>
+      <td class="price-col">$${parseFloat(it.lineTotal).toFixed(2)}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('jobItemsWrap').innerHTML = html;
+  document.getElementById('jf-subtotal').textContent = '$' + subtotal.toFixed(2);
+  document.getElementById('jf-tax').textContent      = '$' + tax.toFixed(2);
+  document.getElementById('jf-total').textContent    = '$' + total.toFixed(2);
+  document.getElementById('jobTotals').style.display = '';
+  // Store for submission
+  document.getElementById('jobItemsWrap').dataset.items    = JSON.stringify(items);
+  document.getElementById('jobItemsWrap').dataset.subtotal = subtotal;
+  document.getElementById('jobItemsWrap').dataset.tax      = tax;
+  document.getElementById('jobItemsWrap').dataset.total    = total;
+}
+
+async function submitNewJob() {
+  const name  = document.getElementById('jf-name').value.trim();
+  const email = document.getElementById('jf-email').value.trim();
+  if (!name || !email) { showToast('Customer name and email are required'); return; }
+
+  const wrap     = document.getElementById('jobItemsWrap');
+  const items    = JSON.parse(wrap.dataset.items    || '[]');
+  const subtotal = parseFloat(wrap.dataset.subtotal || 0);
+  const tax      = parseFloat(wrap.dataset.tax      || 0);
+  const total    = parseFloat(wrap.dataset.total    || 0);
+
+  const payload = {
+    source:        _jobPrefill ? 'order' : 'manual',
+    orderId:       _jobPrefill ? (_jobPrefill.id || null) : null,
+    customerName:  name,
+    customerEmail: email,
+    customerPhone: document.getElementById('jf-phone').value.trim(),
+    items, subtotal, tax, total,
+    printer:       document.getElementById('jf-printer').value,
+    startTime:     document.getElementById('jf-start').value  || null,
+    estEndTime:    document.getElementById('jf-end').value    || null,
+    notes:         document.getElementById('jf-notes').value.trim(),
+  };
+
+  try {
+    const res = await fetch('/api/admin/jobs', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    });
+    if (res.status === 401 || res.status === 403) { window.location.href = '/admin/login.html'; return; }
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    closeJobOverlay();
+    showToast('Print job created — confirmation email sent');
+    if (document.getElementById('page-jobs').classList.contains('active')) loadJobs();
+  } catch (err) {
+    showToast('Failed to create job: ' + err.message);
+  }
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────

@@ -35,3 +35,13 @@
   from = "/api/admin/orders/*"
   to = "/.netlify/functions/list-orders"
   status = 200
+
+[[redirects]]
+  from = "/api/admin/jobs"
+  to = "/.netlify/functions/manage-jobs"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/jobs/*"
+  to = "/.netlify/functions/manage-jobs"
+  status = 200
