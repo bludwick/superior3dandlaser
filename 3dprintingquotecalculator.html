@@ -448,10 +448,7 @@
 
   /* ADMIN VISIBILITY — hidden from customers by default */
   body:not(.admin-mode) .admin-only { display: none; }
-  .admin-lock-btn { background:none; border:1px solid var(--border); border-radius:6px; padding:5px 10px; font-family:var(--font); font-size:11px; font-weight:600; color:var(--muted); cursor:pointer; letter-spacing:.04em; transition:all .15s; white-space:nowrap; }
-  .admin-lock-btn:hover { border-color:var(--accent); color:var(--accent); }
-  body.admin-mode .admin-lock-btn { border-color:var(--accent); color:var(--accent); background:rgba(185,28,28,.06); }
-  .admin-banner { display:none; background:rgba(185,28,28,.07); border:1px solid rgba(185,28,28,.2); border-radius:8px; padding:8px 14px; font-size:11px; font-weight:700; color:var(--accent); letter-spacing:.05em; margin-bottom:16px; }
+.admin-banner { display:none; background:rgba(185,28,28,.07); border:1px solid rgba(185,28,28,.2); border-radius:8px; padding:8px 14px; font-size:11px; font-weight:700; color:var(--accent); letter-spacing:.05em; margin-bottom:16px; }
   body.admin-mode .admin-banner { display:block; }
 
   /* ── PRINT MODE TOGGLE ───────────────────────────────────────────────── */
@@ -833,7 +830,6 @@
     </div>
     <div class="header-right">
       <span class="brand-tag">Superior 3D and Laser</span>
-      <button class="admin-lock-btn" id="adminToggleBtn" onclick="toggleAdmin()">🔒 Admin</button>
       <div class="tabs">
         <button class="tab active" onclick="switchTab('calculator')">Calculator</button>
         <button class="tab admin-only" onclick="switchTab('batch')">Batch</button>
@@ -2675,35 +2671,9 @@ function resetCalc(silent) {
   if (!silent) showToast('Calculator reset to defaults');
 }
 
-const ADMIN_PASS = 'Leeagles41!';
-function toggleAdmin() {
-  if (document.body.classList.contains('admin-mode')) {
-    document.body.classList.remove('admin-mode');
-    localStorage.removeItem('3dp_admin');
-    document.getElementById('adminToggleBtn').textContent = '🔒 Admin';
-    // Switch away from admin-only tabs if active
-    const activePanels = ['batch','rates'];
-    if (activePanels.some(t => document.getElementById('panel-'+t)?.classList.contains('active'))) {
-      switchTab('calculator');
-    }
-  } else {
-    const pw = prompt('Admin password:');
-    if (!pw) return;
-    if (pw === ADMIN_PASS) {
-      document.body.classList.add('admin-mode');
-      localStorage.setItem('3dp_admin', '1');
-      document.getElementById('adminToggleBtn').textContent = '🔓 Admin';
-    } else {
-      alert('Incorrect password.');
-    }
-  }
-}
-// Restore admin mode on page load
+// Restore admin mode on page load — activated when opened from the admin dashboard
 if (localStorage.getItem('3dp_admin') === '1') {
   document.body.classList.add('admin-mode');
-  document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('adminToggleBtn').textContent = '🔓 Admin';
-  });
 }
 
 function showToast(msg) {

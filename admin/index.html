@@ -295,6 +295,8 @@
           <div class="fields-grid">
             <div class="field"><label>Printer Cost</label><div class="input-wrap"><input type="number" id="ap-printerCost" step="0.01"><span class="unit-tag">$/hr</span></div><span class="hint">Electricity + depreciation</span></div>
             <div class="field"><label>Labour Rate</label><div class="input-wrap"><input type="number" id="ap-labourRate" step="1"><span class="unit-tag">$/hr</span></div><span class="hint">Post-processing & assembly</span></div>
+            <div class="field"><label>Material Cost</label><div class="input-wrap"><input type="number" id="ap-matCostKg" step="1"><span class="unit-tag">$/kg</span></div><span class="hint">Filament / resin base price</span></div>
+            <div class="field"><label>Print Labour</label><div class="input-wrap"><input type="number" id="ap-printLabourHrs" step="0.05"><span class="unit-tag">hrs</span></div><span class="hint">Setup + monitoring per order</span></div>
             <div class="field"><label>Waste / Support Factor</label><div class="input-wrap"><input type="number" id="ap-wasteFactor" step="0.01"><span class="unit-tag">×</span></div><span class="hint">1.10 = 10% waste</span></div>
             <div class="field"><label>Failure Rate</label><div class="input-wrap"><input type="number" id="ap-failureRate" step="0.01"><span class="unit-tag">%</span></div><span class="hint">0.05 = 5% contingency</span></div>
             <div class="field"><label>Overhead Rate</label><div class="input-wrap"><input type="number" id="ap-overheadRate" step="0.01"><span class="unit-tag">%</span></div><span class="hint">0.50 = 50% of direct costs</span></div>
@@ -487,8 +489,8 @@ function esc(str) {
 }
 
 // ── Pricing settings ──────────────────────────────────────────────────────────
-const PRICING_KEYS = ['printerCost','labourRate','wasteFactor','failureRate','overheadRate','profitMargin','expediteSurcharge','rushSurcharge'];
-const PRICING_DEFAULTS = { printerCost:0.15, labourRate:25, wasteFactor:1.10, failureRate:0.05, overheadRate:0.50, profitMargin:0.25, expediteSurcharge:50, rushSurcharge:25 };
+const PRICING_KEYS = ['printerCost','labourRate','matCostKg','printLabourHrs','wasteFactor','failureRate','overheadRate','profitMargin','expediteSurcharge','rushSurcharge'];
+const PRICING_DEFAULTS = { printerCost:0.15, labourRate:25, matCostKg:75, printLabourHrs:0.25, wasteFactor:1.10, failureRate:0.05, overheadRate:0.50, profitMargin:0.25, expediteSurcharge:50, rushSurcharge:25 };
 
 function loadPricingSettings() {
   let s = {};
