@@ -397,6 +397,8 @@
   .site-nav-links a.snav-cta { color:var(--accent); }
   .site-nav-links a.snav-cta:hover { color:var(--accent-lt); background:rgba(185,28,28,.06); }
   .site-nav-links a.snav-active { color:var(--text); }
+  .site-nav-links a.snav-login { color:var(--muted); font-size:12px; }
+  .site-nav-links a.snav-login:hover { color:var(--text); background:var(--bg-light); }
 
   /* Hamburger button & mobile-only cart item — hidden on desktop */
   .site-nav-toggle { display:none; background:none; border:none; cursor:pointer; padding:6px; flex-shrink:0; }
@@ -810,6 +812,7 @@
       <li><a href="contact-us.html">Contact</a></li>
       <li><a href="3dprintingquotecalculator.html" class="snav-cta snav-active">Instant Quote</a></li>
       <li><a href="contact.html" class="snav-cta">Custom Quote</a></li>
+      <li><a href="/admin/login.html" class="snav-login">Log In</a></li>
       <li><button class="snav-cart-mobile" onclick="closeNav();openCart()">🛒 Cart <span class="cart-badge" id="cartBadgeMobile" style="display:none;">0</span></button></li>
     </ul>
     <button class="cart-nav-btn" id="cartNavBtn" onclick="openCart()">
@@ -3775,6 +3778,12 @@ async function submitOrderToBackend(orderData, paymentId) {
   body.append('orderTotal',    fmtPrice(total));
   body.append('paymentStatus', 'Pending — to be collected upon confirmation');
   if (paymentId) body.append('paymentId', paymentId);
+  // Extra fields for admin order storage
+  body.append('leadTime',      leadTime || 'Standard');
+  body.append('subtotalRaw',   String(subtotal));
+  body.append('taxRaw',        String(tax));
+  body.append('orderTotalRaw', String(total));
+  body.append('itemsJson',     JSON.stringify(items));
   const ltLine = ltSurcharge > 0 ? `Lead Time Surcharge (${leadTime}): ${fmtPrice(ltSurcharge)}\n` : '';
   body.append('message',
     `=== NEW ORDER REQUEST ===\n\nCustomer: ${customer.name}\nEmail: ${customer.email}\nPhone: ${customer.phone || '—'}\nShip To: ${customer.address}\n\n` +

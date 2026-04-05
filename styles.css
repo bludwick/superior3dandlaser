@@ -131,6 +131,8 @@ nav {
 
 .nav-links .nav-cta { color: var(--accent); font-weight: 700; }
 .nav-links .nav-cta:hover { color: var(--accent-lt); }
+.nav-links .nav-login { color: var(--muted); font-size: .8rem; }
+.nav-links .nav-login:hover { color: var(--text); }
 
 /* hamburger */
 .nav-toggle { display: none; background: none; border: none; cursor: pointer; padding: .25rem; }

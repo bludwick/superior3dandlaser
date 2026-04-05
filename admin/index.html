@@ -3,176 +3,546 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin – Superior 3D and Laser</title>
+<title>Admin Dashboard — Superior 3D and Laser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
   :root {
     --bg:       #ffffff;
     --bg-card:  #f8f8f8;
     --bg-light: #f1f1f1;
     --border:   #e0e0e0;
     --accent:   #b91c1c;
+    --accent-lt:#dc2626;
     --text:     #111111;
     --muted:    #555555;
-    --radius:   10px;
+    --label:    #777777;
     --font:     'Inter', 'Segoe UI', system-ui, sans-serif;
+    --radius:   10px;
+    --sidebar:  220px;
+  }
+  html, body { height: 100%; }
+  body { font-family: var(--font); background: var(--bg-light); color: var(--text); display: flex; flex-direction: column; min-height: 100vh; }
+
+  /* ── TOP NAV ── */
+  .topnav {
+    height: 56px; background: var(--bg); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; gap: 16px; flex-shrink: 0; position: sticky; top: 0; z-index: 50;
+  }
+  .topnav-left { display: flex; align-items: center; gap: 12px; }
+  .topnav-brand { font-size: 15px; font-weight: 800; letter-spacing: -.01em; }
+  .topnav-brand span { color: var(--accent); }
+  .admin-chip {
+    font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+    color: var(--accent); background: rgba(185,28,28,.08); border: 1px solid rgba(185,28,28,.18);
+    border-radius: 4px; padding: 2px 7px;
+  }
+  .topnav-right { display: flex; align-items: center; gap: 10px; }
+  .site-link {
+    font-size: 12px; font-weight: 600; color: var(--muted); text-decoration: none;
+    padding: 5px 10px; border-radius: 6px; transition: color .15s, background .15s;
+  }
+  .site-link:hover { color: var(--text); background: var(--bg-light); }
+  .logout-btn {
+    font-size: 12px; font-weight: 700; color: var(--accent);
+    background: none; border: 1px solid rgba(185,28,28,.3); border-radius: 6px;
+    padding: 6px 12px; cursor: pointer; font-family: var(--font);
+    transition: all .15s;
+  }
+  .logout-btn:hover { background: rgba(185,28,28,.06); border-color: var(--accent); }
+
+  /* ── LAYOUT ── */
+  .layout { display: flex; flex: 1; }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: var(--sidebar); background: var(--bg); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; padding: 20px 12px; gap: 4px;
+    flex-shrink: 0;
+  }
+  .sidebar-section { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--label); padding: 4px 8px 8px; margin-top: 8px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; font-weight: 600; color: var(--muted);
+    transition: all .15s; background: none; border: none; width: 100%;
+    text-align: left; font-family: var(--font);
+  }
+  .nav-item:hover { background: var(--bg-light); color: var(--text); }
+  .nav-item.active { background: rgba(185,28,28,.08); color: var(--accent); }
+  .nav-item .nav-icon { font-size: 16px; flex-shrink: 0; }
+  .nav-badge {
+    margin-left: auto; background: var(--accent); color: #fff;
+    font-size: 10px; font-weight: 800; min-width: 18px; height: 18px;
+    border-radius: 9px; display: inline-flex; align-items: center; justify-content: center;
+    padding: 0 5px;
   }
 
-  body {
-    font-family: var(--font);
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
+  /* ── MAIN ── */
+  .main { flex: 1; padding: 28px; overflow-y: auto; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .page-header { margin-bottom: 24px; }
+  .page-title { font-size: 22px; font-weight: 900; letter-spacing: -.02em; }
+  .page-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+  /* ── STAT CARDS ── */
+  .stat-row { display: flex; gap: 14px; margin-bottom: 24px; flex-wrap: wrap; }
+  .stat-card {
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 18px 22px; flex: 1; min-width: 140px;
   }
+  .stat-label { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--label); margin-bottom: 6px; }
+  .stat-val { font-size: 28px; font-weight: 900; letter-spacing: -.02em; color: var(--accent); line-height: 1; }
+  .stat-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
 
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image:
-      linear-gradient(var(--border) 1px, transparent 1px),
-      linear-gradient(90deg, var(--border) 1px, transparent 1px);
-    background-size: 48px 48px;
-    opacity: .18;
-    pointer-events: none;
-    z-index: 0;
+  /* ── ORDERS TABLE ── */
+  .table-wrap { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .table-header {
+    padding: 14px 18px; background: var(--bg-light); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
   }
-
-  .app {
-    position: relative;
-    z-index: 1;
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 40px 24px 80px;
+  .table-title { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--label); }
+  .refresh-btn {
+    background: none; border: 1px solid var(--border); border-radius: 6px;
+    padding: 5px 12px; font-size: 12px; font-weight: 600; color: var(--muted);
+    cursor: pointer; font-family: var(--font); transition: all .15s;
   }
-
-  /* Header */
-  header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 40px;
-    gap: 16px;
-    flex-wrap: wrap;
+  .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { background: var(--bg-light); }
+  th { padding: 10px 14px; text-align: left; font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); white-space: nowrap; border-bottom: 1px solid var(--border); }
+  td { padding: 11px 14px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: rgba(185,28,28,.02); }
+  .order-total { font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+    border-radius: 5px; padding: 3px 8px; cursor: pointer; transition: all .15s; white-space: nowrap;
   }
+  .status-badge.pending { background: rgba(234,179,8,.12); color: #854d0e; border: 1px solid rgba(234,179,8,.3); }
+  .status-badge.confirmed { background: rgba(21,128,61,.1); color: #15803d; border: 1px solid rgba(21,128,61,.25); }
+  .status-badge:hover { opacity: .75; }
+  .expand-btn { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 12px; padding: 2px 6px; border-radius: 4px; transition: all .15s; }
+  .expand-btn:hover { background: var(--bg-light); }
+  .expand-row { display: none; }
+  .expand-row.open { display: table-row; }
+  .expand-row td { padding: 0; border-bottom: 1px solid var(--border); }
+  .expand-inner { padding: 14px 18px; background: rgba(185,28,28,.02); font-size: 12px; }
+  .expand-items { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .expand-item { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; color: var(--muted); }
+  .expand-item strong { color: var(--text); }
+  .expand-item .item-price { color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .empty-state { text-align: center; padding: 48px 20px; color: var(--muted); font-size: 13px; }
+  .empty-icon { font-size: 36px; margin-bottom: 12px; }
 
-  .logo-area { display: flex; flex-direction: column; gap: 4px; }
-
-  .brand-tag {
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: .14em;
-    text-transform: uppercase;
-    color: var(--accent);
+  /* ── SECTION CARD (Pricing / Materials) ── */
+  .section-card {
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+    margin-bottom: 16px; overflow: hidden;
   }
-
-  h1 {
-    font-size: clamp(22px, 4vw, 32px);
-    font-weight: 800;
-    letter-spacing: -.02em;
+  .section-card-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 20px; background: var(--bg-light); border-bottom: 1px solid var(--border);
   }
+  .section-card-icon { width: 32px; height: 32px; border-radius: 8px; background: rgba(185,28,28,.1); display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .section-card-title { font-size: 12px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--label); }
+  .section-card-body { padding: 20px; }
 
-  h1 span { color: var(--accent); }
-
-  /* Logout button */
-  .btn-logout {
-    font-family: var(--font);
-    font-size: 13px;
-    font-weight: 700;
-    background: transparent;
-    color: var(--accent);
-    border: 1.5px solid var(--accent);
-    border-radius: var(--radius);
-    padding: 9px 18px;
-    cursor: pointer;
-    letter-spacing: .02em;
-    transition: background .15s, color .15s;
-    white-space: nowrap;
+  /* ── PRICING FIELDS ── */
+  .fields-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 600px) { .fields-grid { grid-template-columns: 1fr; } }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--label); }
+  .input-wrap { position: relative; display: flex; align-items: center; }
+  .input-wrap input {
+    width: 100%; padding: 9px 38px 9px 12px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: var(--font); font-size: 13px; outline: none;
+    transition: border-color .2s, box-shadow .2s;
   }
-
-  .btn-logout:hover { background: var(--accent); color: #fff; }
-
-  /* Cards */
-  .card-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 16px;
+  .input-wrap input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(185,28,28,.10); }
+  .unit-tag { position: absolute; right: 10px; font-size: 11px; color: var(--muted); pointer-events: none; }
+  .hint { font-size: 10px; color: var(--muted); }
+  .btn-primary {
+    padding: 10px 20px; background: var(--accent); color: #fff;
+    border: none; border-radius: 8px; font-family: var(--font); font-size: 13px;
+    font-weight: 700; cursor: pointer; letter-spacing: .02em; transition: all .2s;
+    display: inline-flex; align-items: center; gap: 7px;
   }
-
-  .card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    text-decoration: none;
-    color: inherit;
-    transition: border-color .15s, box-shadow .15s;
+  .btn-primary:hover { background: var(--accent-lt); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(185,28,28,.3); }
+  .btn-secondary {
+    padding: 10px 20px; background: var(--bg-light); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px; font-family: var(--font);
+    font-size: 13px; font-weight: 700; cursor: pointer; letter-spacing: .02em; transition: all .2s;
+    display: inline-flex; align-items: center; gap: 7px; text-decoration: none;
   }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
 
-  a.card:hover {
-    border-color: var(--accent);
-    box-shadow: 0 4px 16px rgba(185,28,28,.08);
+  /* ── MATERIALS PREVIEW TABLE ── */
+  .mat-table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+  .mat-table th { padding: 8px 12px; font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); text-align: left; }
+  .mat-table td { padding: 8px 12px; font-size: 13px; border-bottom: 1px solid var(--border); }
+  .mat-table tr:last-child td { border-bottom: none; }
+  .type-badge {
+    font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+    border-radius: 4px; padding: 2px 6px;
   }
+  .type-badge.fdm { background: rgba(29,78,216,.08); color: #1d4ed8; }
+  .type-badge.sla { background: rgba(185,28,28,.08); color: var(--accent); }
+  .price-col { color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
 
-  .card-icon { font-size: 28px; line-height: 1; }
-
-  .card-title {
-    font-size: 15px;
-    font-weight: 700;
-    margin-top: 4px;
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--bg); border: 1px solid var(--accent); border-radius: 10px;
+    padding: 12px 18px; font-size: 13px; font-weight: 600; color: var(--accent);
+    box-shadow: 0 4px 24px rgba(0,0,0,.08);
+    display: flex; align-items: center; gap: 8px;
+    transform: translateY(80px); opacity: 0; transition: all .3s cubic-bezier(.34,1.56,.64,1); z-index: 100;
   }
+  .toast.show { transform: none; opacity: 1; }
 
-  .card-desc {
-    font-size: 13px;
-    color: var(--muted);
-    line-height: 1.5;
-  }
-
-  /* Divider */
-  .section-label {
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: .1em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin: 32px 0 12px;
+  @media (max-width: 768px) {
+    .sidebar { width: 60px; padding: 16px 8px; }
+    .sidebar-section, .nav-item span:not(.nav-icon):not(.nav-badge) { display: none; }
+    .nav-item { justify-content: center; padding: 10px; }
+    .main { padding: 16px; }
   }
 </style>
 </head>
 <body>
-<div class="app">
-  <header>
-    <div class="logo-area">
-      <div class="brand-tag">Superior 3D and Laser</div>
-      <h1>Admin <span>Panel</span></h1>
-    </div>
-    <button class="btn-logout" onclick="logout()">Logout</button>
-  </header>
 
-  <div class="section-label">Tools</div>
-  <div class="card-grid">
-    <a class="card" href="/3dprintingquotecalculator.html">
-      <div class="card-icon">🖨️</div>
-      <div class="card-title">Instant Quote Calculator</div>
-      <div class="card-desc">Configure materials, pricing, and settings for the customer-facing quote tool.</div>
-    </a>
+<!-- TOP NAV -->
+<nav class="topnav">
+  <div class="topnav-left">
+    <span class="topnav-brand">Superior <span>3D & Laser</span></span>
+    <span class="admin-chip">Admin</span>
   </div>
+  <div class="topnav-right">
+    <a href="/" class="site-link">← View Site</a>
+    <button class="logout-btn" onclick="logout()">Log Out</button>
+  </div>
+</nav>
+
+<div class="layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <span class="sidebar-section">Dashboard</span>
+    <button class="nav-item active" onclick="showPage('orders', this)">
+      <span class="nav-icon">📦</span>
+      <span>Orders</span>
+      <span class="nav-badge" id="pendingBadge" style="display:none;"></span>
+    </button>
+    <span class="sidebar-section">Configuration</span>
+    <button class="nav-item" onclick="showPage('pricing', this)">
+      <span class="nav-icon">💰</span>
+      <span>Pricing</span>
+    </button>
+    <button class="nav-item" onclick="showPage('materials', this)">
+      <span class="nav-icon">🧱</span>
+      <span>Materials & Rates</span>
+    </button>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main">
+
+    <!-- ── ORDERS PAGE ── -->
+    <div class="page active" id="page-orders">
+      <div class="page-header">
+        <div class="page-title">Orders</div>
+        <div class="page-sub">All submitted cart orders. Click a row to expand details.</div>
+      </div>
+
+      <div class="stat-row" id="orderStats">
+        <div class="stat-card"><div class="stat-label">Total Orders</div><div class="stat-val" id="statTotal">—</div></div>
+        <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-val" id="statPending">—</div></div>
+        <div class="stat-card"><div class="stat-label">Confirmed</div><div class="stat-val" id="statConfirmed">—</div></div>
+        <div class="stat-card"><div class="stat-label">Revenue</div><div class="stat-val" id="statRevenue">—</div></div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-header">
+          <span class="table-title">Order History</span>
+          <button class="refresh-btn" onclick="loadOrders()">↺ Refresh</button>
+        </div>
+        <div id="ordersContainer">
+          <div class="empty-state"><div class="empty-icon">⏳</div><div>Loading orders…</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PRICING PAGE ── -->
+    <div class="page" id="page-pricing">
+      <div class="page-header">
+        <div class="page-title">Pricing Defaults</div>
+        <div class="page-sub">These values are stored in the browser and used by the Instant Quote calculator. Changes here update the calculator's admin defaults on this device.</div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-card-header">
+          <div class="section-card-icon">⚙️</div>
+          <span class="section-card-title">FDM Pricing Defaults</span>
+        </div>
+        <div class="section-card-body">
+          <div class="fields-grid">
+            <div class="field"><label>Printer Cost</label><div class="input-wrap"><input type="number" id="ap-printerCost" step="0.01"><span class="unit-tag">$/hr</span></div><span class="hint">Electricity + depreciation</span></div>
+            <div class="field"><label>Labour Rate</label><div class="input-wrap"><input type="number" id="ap-labourRate" step="1"><span class="unit-tag">$/hr</span></div><span class="hint">Post-processing & assembly</span></div>
+            <div class="field"><label>Waste / Support Factor</label><div class="input-wrap"><input type="number" id="ap-wasteFactor" step="0.01"><span class="unit-tag">×</span></div><span class="hint">1.10 = 10% waste</span></div>
+            <div class="field"><label>Failure Rate</label><div class="input-wrap"><input type="number" id="ap-failureRate" step="0.01"><span class="unit-tag">%</span></div><span class="hint">0.05 = 5% contingency</span></div>
+            <div class="field"><label>Overhead Rate</label><div class="input-wrap"><input type="number" id="ap-overheadRate" step="0.01"><span class="unit-tag">%</span></div><span class="hint">0.50 = 50% of direct costs</span></div>
+            <div class="field"><label>Profit Margin</label><div class="input-wrap"><input type="number" id="ap-profitMargin" step="0.01"><span class="unit-tag">%</span></div><span class="hint">0.25 = 25% mark-up</span></div>
+            <div class="field"><label>Expedite Surcharge</label><div class="input-wrap"><input type="number" id="ap-expediteSurcharge" step="1"><span class="unit-tag">$</span></div><span class="hint">1–2 day orders</span></div>
+            <div class="field"><label>Rush Surcharge</label><div class="input-wrap"><input type="number" id="ap-rushSurcharge" step="1"><span class="unit-tag">$</span></div><span class="hint">3–5 day orders</span></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn-primary" onclick="savePricingSettings()">💾 Save to Calculator</button>
+            <button class="btn-secondary" onclick="openCalculator()">🖥 Open Full Calculator</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── MATERIALS PAGE ── -->
+    <div class="page" id="page-materials">
+      <div class="page-header">
+        <div class="page-title">Materials & Rates</div>
+        <div class="page-sub">Material pricing is managed inside the Instant Quote calculator. Use the button below to open it in admin mode.</div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-card-header">
+          <div class="section-card-icon">🧱</div>
+          <span class="section-card-title">Material Library</span>
+        </div>
+        <div class="section-card-body">
+          <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Current materials loaded from this device's calculator settings. To edit names, prices, or colors, use the full Materials Editor.</p>
+          <div id="matPreview">
+            <div class="empty-state" style="padding:24px 0;"><div>Loading materials…</div></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn-primary" onclick="openCalculatorRates()">✏️ Open Materials Editor</button>
+            <button class="btn-secondary" onclick="openCalculator()">🖥 Open Full Calculator</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
 </div>
 
+<div class="toast" id="toast"></div>
+
 <script>
-async function logout() {
-  try {
-    await fetch('/api/admin/logout', { method: 'POST' });
-  } catch { /* ignore */ }
-  window.location.replace('/admin/login.html');
+// ── Navigation ────────────────────────────────────────────────────────────────
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  btn.classList.add('active');
+  if (id === 'pricing') loadPricingSettings();
+  if (id === 'materials') loadMatPreview();
 }
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── Logout ────────────────────────────────────────────────────────────────────
+async function logout() {
+  await fetch('/api/admin/logout', { method: 'POST' }).catch(() => {});
+  window.location.href = '/admin/login.html';
+}
+
+// ── Calculator deep-links ─────────────────────────────────────────────────────
+function openCalculator() {
+  localStorage.setItem('3dp_admin', '1');
+  window.open('/3dprintingquotecalculator.html', '_blank');
+}
+function openCalculatorRates() {
+  localStorage.setItem('3dp_admin', '1');
+  window.open('/3dprintingquotecalculator.html#rates', '_blank');
+  // The calculator's tab system doesn't respond to hash, so open full calc — admin will switch tabs
+}
+
+// ── Orders ────────────────────────────────────────────────────────────────────
+async function loadOrders() {
+  const container = document.getElementById('ordersContainer');
+  container.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div>Loading…</div></div>';
+
+  try {
+    const res = await fetch('/api/admin/orders');
+    if (res.status === 401 || res.status === 403) { window.location.href = '/admin/login.html'; return; }
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const orders = await res.json();
+    renderOrders(orders);
+  } catch (err) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div>Failed to load orders: ${err.message}</div></div>`;
+  }
+}
+
+function renderOrders(orders) {
+  const container = document.getElementById('ordersContainer');
+
+  // Stats
+  const total     = orders.length;
+  const pending   = orders.filter(o => o.status !== 'confirmed').length;
+  const confirmed = orders.filter(o => o.status === 'confirmed').length;
+  const revenue   = orders.reduce((s, o) => s + (parseFloat(o.total) || 0), 0);
+  document.getElementById('statTotal').textContent     = total;
+  document.getElementById('statPending').textContent   = pending;
+  document.getElementById('statConfirmed').textContent = confirmed;
+  document.getElementById('statRevenue').textContent   = '$' + revenue.toFixed(2);
+  const badge = document.getElementById('pendingBadge');
+  if (pending > 0) { badge.textContent = pending; badge.style.display = ''; }
+  else badge.style.display = 'none';
+
+  if (!orders.length) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><div>No orders yet. Orders will appear here once customers submit through the cart.</div></div>';
+    return;
+  }
+
+  let html = '<table><thead><tr><th>Date</th><th>Customer</th><th>Email</th><th>Lead Time</th><th>Items</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>';
+  orders.forEach((o, idx) => {
+    const date    = o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+    const status  = o.status === 'confirmed' ? 'confirmed' : 'pending';
+    const label   = status === 'confirmed' ? '✓ Confirmed' : '⏳ Pending';
+    const itemCount = (o.items || []).length;
+
+    html += `<tr>
+      <td style="white-space:nowrap;color:var(--muted);">${date}</td>
+      <td style="font-weight:600;">${esc(o.customerName || '—')}</td>
+      <td style="color:var(--muted);">${esc(o.customerEmail || '—')}</td>
+      <td>${esc(o.leadTime || '—')}</td>
+      <td>${itemCount} part${itemCount !== 1 ? 's' : ''}</td>
+      <td class="order-total">$${parseFloat(o.total || 0).toFixed(2)}</td>
+      <td><span class="status-badge ${status}" onclick="toggleStatus('${esc(o.id)}', '${status}', this)">${label}</span></td>
+      <td><button class="expand-btn" onclick="toggleExpand('row-${idx}', this)">▾</button></td>
+    </tr>
+    <tr class="expand-row" id="row-${idx}">
+      <td colspan="8">
+        <div class="expand-inner">
+          ${o.address ? `<div style="margin-bottom:6px;color:var(--muted);font-size:12px;">📦 Ship to: <strong style="color:var(--text);">${esc(o.address)}</strong></div>` : ''}
+          ${o.notes && o.notes !== '—' ? `<div style="margin-bottom:6px;color:var(--muted);font-size:12px;">📝 Notes: ${esc(o.notes)}</div>` : ''}
+          <div class="expand-items">
+            ${(o.items || []).map(item => `
+              <div class="expand-item">
+                <div><strong>${esc(item.fileName || item.projectName || 'Part')}</strong> &nbsp;×${item.qty || 1} &nbsp;<span style="font-size:11px;">${esc(item.material || '')} ${esc(item.color || '')}</span></div>
+                <div class="item-price">$${parseFloat(item.lineTotal || 0).toFixed(2)}</div>
+              </div>`).join('')}
+          </div>
+          <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);display:flex;gap:24px;font-size:12px;color:var(--muted);">
+            <span>Subtotal: <strong>$${parseFloat(o.subtotal || 0).toFixed(2)}</strong></span>
+            <span>Tax: <strong>$${parseFloat(o.tax || 0).toFixed(2)}</strong></span>
+            <span>Total: <strong style="color:var(--accent);">$${parseFloat(o.total || 0).toFixed(2)}</strong></span>
+          </div>
+        </div>
+      </td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function toggleExpand(rowId, btn) {
+  const row = document.getElementById(rowId);
+  const open = row.classList.toggle('open');
+  btn.textContent = open ? '▴' : '▾';
+}
+
+async function toggleStatus(orderId, currentStatus, badgeEl) {
+  const newStatus = currentStatus === 'confirmed' ? 'pending' : 'confirmed';
+  try {
+    const res = await fetch(`/api/admin/orders/${encodeURIComponent(orderId)}/status`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ status: newStatus }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    badgeEl.className = `status-badge ${newStatus}`;
+    badgeEl.textContent = newStatus === 'confirmed' ? '✓ Confirmed' : '⏳ Pending';
+    badgeEl.setAttribute('onclick', `toggleStatus('${orderId}', '${newStatus}', this)`);
+    showToast(newStatus === 'confirmed' ? 'Order marked as confirmed' : 'Order marked as pending');
+    // Refresh stats
+    loadOrders();
+  } catch {
+    showToast('Failed to update status');
+  }
+}
+
+function esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Pricing settings ──────────────────────────────────────────────────────────
+const PRICING_KEYS = ['printerCost','labourRate','wasteFactor','failureRate','overheadRate','profitMargin','expediteSurcharge','rushSurcharge'];
+const PRICING_DEFAULTS = { printerCost:0.15, labourRate:25, wasteFactor:1.10, failureRate:0.05, overheadRate:0.50, profitMargin:0.25, expediteSurcharge:50, rushSurcharge:25 };
+
+function loadPricingSettings() {
+  let s = {};
+  try {
+    const raw = localStorage.getItem('3dp_settings');
+    if (raw) s = { ...PRICING_DEFAULTS, ...JSON.parse(raw) };
+    else s = { ...PRICING_DEFAULTS };
+  } catch { s = { ...PRICING_DEFAULTS }; }
+  PRICING_KEYS.forEach(k => {
+    const el = document.getElementById('ap-' + k);
+    if (el) el.value = s[k] ?? PRICING_DEFAULTS[k] ?? '';
+  });
+}
+
+function savePricingSettings() {
+  const s = { _v: 6 };
+  PRICING_KEYS.forEach(k => {
+    const el = document.getElementById('ap-' + k);
+    if (el) s[k] = parseFloat(el.value);
+  });
+  localStorage.setItem('3dp_settings', JSON.stringify(s));
+  showToast('Pricing settings saved — open the calculator to apply');
+}
+
+// ── Materials preview ─────────────────────────────────────────────────────────
+function loadMatPreview() {
+  const el = document.getElementById('matPreview');
+  let materials = [];
+  try {
+    const raw = localStorage.getItem('3dp_materials');
+    if (raw) materials = JSON.parse(raw);
+  } catch { /* empty */ }
+
+  if (!materials.length) {
+    el.innerHTML = '<div class="empty-state" style="padding:20px 0;"><div>No materials found. Open the calculator first to initialise the library.</div></div>';
+    return;
+  }
+
+  let html = '<table class="mat-table"><thead><tr><th>Material</th><th>Type</th><th>$/kg</th><th>Notes</th></tr></thead><tbody>';
+  materials.forEach(m => {
+    const type = (m.type === 'SLA' || (m.name||'').toLowerCase().includes('resin')) ? 'SLA' : 'FDM';
+    html += `<tr>
+      <td style="font-weight:600;">${esc(m.name)}</td>
+      <td><span class="type-badge ${type.toLowerCase()}">${type}</span></td>
+      <td class="price-col">$${parseFloat(m.midpoint || 0).toFixed(2)}</td>
+      <td style="color:var(--muted);">${esc(m.notes || '')}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadOrders();
 </script>
 </body>
 </html>

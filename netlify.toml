@@ -23,3 +23,13 @@
   from = "/api/admin/logout"
   to = "/.netlify/functions/admin-logout"
   status = 200
+
+[[redirects]]
+  from = "/api/admin/orders"
+  to = "/.netlify/functions/list-orders"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/orders/*"
+  to = "/.netlify/functions/list-orders"
+  status = 200

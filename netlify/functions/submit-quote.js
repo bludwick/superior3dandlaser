@@ -146,6 +146,32 @@ exports.handler = async (event) => {
       mailOptions = buildContactEmail(fields);
     } else if (formType === 'cart' || fields.orderType === 'cart-order') {
       mailOptions = buildCartOrderEmail(fields);
+      // Save order to Netlify Blobs for admin dashboard
+      try {
+        const orderStore = getStore({ name: 'orders', consistency: 'strong' });
+        const orderId    = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const orderKey   = `order_${orderId}`;
+        let parsedItems  = [];
+        try { parsedItems = JSON.parse(fields.itemsJson || '[]'); } catch { /* best-effort */ }
+        await orderStore.setJSON(orderKey, {
+          id:            orderId,
+          customerName:  fields.name    || '',
+          customerEmail: fields.email   || '',
+          phone:         fields.phone   || '',
+          address:       fields.address || '',
+          notes:         fields.orderNotes || '',
+          leadTime:      fields.leadTime   || 'Standard',
+          items:         parsedItems,
+          subtotal:      parseFloat(fields.subtotalRaw)  || 0,
+          tax:           parseFloat(fields.taxRaw)       || 0,
+          total:         parseFloat(fields.orderTotalRaw)|| 0,
+          status:        'pending',
+          createdAt:     new Date().toISOString(),
+        });
+      } catch (saveErr) {
+        // Non-fatal: log but don't block the order email
+        console.error('[submit-quote] Order save error:', saveErr.message);
+      }
     } else {
       mailOptions = buildQuoteEmail(fields, fileName, downloadUrl);
     }
