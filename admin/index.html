@@ -278,6 +278,23 @@
   }
   .advance-btn:hover { border-color: var(--accent); color: var(--accent); }
 
+  /* ── CONFIRM MODAL ── */
+  .confirm-modal {
+    position: fixed; inset: 0; z-index: 300;
+    background: rgba(0,0,0,.45);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .confirm-modal.hidden { display: none; }
+  .confirm-box {
+    background: var(--bg); border-radius: var(--radius);
+    padding: 24px; max-width: 340px; width: 100%;
+    box-shadow: 0 8px 40px rgba(0,0,0,.2);
+  }
+  .confirm-msg { font-size: 14px; font-weight: 600; line-height: 1.5; margin-bottom: 20px; }
+  .confirm-btns { display: flex; gap: 10px; justify-content: flex-end; }
+  .confirm-btns .btn-primary { background: #dc2626; }
+  .confirm-btns .btn-primary:hover { background: #b91c1c; }
+
   /* ── TOAST ── */
   .toast {
     position: fixed; bottom: 24px; right: 24px;
@@ -573,6 +590,17 @@
         <button class="btn-secondary" onclick="closeJobOverlay()">Cancel</button>
       </div>
 
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM MODAL (replaces window.confirm for mobile compatibility) -->
+<div class="confirm-modal hidden" id="confirmModal">
+  <div class="confirm-box">
+    <div class="confirm-msg" id="confirmMsg"></div>
+    <div class="confirm-btns">
+      <button class="btn-secondary" id="confirmCancel">Cancel</button>
+      <button class="btn-primary"   id="confirmOk">Delete</button>
     </div>
   </div>
 </div>
@@ -900,8 +928,28 @@ async function advanceJobStatus(jobId, btn) {
   }
 }
 
+function showConfirm(msg) {
+  return new Promise(resolve => {
+    const modal  = document.getElementById('confirmModal');
+    const okBtn  = document.getElementById('confirmOk');
+    const canBtn = document.getElementById('confirmCancel');
+    document.getElementById('confirmMsg').textContent = msg;
+    modal.classList.remove('hidden');
+    function done(result) {
+      modal.classList.add('hidden');
+      okBtn.removeEventListener('click', onOk);
+      canBtn.removeEventListener('click', onCancel);
+      resolve(result);
+    }
+    const onOk     = () => done(true);
+    const onCancel = () => done(false);
+    okBtn.addEventListener('click',  onOk);
+    canBtn.addEventListener('click', onCancel);
+  });
+}
+
 async function deleteJob(jobId, btn) {
-  if (!confirm('Delete this job? This cannot be undone.')) return;
+  if (!await showConfirm('Delete this job? This cannot be undone.')) return;
   btn.disabled = true;
   btn.textContent = '…';
   try {
