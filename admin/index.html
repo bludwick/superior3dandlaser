@@ -188,23 +188,24 @@
   /* ── MATERIALS LIBRARY EDITOR ── */
   .mat-table { width: 100%; border-collapse: collapse; }
   .mat-table th { padding: 8px 12px; font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); text-align: left; }
-  .mat-table td { padding: 6px 8px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-  .mat-table tbody tr:last-child > td { border-bottom: none; }
+  .mat-table td { padding: 5px 8px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .mat-table tbody tr.mat-color-panel-row:last-child > td,
+  .mat-table tbody tr:nth-last-child(2):not(.mat-color-panel-row) > td { border-bottom: none; }
   .mat-cell-input {
-    width: 100%; border: 1px solid transparent; border-radius: 6px; padding: 5px 8px;
-    font-family: var(--font); font-size: 13px; color: var(--text); background: transparent;
-    outline: none; transition: border-color .15s, background .15s;
+    width: 100%; border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px;
+    font-family: var(--font); font-size: 13px; color: var(--text); background: var(--bg);
+    outline: none; transition: border-color .15s, box-shadow .15s;
   }
-  .mat-cell-input:hover { border-color: var(--border); background: var(--bg); }
-  .mat-cell-input:focus { border-color: var(--accent); background: var(--bg); box-shadow: 0 0 0 3px rgba(185,28,28,.08); }
+  .mat-cell-input:hover { border-color: #aaa; }
+  .mat-cell-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(185,28,28,.08); }
   .mat-cell-input.price { width: 80px; font-variant-numeric: tabular-nums; }
   .mat-type-select {
-    border: 1px solid transparent; border-radius: 6px; padding: 5px 8px;
-    font-family: var(--font); font-size: 12px; color: var(--text); background: transparent;
-    outline: none; cursor: pointer; transition: border-color .15s, background .15s;
+    border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px;
+    font-family: var(--font); font-size: 12px; color: var(--text); background: var(--bg);
+    outline: none; cursor: pointer; transition: border-color .15s;
   }
-  .mat-type-select:hover { border-color: var(--border); background: var(--bg); }
-  .mat-type-select:focus { border-color: var(--accent); background: var(--bg); }
+  .mat-type-select:hover { border-color: #aaa; }
+  .mat-type-select:focus { border-color: var(--accent); }
   .mat-del-btn {
     background: none; border: none; cursor: pointer; color: var(--muted); font-size: 13px;
     padding: 4px 8px; border-radius: 5px; transition: all .15s; line-height: 1;
