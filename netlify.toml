@@ -24,7 +24,8 @@
   [headers.values]
     Cache-Control = "no-cache, no-store, must-revalidate"
 
-
+[[redirects]]
+  from = "/api/admin/login"
   to = "/.netlify/functions/admin-login"
   status = 200
 
