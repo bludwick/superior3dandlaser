@@ -116,7 +116,7 @@ async function createJob(rawBody, isBase64) {
       invoiceToken: job.invoiceToken,
       jobId:        id,
       createdAt:    job.createdAt,
-    });
+    }));
   } catch (err) {
     // Non-fatal — job was saved; order mirror is best-effort
     console.error('[manage-jobs] orders mirror write error:', err.message);
