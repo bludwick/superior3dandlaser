@@ -386,6 +386,8 @@
     color: var(--muted);
   }
   .stl-viewer-meta .dims { font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+  .stl-oversize-error { display:none; margin-top:10px; background:#fef2f2; border:1.5px solid #fca5a5; border-radius:8px; padding:11px 14px; font-size:12px; line-height:1.55; color:#b91c1c; }
+  .stl-oversize-error strong { display:block; font-size:13px; margin-bottom:3px; }
 
   /* SITE NAV */
   .site-nav { position:sticky; top:0; z-index:50; background:rgba(255,255,255,.96); backdrop-filter:blur(8px); border-bottom:1px solid var(--border); overflow:visible; }
@@ -397,6 +399,8 @@
   .site-nav-links a.snav-cta { color:var(--accent); }
   .site-nav-links a.snav-cta:hover { color:var(--accent-lt); background:rgba(185,28,28,.06); }
   .site-nav-links a.snav-active { color:var(--text); }
+  .site-nav-links a.snav-login { color:var(--muted); font-size:12px; }
+  .site-nav-links a.snav-login:hover { color:var(--text); background:var(--bg-light); }
 
   /* Hamburger button & mobile-only cart item — hidden on desktop */
   .site-nav-toggle { display:none; background:none; border:none; cursor:pointer; padding:6px; flex-shrink:0; }
@@ -444,13 +448,81 @@
     }
   }
 
-  /* ADMIN VISIBILITY — hidden from customers by default */
-  body:not(.admin-mode) .admin-only { display: none; }
-  .admin-lock-btn { background:none; border:1px solid var(--border); border-radius:6px; padding:5px 10px; font-family:var(--font); font-size:11px; font-weight:600; color:var(--muted); cursor:pointer; letter-spacing:.04em; transition:all .15s; white-space:nowrap; }
-  .admin-lock-btn:hover { border-color:var(--accent); color:var(--accent); }
-  body.admin-mode .admin-lock-btn { border-color:var(--accent); color:var(--accent); background:rgba(185,28,28,.06); }
-  .admin-banner { display:none; background:rgba(185,28,28,.07); border:1px solid rgba(185,28,28,.2); border-radius:8px; padding:8px 14px; font-size:11px; font-weight:700; color:var(--accent); letter-spacing:.05em; margin-bottom:16px; }
-  body.admin-mode .admin-banner { display:block; }
+
+  /* ── PRINT MODE TOGGLE ───────────────────────────────────────────────── */
+  .mode-toggle-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .mode-toggle-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--label);
+    flex-shrink: 0;
+  }
+  .mode-toggle {
+    display: inline-flex;
+    background: var(--bg-light);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    overflow: hidden;
+    padding: 3px;
+    gap: 3px;
+  }
+  .mode-toggle button {
+    padding: 7px 20px;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    background: none;
+    border: none;
+    border-radius: 7px;
+    color: var(--muted);
+    transition: all .2s;
+    letter-spacing: .02em;
+    white-space: nowrap;
+  }
+  .mode-toggle button.active {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(185,28,28,.25);
+  }
+  .mode-toggle button:hover:not(.active) {
+    color: var(--text);
+    background: var(--border);
+  }
+  /* SLA info chip shown when in SLA mode */
+  .sla-mode-note {
+    font-size: 11px;
+    color: var(--accent);
+    font-weight: 600;
+    background: rgba(185,28,28,.06);
+    border: 1px solid rgba(185,28,28,.18);
+    border-radius: 6px;
+    padding: 4px 10px;
+    white-space: nowrap;
+  }
+  /* Visibility helpers */
+  .fdm-only, .sla-only { /* default set by setPrintMode() at runtime */ }
+  /* Mandatory add-on badge */
+  .mandatory-badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: rgba(185,28,28,.08);
+    border: 1px solid rgba(185,28,28,.2);
+    border-radius: 4px;
+    padding: 2px 6px;
+    flex-shrink: 0;
+  }
 
   /* ── CART ICON (NAV) ──────────────────────────────────────────────────── */
   .cart-nav-btn {
@@ -735,6 +807,7 @@
       <li><a href="contact-us.html">Contact</a></li>
       <li><a href="3dprintingquotecalculator.html" class="snav-cta snav-active">Instant Quote</a></li>
       <li><a href="contact.html" class="snav-cta">Custom Quote</a></li>
+      <li><a href="/admin/login.html" class="snav-login">Log In</a></li>
       <li><button class="snav-cart-mobile" onclick="closeNav();openCart()">🛒 Cart <span class="cart-badge" id="cartBadgeMobile" style="display:none;">0</span></button></li>
     </ul>
     <button class="cart-nav-btn" id="cartNavBtn" onclick="openCart()">
@@ -755,21 +828,26 @@
     </div>
     <div class="header-right">
       <span class="brand-tag">Superior 3D and Laser</span>
-      <button class="admin-lock-btn" id="adminToggleBtn" onclick="toggleAdmin()">🔒 Admin</button>
       <div class="tabs">
-        <button class="tab active" onclick="switchTab('calculator')">Calculator</button>
-        <button class="tab admin-only" onclick="switchTab('batch')">Batch</button>
-        <button class="tab admin-only" onclick="switchTab('rates')">Rates &amp; Ref</button>
       </div>
     </div>
   </header>
 
   <!-- CALCULATOR -->
   <div id="panel-calculator" class="panel active">
-    <div class="admin-banner">🔓 Admin mode — internal fields visible</div>
     <div id="editModeBanner" style="display:none;background:rgba(29,78,216,.07);border:1px solid rgba(29,78,216,.3);border-radius:8px;padding:8px 14px;font-size:11px;font-weight:700;color:#1d4ed8;letter-spacing:.04em;margin-bottom:16px;align-items:center;gap:8px;">
       ✏ Editing: <span id="editModeBannerName" style="font-weight:400;"></span>
       <button onclick="resetCalc()" style="background:none;border:none;cursor:pointer;color:#1d4ed8;font-family:var(--font);font-size:11px;font-weight:700;margin-left:auto;text-decoration:underline;padding:0;">Cancel</button>
+    </div>
+
+    <!-- Print Mode Toggle -->
+    <div class="mode-toggle-wrap">
+      <span class="mode-toggle-label">Print Technology</span>
+      <div class="mode-toggle">
+        <button id="btn-mode-fdm" class="active" onclick="setPrintMode('fdm')">FDM</button>
+        <button id="btn-mode-sla" onclick="setPrintMode('sla')">Resin (SLA)</button>
+      </div>
+      <span class="sla-mode-note" id="slaModeNote" style="display:none;">MSLA/DLP · Layer-by-layer exposure</span>
     </div>
 
     <div class="section-card">
@@ -788,7 +866,7 @@
       <div class="section-header" onclick="toggleSection(this)">
         <div class="section-icon"><img src="3dprint-icon.svg" style="width:18px;height:auto;" alt=""></div>
         <span class="section-title">Print Settings</span>
-        <span class="section-result admin-only" id="res-print-total">$0.00</span>
+        <span class="section-result" id="res-print-total" style="display:none;">$0.00</span>
         <span class="chevron">▾</span>
       </div>
       <div class="section-body">
@@ -816,6 +894,14 @@
             <div class="stl-viewer-meta">
               <span class="dims" id="stlDims"></span>
               <span id="stlFileInfo"></span>
+            </div>
+            <div class="stl-oversize-error" id="stlOversizeError">
+              <strong>⚠ Part exceeds max print volume</strong>
+              Your part's bounding box (<span id="stlOversizeDims"></span>) does not fit within the
+              Bambu Lab H2D's maximum print volume of 350 × 320 × 325 mm in any orientation.
+              Please split or cut the model into smaller pieces, or use our
+              <a href="contact.html" style="color:#b91c1c;font-weight:700;">Custom Quote form</a>
+              and we'll work out the best approach for you.
             </div>
           </div>
           <span class="hint" id="res-slicer" style="color:var(--muted);font-weight:600;display:block;margin-top:6px;">Upload an STL to auto-estimate material &amp; time</span>
@@ -845,8 +931,8 @@
             </select>
           </div>
           <input type="hidden" id="slicerSupport" value="auto">
-          <!-- Color — library-driven swatch picker -->
-          <div class="field">
+          <!-- Color — library-driven swatch picker (FDM only) -->
+          <div class="field fdm-only">
             <label>Color</label>
             <div class="color-picker-wrap" id="colorPickerWrap">
               <div id="colorPickerBtn" class="color-picker-btn" onclick="toggleColorPicker()">
@@ -876,7 +962,8 @@
               <option value="black" selected>Black</option>
             </select>
           </div>
-          <div class="field">
+          <!-- FDM-only: infill -->
+          <div class="field fdm-only">
             <label>Infill Density</label>
             <select id="slicerInfill" onchange="reestimate()">
               <option value="0.10">10% — Minimal</option>
@@ -889,15 +976,45 @@
               <option value="1.00">100% — Solid</option>
             </select>
           </div>
+          <!-- SLA-only: layer thickness -->
+          <div class="field sla-only" style="display:none;">
+            <label>Layer Thickness</label>
+            <select id="slaLayerThickness" onchange="reestimate()">
+              <option value="25">25 µm — Ultra Detail</option>
+              <option value="50" selected>50 µm — Standard</option>
+              <option value="100">100 µm — Fast</option>
+            </select>
+          </div>
+          <!-- SLA-only: support type (resin) -->
+          <div class="field sla-only" style="display:none;">
+            <label>Support Density</label>
+            <select id="slaSupportDensity" onchange="reestimate()">
+              <option value="none">None</option>
+              <option value="light" selected>Light</option>
+              <option value="heavy">Heavy</option>
+            </select>
+          </div>
+          <!-- FDM-only: color picker — move outside the fields grid so it spans full width correctly -->
         </div>
+        <!-- SLA-only: chips (auto-filled) -->
+        <div class="sla-only" id="slaVolumeRow" style="display:none; margin-top:12px;">
+          <div class="slicer-chips">
+            <div class="slicer-chip"><span class="chip-label">Resin Volume</span><span class="chip-val" id="slaVolDisp">—</span></div>
+            <div class="slicer-chip"><span class="chip-label">Layer Count</span><span class="chip-val" id="slaLayerDisp">—</span></div>
+            <div class="slicer-chip"><span class="chip-label">Print Time</span><span class="chip-val" id="slicerTimeDisp">—</span></div>
+          </div>
+        </div>
+        <!-- Hidden inputs for SLA pricing data -->
+        <input type="hidden" id="slaResinMl" value="0">
+        <input type="hidden" id="slaPrintHours" value="0">
 
         <div id="slicerSpinner" style="display:none;" class="slicer-spinner">
           <div class="slicer-spin-ring"></div>
           <span>Estimating from geometry…</span>
         </div>
         <div id="slicerResults" style="display:none;">
-          <div class="slicer-chips">
-            <div class="slicer-chip"><span class="chip-label">Print Time</span><span class="chip-val" id="slicerTimeDisp">—</span></div>
+          <div class="slicer-chips fdm-only">
+            <div class="slicer-chip"><span class="chip-label">Print Time</span><span class="chip-val" id="slicerTimeDispFdm">—</span></div>
             <div class="slicer-chip"><span class="chip-label">Filament Weight</span><span class="chip-val" id="slicerWeightDisp">—</span></div>
           </div>
           <div class="slicer-ok-note">✓ Volume-based estimate — actual values may vary ±20%</div>
@@ -908,35 +1025,13 @@
 
         <!-- Print Time & admin inputs -->
         <div class="section-divider"></div>
-        <div class="fields">
-          <div class="field admin-only">
-            <label>Material Cost per kg</label>
-            <div class="input-wrap"><input type="number" id="matCostKg" value="75" step="0.5" oninput="calc()"><span class="unit-tag">$/kg</span></div>
-            <span class="hint" id="matHint">⚡ Auto-set from material selection</span>
-          </div>
-          <input type="hidden" id="materialGrams" value="0">
-          <input type="hidden" id="printHours" value="0">
-          <div class="field admin-only">
-            <label>Waste / Support Factor</label>
-            <div class="input-wrap"><input type="number" id="wasteFactor" value="1.10" step="0.01" oninput="calc()"><span class="unit-tag">×</span></div>
-            <span class="hint">1.10 = 10% waste</span>
-          </div>
-          <div class="field admin-only">
-            <label>Printer Operating Cost</label>
-            <div class="input-wrap"><input type="number" id="printerCost" value="0.15" step="0.01" oninput="calc()"><span class="unit-tag">$/hr</span></div>
-            <span class="hint">Electricity + depreciation</span>
-          </div>
-          <div class="field admin-only">
-            <label>Print Labour (per order)</label>
-            <div class="input-wrap"><input type="number" id="printLabourHrs" value="0.25" step="0.05" oninput="calc()"><span class="unit-tag">hrs</span></div>
-            <span class="hint">Flat labour hours billed at professional rate</span>
-          </div>
-          <div class="field admin-only">
-            <label>Failure Rate (contingency)</label>
-            <div class="input-wrap"><input type="number" id="failureRate" value="0.05" step="0.01" oninput="calc()"><span class="unit-tag">%</span></div>
-            <span class="hint">0.05 = 5% contingency</span>
-          </div>
-        </div>
+        <input type="hidden" id="matCostKg" value="75">
+        <input type="hidden" id="materialGrams" value="0">
+        <input type="hidden" id="printHours" value="0">
+        <input type="hidden" id="wasteFactor" value="1.10">
+        <input type="hidden" id="printerCost" value="0.15">
+        <input type="hidden" id="printLabourHrs" value="0.25">
+        <input type="hidden" id="failureRate" value="0.05">
 
         <!-- Add-ons -->
         <div class="addons-section">
@@ -957,11 +1052,11 @@
               <div class="input-wrap" id="post-custom" style="display:none;">
                 <input type="number" id="postHrs" value="1" step="0.5" oninput="calc()"><span class="unit-tag">hrs</span>
               </div>
-              <span class="addon-cost admin-only" id="cost-post"></span>
             </div>
           </div>
 
-          <div class="addon-row">
+          <!-- FDM only: heat inserts not applicable to SLA -->
+          <div class="addon-row fdm-only">
             <label class="addon-check">
               <input type="checkbox" id="chkInserts" onchange="toggleAddon('inserts'); calc()">
               <span>Heat Inserts</span>
@@ -970,7 +1065,16 @@
               <div class="input-wrap">
                 <input type="number" id="insertCount" value="4" min="1" oninput="calc()"><span class="unit-tag">inserts</span>
               </div>
-              <span class="addon-cost admin-only" id="cost-inserts"></span>
+            </div>
+          </div>
+          <!-- SLA only: mandatory wash + cure -->
+          <div class="addon-row sla-only" id="washCureRow" style="display:none;">
+            <label class="addon-check" style="cursor:default;">
+              <span>Wash + UV Cure</span>
+              <span class="mandatory-badge">Required</span>
+            </label>
+            <div class="addon-ctrl" style="display:flex;">
+              <span style="font-size:12px;color:var(--muted);">~35 min (IPA wash + UV cure station)</span>
             </div>
           </div>
 
@@ -989,65 +1093,19 @@
               <div class="input-wrap" id="assembly-custom" style="display:none;">
                 <input type="number" id="assemblyHrs" value="1" step="0.5" oninput="calc()"><span class="unit-tag">hrs</span>
               </div>
-              <span class="addon-cost admin-only" id="cost-assembly"></span>
             </div>
           </div>
-
-          <!-- Admin labour rates (hidden from customers) -->
-          <div class="fields admin-only" style="margin-top:14px;">
-            <div class="field">
-              <label>Labour Rate</label>
-              <div class="input-wrap"><input type="number" id="labourRate" value="25" step="1" oninput="calc()"><span class="unit-tag">$/hr</span></div>
-              <span class="hint">Post-processing &amp; assembly</span>
-            </div>
-            <div class="field">
-              <label>Insert Install Cost</label>
-              <div class="input-wrap"><input type="number" id="insertUnitCost" value="0.50" step="0.10" oninput="calc()"><span class="unit-tag">$/ea</span></div>
-              <span class="hint">Per heat insert installed</span>
-            </div>
-          </div>
+          <input type="hidden" id="labourRate" value="25">
+          <input type="hidden" id="insertUnitCost" value="0.50">
         </div>
 
       </div>
     </div>
 
-    <div class="section-card admin-only">
-      <div class="section-header" onclick="toggleSection(this)">
-        <div class="section-icon">📊</div>
-        <span class="section-title">Section 6 — Overhead &amp; Profit Margin</span>
-        <span class="chevron">▾</span>
-      </div>
-      <div class="section-body">
-        <div class="fields">
-          <div class="field">
-            <label>Overhead Rate</label>
-            <div class="input-wrap"><input type="number" id="overheadRate" value="0.50" step="0.01" oninput="calc()"><span class="unit-tag">%</span></div>
-            <span class="hint">0.15 = 15% of direct costs</span>
-          </div>
-          <div class="field">
-            <label>Desired Profit Margin</label>
-            <div class="input-wrap"><input type="number" id="profitMargin" value="0.25" step="0.01" oninput="calc()"><span class="unit-tag">%</span></div>
-            <span class="hint">0.50 = 50% mark-up on cost</span>
-          </div>
-        </div>
-        <div class="fields" style="margin-top:12px;">
-          <div class="field">
-            <label>Expedite Surcharge (1–2 Days)</label>
-            <div class="input-wrap"><input type="number" id="expediteSurcharge" value="50" step="1" oninput="calc()"><span class="unit-tag">$</span></div>
-            <span class="hint">Flat fee added to order total</span>
-          </div>
-          <div class="field">
-            <label>Rush Surcharge (3–5 Days)</label>
-            <div class="input-wrap"><input type="number" id="rushSurcharge" value="25" step="1" oninput="calc()"><span class="unit-tag">$</span></div>
-            <span class="hint">Flat fee added to order total</span>
-          </div>
-        </div>
-        <div style="margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-          <span style="font-size:11px;color:var(--muted);">⚡ All pricing settings auto-save when in Admin mode</span>
-          <button class="btn btn-secondary" style="padding:6px 14px;font-size:12px;" onclick="resetPricingDefaults()">↺ Reset to factory defaults</button>
-        </div>
-      </div>
-    </div>
+    <input type="hidden" id="overheadRate" value="0.50">
+    <input type="hidden" id="profitMargin" value="0.25">
+    <input type="hidden" id="expediteSurcharge" value="50">
+    <input type="hidden" id="rushSurcharge" value="25">
 
     <div class="section-card" style="border-color:rgba(185,28,28,.35);">
       <div class="section-header" style="background:rgba(185,28,28,.05);">
@@ -1055,14 +1113,6 @@
         <span class="section-title" style="color:var(--accent);">Pricing Summary</span>
       </div>
       <div class="section-body">
-        <div class="summary-grid admin-only">
-          <div class="summary-row"><span class="label">Material Cost</span><span class="val" id="s-material">$0.00</span></div>
-          <div class="summary-row"><span class="label">Print Time Cost</span><span class="val" id="s-print">$0.00</span></div>
-          <div class="summary-row"><span class="label">Print Labour <span style="font-weight:400;font-size:10px;">(per order)</span></span><span class="val" id="s-print-labour">$0.00</span></div>
-          <div class="summary-row"><span class="label">Add-ons</span><span class="val" id="s-addons">$0.00</span></div>
-          <div class="summary-row"><span class="label">Overhead</span><span class="val" id="s-overhead">$0.00</span></div>
-          <div class="summary-row" id="s-color-row" style="display:none;"><span class="label">Color Surcharge <span style="font-weight:400;font-size:10px;">(per order)</span></span><span class="val" id="s-color"></span></div>
-        </div>
         <div class="field" style="margin-bottom:16px;">
           <label>Quantity of Parts</label>
           <div class="input-wrap" style="max-width:180px;"><input type="number" id="qty" value="1" min="1" oninput="calc()"><span class="unit-tag">pcs</span></div>
@@ -1078,117 +1128,15 @@
           </div>
         </div>
         <div class="btn-row">
-          <button class="btn btn-primary admin-only" onclick="addToBatch()">+ Add to Batch</button>
           <button class="btn-add-cart" id="addToCartBtn" onclick="addToCart()">🛒 Add to Cart</button>
           <button class="btn-add-cart" id="updateCartBtn" onclick="updateCartItem()" style="display:none;background:#1d4ed8;">✏ Update Cart</button>
           <button class="btn btn-secondary" onclick="resetCalc()">↺ Reset</button>
         </div>
       </div>
     </div>
+
   </div><!-- /calculator -->
 
-  <!-- BATCH -->
-  <div id="panel-batch" class="panel admin-only">
-    <div class="section-card">
-      <div class="section-header" style="cursor:default;">
-        <div class="section-icon">📋</div>
-        <span class="section-title">Batch / Multi-Part Estimator</span>
-        <div style="display:flex;gap:8px;margin-left:auto;">
-          <button class="btn btn-secondary" style="padding:7px 16px;font-size:12px;" onclick="openPrintPreview('internal')"><img src="3dprint-icon.svg" style="height:1em;width:auto;vertical-align:middle;margin-right:5px;" alt="">Print Summary</button>
-          <button class="btn btn-primary" style="padding:7px 16px;font-size:12px;" onclick="openPrintPreview('quote')">📄 Customer Quote</button>
-        </div>
-      </div>
-      <div class="section-body">
-        <div class="batch-controls">
-          <span class="batch-title" id="batch-count">0 parts</span>
-          <div class="btn-row" style="margin:0;">
-            <button class="btn btn-secondary" onclick="addEmptyBatchRow()">+ Add Row</button>
-            <button class="btn btn-danger" onclick="clearBatch()">Clear All</button>
-          </div>
-        </div>
-        <div class="batch-table-wrap">
-          <table id="batchTable">
-            <thead>
-              <tr>
-                <th>Part Name</th><th>Qty</th><th>Mat (g)</th><th>Print (hrs)</th>
-                <th>Mat $/kg</th><th>Unit Price</th><th></th>
-              </tr>
-            </thead>
-            <tbody id="batchBody"></tbody>
-            <tfoot>
-              <tr>
-                <td colspan="5" style="color:var(--label);font-size:11px;letter-spacing:.07em;text-transform:uppercase;">Batch Total</td>
-                <td id="batchTotal" class="price-col">$0.00</td>
-                <td></td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-        <div id="emptyBatch" class="empty-batch">
-          <div class="icon">📦</div>
-          <div>No parts yet. Use <strong>Add to Batch</strong> from the Calculator or add a row manually.</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- RATES -->
-  <div id="panel-rates" class="panel admin-only">
-    <div class="rates-full-grid">
-      <div class="rates-section">
-        <div class="rates-table-wrap">
-          <div class="rates-table-header">
-            <h3>🧱 Material Cost Guide (per kg)</h3>
-            <button class="add-row-btn" onclick="addMaterialRow()">+ Add Material</button>
-          </div>
-          <div class="ref-table-scroll">
-          <table class="ref-table">
-            <thead><tr><th>Material</th><th>$/kg</th><th>Type</th><th>Notes</th><th>Colors</th><th></th></tr></thead>
-            <tbody id="matTableBody"></tbody>
-          </table>
-          </div>
-          <div class="rates-save-bar">
-            <span class="save-note" id="matSaveNote">Changes update the Calculator dropdown automatically</span>
-            <button class="btn btn-secondary" style="padding:6px 14px;font-size:11px;" onclick="resetMaterials()">↺ Reset Defaults</button>
-          </div>
-        </div>
-      </div>
-      <div>
-        <div class="rates-section">
-          <div class="rates-table-wrap">
-            <div class="rates-table-header">
-              <h3>👤 Labour Rate Guide</h3>
-              <button class="add-row-btn" onclick="addLabourRow()">+ Add Row</button>
-            </div>
-            <table class="ref-table">
-              <thead><tr><th>Context</th><th>$/hr Range</th><th>Notes</th><th></th></tr></thead>
-              <tbody id="labourTableBody"></tbody>
-            </table>
-            <div class="rates-save-bar">
-              <span class="save-note" id="labourSaveNote">Reference only</span>
-              <button class="btn btn-secondary" style="padding:6px 14px;font-size:11px;" onclick="resetLabour()">↺ Reset Defaults</button>
-            </div>
-          </div>
-        </div>
-        <div class="rates-section">
-          <div class="rates-table-wrap">
-            <div class="rates-table-header">
-              <h3>🔩 Heat Insert Reference</h3>
-              <button class="add-row-btn" onclick="addInsertRow()">+ Add Size</button>
-            </div>
-            <table class="ref-table">
-              <thead><tr><th>Size</th><th>Thread</th><th>OD</th><th>Cost/pc</th><th></th></tr></thead>
-              <tbody id="insertTableBody"></tbody>
-            </table>
-            <div class="rates-save-bar">
-              <span class="save-note" id="insertSaveNote">Reference only</span>
-              <button class="btn btn-secondary" style="padding:6px 14px;font-size:11px;" onclick="resetInserts()">↺ Reset Defaults</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
 </div>
 
 <!-- Print Preview Modal -->
@@ -1653,7 +1601,13 @@ function getMatColors(matName) {
 function renderMatLibDropdown(resetColor) {
   const sel = document.getElementById('matLibSelect');
   if (!sel) return;
-  sel.innerHTML = materials.map(m =>
+  // Filter by current print mode: SLA mode shows only SLA materials, FDM shows FDM
+  const mode = window._printMode || 'fdm';
+  const filtered = materials.filter(m => {
+    const isSLA = (m.type === 'SLA') || (m.name && m.name.toLowerCase().startsWith('resin'));
+    return mode === 'sla' ? isSLA : !isSLA;
+  });
+  sel.innerHTML = filtered.map(m =>
     `<option value="${m.name}">${m.name}</option>`
   ).join('');
   // Restore previous selection if still present, else default to first
@@ -1911,7 +1865,7 @@ let insertRef   = load('3dp_inserts',   DEFAULT_INSERTS);
 
 function renderMaterials() {
   const tbody = document.getElementById('matTableBody');
-  tbody.innerHTML = materials.map((m, i) => {
+  if (tbody) tbody.innerHTML = materials.map((m, i) => {
     const colors   = m.colors || [];
     const colorCnt = colors.length;
     const colorRows = colors.length
@@ -1960,6 +1914,7 @@ function renderMaterials() {
   }).join('');
   rebuildMaterialDropdown();
 }
+
 
 function toggleMatColors(i) {
   const panel = document.getElementById('color-panel-' + i);
@@ -2055,6 +2010,164 @@ const PRICING_DEFAULTS = {
   rushSurcharge:     25,    // flat $25 fee for 3-5 day orders
 };
 
+// ── SLA / Resin constants ─────────────────────────────────────────────────────
+const PRICING_DEFAULTS_SLA = {
+  wasteFactor:    1.15,   // 15% resin waste
+  printerCost:    0.75,   // $/hr — resin printer running cost (MSLA)
+  printLabourHrs: 0.25,   // setup time per order
+  failureRate:    0.08,   // 8% failure contingency
+  labourRate:     25,
+  insertUnitCost: 0.50,
+  overheadRate:   0.50,
+  profitMargin:   0.25,
+  expediteSurcharge: 50,
+  rushSurcharge:  25,
+};
+// Seconds per layer: exposure + FEP peel/lift cycle (typical MSLA values)
+const SLA_LAYER_SECONDS = 14;
+// Resin support volume multiplier keyed by slaSupportDensity select value
+const SLA_SUPPORT_MULT  = { none: 1.0, light: 1.12, heavy: 1.30 };
+// Resin density in g/cm³ keyed by material name
+const SLA_RESIN_DENSITY = { 'RESIN (std)': 1.12, 'RESIN (ABS-like)': 1.18 };
+// Mandatory wash + cure time per order (IPA wash ~15 min + UV cure ~20 min)
+const SLA_WASH_CURE_HRS = 0.583;
+
+// ── Print Mode (FDM / SLA) ────────────────────────────────────────────────────
+window._printMode = 'fdm'; // 'fdm' | 'sla'
+
+function setPrintMode(mode) {
+  window._printMode = mode;
+  try { localStorage.setItem('3dp_print_mode', mode); } catch(e) {}
+
+  // Update toggle buttons
+  document.getElementById('btn-mode-fdm').classList.toggle('active', mode === 'fdm');
+  document.getElementById('btn-mode-sla').classList.toggle('active', mode === 'sla');
+  const noteEl = document.getElementById('slaModeNote');
+  if (noteEl) noteEl.style.display = mode === 'sla' ? '' : 'none';
+
+  // Show/hide mode-specific elements
+  document.querySelectorAll('.fdm-only').forEach(el => { el.style.display = mode === 'fdm' ? '' : 'none'; });
+  document.querySelectorAll('.sla-only').forEach(el => { el.style.display = mode === 'sla' ? '' : 'none'; });
+
+  // Swap pricing defaults when mode changes
+  const defaults = mode === 'sla' ? PRICING_DEFAULTS_SLA : PRICING_DEFAULTS;
+  Object.keys(defaults).forEach(k => {
+    const el = document.getElementById(k);
+    if (el) el.value = defaults[k];
+  });
+
+  // Filter material dropdown to show only relevant materials
+  if (typeof renderMatLibDropdown === 'function') renderMatLibDropdown(true);
+
+  // Clear cached STL data so next upload uses the right formula
+  if (typeof window.clearSTLCache === 'function') window.clearSTLCache();
+  document.getElementById('slaResinMl').value   = '0';
+  document.getElementById('slaPrintHours').value = '0';
+  document.getElementById('materialGrams').value = '0';
+  document.getElementById('printHours').value    = '0';
+
+  // Reset slicer display
+  const slicerResults = document.getElementById('slicerResults');
+  if (slicerResults) slicerResults.style.display = 'none';
+  const slaVolumeRow = document.getElementById('slaVolumeRow');
+  if (slaVolumeRow) slaVolumeRow.style.display = 'none';
+  const resSlicer = document.getElementById('res-slicer');
+  if (resSlicer) {
+    resSlicer.textContent = 'Upload an STL to auto-estimate material & time';
+    resSlicer.style.color = 'var(--muted)';
+  }
+
+  calc();
+}
+
+function estimateSLA(meshMM3, meshHeightMM) {
+  const layerMicron   = parseInt(document.getElementById('slaLayerThickness').value, 10) || 50;
+  const layerMM       = layerMicron / 1000;
+  const supportKey    = document.getElementById('slaSupportDensity').value || 'light';
+  const supportMult   = SLA_SUPPORT_MULT[supportKey] || 1.12;
+  const material      = document.getElementById('materialType').value;
+  const density       = SLA_RESIN_DENSITY[material] || 1.12; // g/cm³
+
+  // Layer-count-based print time
+  const layerCount  = Math.ceil(meshHeightMM / layerMM);
+  const slaHrs      = (layerCount * SLA_LAYER_SECONDS) / 3600;
+
+  // Resin volume — mesh volume (mm³) × support multiplier / 1000 → cm³ = mL
+  const resinMl     = (meshMM3 * supportMult) / 1000;
+  const resinWeightG = resinMl * density;
+
+  console.log('[SLA Estimator] layers:', layerCount, ' hrs:', slaHrs.toFixed(2),
+    ' resin:', resinMl.toFixed(1)+'mL', ' weight:', resinWeightG.toFixed(1)+'g');
+
+  return { slaHrs, resinMl, resinWeightG, layerCount };
+}
+
+function calcSLA() {
+  // Resin material cost: priced per litre (1 L ≈ 1.1 kg for standard resin)
+  // We store $/kg in the library; convert: $/L = $/kg × density
+  const material      = document.getElementById('materialType').value;
+  const density       = SLA_RESIN_DENSITY[material] || 1.12;
+  const matCostPerKg  = g('matCostKg');
+  const matCostPerL   = matCostPerKg * density;       // $/L
+  const matCostPerMl  = matCostPerL / 1000;           // $/mL
+  const resinMl       = g('slaResinMl');
+  const slaHrs        = g('slaPrintHours');
+  const qty           = Math.max(1, g('qty'));
+
+  const matCost   = resinMl * matCostPerMl * g('wasteFactor') * qty;
+  const printCost = slaHrs  * g('printerCost') * (1 + g('failureRate'));
+
+  // Add-ons (post-processing + assembly; no heat inserts for SLA)
+  const postEnabled  = document.getElementById('chkPost').checked;
+  const postLevelVal = document.getElementById('postLevel').value;
+  const postHrs      = postEnabled ? (postLevelVal === 'custom' ? g('postHrs') : parseFloat(postLevelVal)) : 0;
+  const postCost     = postHrs * g('labourRate');
+
+  const asmEnabled   = document.getElementById('chkAssembly').checked;
+  const asmLevelVal  = document.getElementById('assemblyLevel').value;
+  const asmHrs       = asmEnabled ? (asmLevelVal === 'custom' ? g('assemblyHrs') : parseFloat(asmLevelVal)) : 0;
+  const asmCost      = asmHrs * g('labourRate');
+
+  const addonCost  = postCost + asmCost;
+
+  // Mandatory wash + cure (per order, flat)
+  const washCureLabour = SLA_WASH_CURE_HRS * g('labourRate');
+  const washCureFlat   = washCureLabour * (1 + g('overheadRate')) * (1 + g('profitMargin'));
+
+  const directCost    = matCost + printCost + addonCost;
+  const overhead      = directCost * g('overheadRate');
+  const unitPrice     = (directCost + overhead) * (1 + g('profitMargin'));
+
+  const printLabourCost = g('printLabourHrs') * g('labourRate');
+  const printLabourFlat = printLabourCost * (1 + g('overheadRate')) * (1 + g('profitMargin'));
+
+  const total = unitPrice + printLabourFlat + washCureFlat;
+
+  const hasData = resinMl > 0 && slaHrs > 0;
+  const displayUnit = unitPrice + (printLabourFlat + washCureFlat);
+  document.getElementById('t-unit').textContent  = hasData ? fmt(displayUnit) : '$0.00';
+  document.getElementById('t-qty').textContent   = qty;
+  document.getElementById('t-total').textContent = hasData ? fmt(total)       : '$0.00';
+
+  window._lastCalc = { matCost, printCost, printLabourCost, printLabourFlat, addonCost, overhead, unitPrice, qty, colorSurcharge: 0, washCureFlat, total };
+
+  // Show/hide cart button (suppressed when part exceeds print volume)
+  const _acBtn = document.getElementById('addToCartBtn');
+  const _ucBtn = document.getElementById('updateCartBtn');
+  if (window._stlOversized) {
+    if (_acBtn) _acBtn.style.display = 'none';
+    if (_ucBtn) _ucBtn.style.display = 'none';
+  } else if (window._editingCartItemId) {
+    if (_acBtn) _acBtn.style.display = 'none';
+    if (_ucBtn) _ucBtn.style.display = (total > 0 && hasData) ? 'flex' : 'none';
+  } else {
+    if (_acBtn) _acBtn.style.display = (total > 0 && hasData) ? 'flex' : 'none';
+    if (_ucBtn) _ucBtn.style.display = 'none';
+  }
+
+  if (typeof updateSlicerDisplay === 'function') updateSlicerDisplay();
+}
+
 function saveSettings() {
   const s = { _v: SETTINGS_VERSION };
   Object.keys(PRICING_DEFAULTS).forEach(k => {
@@ -2127,7 +2240,6 @@ function rebuildMaterialDropdown() {
   const current = sel.value;
   sel.innerHTML = materials.map(m => `<option value="${esc(m.name)}">${esc(m.name)}</option>`).join('') + `<option value="custom">Custom…</option>`;
   if ([...sel.options].some(o => o.value === current)) sel.value = current;
-  // Re-filter visible library dropdown to match admin material list
   if (typeof renderMatLibDropdown === 'function') renderMatLibDropdown(false);
 }
 
@@ -2144,15 +2256,13 @@ function onMaterialChange() {
   const price = getMatPrice(mat);
   if (mat !== 'custom' && price != null) {
     document.getElementById('matCostKg').value = price;
-    document.getElementById('matHint').textContent = '⚡ Auto-set from material selection';
-  } else if (mat === 'custom') {
-    document.getElementById('matHint').textContent = 'Enter your custom price above';
   }
   if (typeof reestimate === 'function') reestimate();
   calc();
 }
 
 function calc() {
+  if (window._printMode === 'sla') { calcSLA(); return; }
   const matCost        = (g('matCostKg') / 1000) * g('materialGrams') * g('wasteFactor');
   const printBase      = g('printHours') * g('printerCost');
   const printCost      = printBase * (1 + g('failureRate'));
@@ -2186,20 +2296,6 @@ function calc() {
   const printLabourFlat = printLabourCost * (1 + g('overheadRate')) * (1 + g('profitMargin'));
   const total      = unitPrice * qty + printLabourFlat + colorSurcharge;
 
-  const rpt = document.getElementById('res-print-total');
-  if (rpt) rpt.textContent = fmt(directCost);
-  document.getElementById('s-material').textContent      = fmt(matCost);
-  document.getElementById('s-print').textContent         = fmt(printCost);
-  document.getElementById('s-print-labour').textContent  = fmt(printLabourFlat);
-  document.getElementById('s-addons').textContent        = fmt(addonCost);
-  document.getElementById('s-overhead').textContent = fmt(overhead);
-  const cp = document.getElementById('cost-post');    if (cp) cp.textContent    = postEnabled  ? fmt(postCost)   : '';
-  const ci = document.getElementById('cost-inserts'); if (ci) ci.textContent = insEnabled  ? fmt(insertCost) : '';
-  const ca = document.getElementById('cost-assembly');if (ca) ca.textContent = asmEnabled  ? fmt(asmCost)    : '';
-  const sc = document.getElementById('s-color-row');
-  if (sc) sc.style.display = colorSurcharge > 0 ? '' : 'none';
-  const scv = document.getElementById('s-color');
-  if (scv) scv.textContent = colorSurcharge > 0 ? fmt(colorSurcharge) : '';
   const hasSTL = parseFloat(document.getElementById('materialGrams').value) > 0
                  && parseFloat(document.getElementById('printHours').value) > 0;
   const displayUnitPrice = unitPrice + (qty > 0 ? printLabourFlat / qty : 0);
@@ -2208,10 +2304,13 @@ function calc() {
   document.getElementById('t-total').textContent = hasSTL ? fmt(total)            : '$0.00';
   window._lastCalc = { matCost, printCost, printLabourCost, printLabourFlat, addonCost, overhead, unitPrice, qty, colorSurcharge, total };
 
-  // Show Add to Cart / Update Cart button based on mode
+  // Show Add to Cart / Update Cart button based on mode (suppressed when part exceeds print volume)
   const _acBtn = document.getElementById('addToCartBtn');
   const _ucBtn = document.getElementById('updateCartBtn');
-  if (window._editingCartItemId) {
+  if (window._stlOversized) {
+    if (_acBtn) _acBtn.style.display = 'none';
+    if (_ucBtn) _ucBtn.style.display = 'none';
+  } else if (window._editingCartItemId) {
     if (_acBtn) _acBtn.style.display = 'none';
     if (_ucBtn) _ucBtn.style.display = (total > 0 && hasSTL) ? 'flex' : 'none';
   } else {
@@ -2221,9 +2320,6 @@ function calc() {
 
   // Update print time & filament weight display to reflect current qty
   if (typeof updateSlicerDisplay === 'function') updateSlicerDisplay();
-
-  // Auto-save admin pricing settings on every calculation
-  if (document.body.classList.contains('admin-mode')) saveSettings();
 }
 
 function toggleAddon(which) {
@@ -2324,6 +2420,7 @@ function toggleSection(header) { header.closest('.section-card').classList.toggl
 function resetCalc(silent) {
   // Clear edit mode if active
   window._editingCartItemId = null;
+  window._currentSTLFile    = null;
   document.getElementById('updateCartBtn').style.display = 'none';
   const _eb = document.getElementById('editModeBanner');
   if (_eb) _eb.style.display = 'none';
@@ -2355,37 +2452,6 @@ function resetCalc(silent) {
   document.getElementById('stlFileName').textContent = 'No file selected';
   calc();
   if (!silent) showToast('Calculator reset to defaults');
-}
-
-const ADMIN_PASS = 'Leeagles41!';
-function toggleAdmin() {
-  if (document.body.classList.contains('admin-mode')) {
-    document.body.classList.remove('admin-mode');
-    localStorage.removeItem('3dp_admin');
-    document.getElementById('adminToggleBtn').textContent = '🔒 Admin';
-    // Switch away from admin-only tabs if active
-    const activePanels = ['batch','rates'];
-    if (activePanels.some(t => document.getElementById('panel-'+t)?.classList.contains('active'))) {
-      switchTab('calculator');
-    }
-  } else {
-    const pw = prompt('Admin password:');
-    if (!pw) return;
-    if (pw === ADMIN_PASS) {
-      document.body.classList.add('admin-mode');
-      localStorage.setItem('3dp_admin', '1');
-      document.getElementById('adminToggleBtn').textContent = '🔓 Admin';
-    } else {
-      alert('Incorrect password.');
-    }
-  }
-}
-// Restore admin mode on page load
-if (localStorage.getItem('3dp_admin') === '1') {
-  document.body.classList.add('admin-mode');
-  document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('adminToggleBtn').textContent = '🔓 Admin';
-  });
 }
 
 function showToast(msg) {
@@ -2509,11 +2575,14 @@ function triggerPrint() { window.print(); }
 
 document.addEventListener('click', e => { if (e.target.id === 'printModal') closePrintPreview(); });
 document.addEventListener('DOMContentLoaded', () => {
-  renderMaterials(); renderLabour(); renderInserts();
+  renderMaterials();
   loadSettings();
   const sel = document.getElementById('materialType');
   sel.value = 'PLA';
-  onMaterialChange(); calc(); renderBatch();
+  onMaterialChange();
+  // Restore saved print mode (defaults to 'fdm')
+  const savedMode = (() => { try { return localStorage.getItem('3dp_print_mode') || 'fdm'; } catch(e) { return 'fdm'; } })();
+  setPrintMode(savedMode);
 });
 </script>
 
@@ -2563,7 +2632,7 @@ document.addEventListener('DOMContentLoaded', () => {
       zMin=Math.min(zMin,az,bz,cz); zMax=Math.max(zMax,az,bz,cz);
       vol += (ax*(by*cz-bz*cy) + ay*(bz*cx-bx*cz) + az*(bx*cy-by*cx)) / 6;
     }
-    return resolveVolume(Math.abs(vol), (xMax-xMin)*(yMax-yMin)*(zMax-zMin), n);
+    return resolveVolume(Math.abs(vol), (xMax-xMin)*(yMax-yMin)*(zMax-zMin), n, zMax-zMin);
   }
 
   // Signed-tetrahedra mesh volume from ASCII STL
@@ -2583,21 +2652,28 @@ document.addEventListener('DOMContentLoaded', () => {
       zMin=Math.min(zMin,az,bz,cz); zMax=Math.max(zMax,az,bz,cz);
       vol += (ax*(by*cz-bz*cy) + ay*(bz*cx-bx*cz) + az*(bx*cy-by*cx)) / 6;
     }
-    return resolveVolume(Math.abs(vol), (xMax-xMin)*(yMax-yMin)*(zMax-zMin), verts.length/3);
+    return resolveVolume(Math.abs(vol), (xMax-xMin)*(yMax-yMin)*(zMax-zMin), verts.length/3, zMax-zMin);
   }
 
   // If the signed-tetrahedra result is implausibly small (< 2% of bounding box),
   // the mesh has inconsistent winding — positive and negative tetrahedra cancelled.
   // Fall back to bbox × 0.35, a conservative fill ratio for typical solid parts.
-  function resolveVolume(signedVol, bboxVol, triCount) {
+  // Expose Z height for SLA layer-count estimation
+  let _cachedMeshHeightMM = null;
+
+  function resolveVolume(signedVol, bboxVol, triCount, heightMM) {
     const useSigned = signedVol > bboxVol * 0.02;
     const meshVol   = useSigned ? signedVol : bboxVol * 0.35;
+    if (heightMM != null) _cachedMeshHeightMM = heightMM;
     console.log('[STL Estimator] triangles:', triCount,
       '  signed vol:', signedVol.toFixed(1)+'mm³',
       '  bbox vol:',   bboxVol.toFixed(1)+'mm³',
+      '  height:', (heightMM||0).toFixed(1)+'mm',
       useSigned ? '→ signed vol used' : '→ winding inconsistent, bbox×0.35 = '+meshVol.toFixed(1)+'mm³');
     return meshVol;
   }
+
+  window.getSTLMeshHeight = function () { return _cachedMeshHeightMM; };
 
   function estimate(meshMM3, infill, supportType, material) {
     // Perimeter shells ~35% of solid volume; infill fills the remaining 65%
@@ -2627,23 +2703,51 @@ document.addEventListener('DOMContentLoaded', () => {
     const totalHrs     = _baseHrs * qty;
     const h = Math.floor(totalHrs), m = Math.round((totalHrs - h) * 60);
     const timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
-    document.getElementById('slicerTimeDisp').textContent   = timeStr;
-    document.getElementById('slicerWeightDisp').textContent = totalWeightG.toFixed(1) + ' g';
-    document.getElementById('res-slicer').textContent       = `~${timeStr} · ~${totalWeightG.toFixed(1)} g`;
-    document.getElementById('res-slicer').style.color       = 'var(--accent)';
+    if (window._printMode === 'sla') {
+      document.getElementById('slicerTimeDisp').textContent = timeStr;
+      document.getElementById('res-slicer').textContent = `~${timeStr} · ${parseFloat(document.getElementById('slaLayerDisp').textContent.replace(/,/g,''))||0} layers`;
+    } else {
+      const fdmTd = document.getElementById('slicerTimeDispFdm');
+      if (fdmTd) fdmTd.textContent = timeStr;
+      document.getElementById('slicerWeightDisp').textContent = totalWeightG.toFixed(1) + ' g';
+      document.getElementById('res-slicer').textContent       = `~${timeStr} · ~${totalWeightG.toFixed(1)} g`;
+    }
+    document.getElementById('res-slicer').style.color = 'var(--accent)';
   }
 
   function applyEstimate(meshMM3) {
-    const infill      = parseFloat(document.getElementById('slicerInfill').value);
-    const supportType = document.getElementById('slicerSupport').value;
-    const material    = document.getElementById('materialType').value;
-    const { weightG, hrs } = estimate(meshMM3, infill, supportType, material);
+    if (window._printMode === 'sla') {
+      const heightMM = _cachedMeshHeightMM || 20; // fallback 20mm if no height
+      const { slaHrs, resinMl, resinWeightG, layerCount } = estimateSLA(meshMM3, heightMM);
 
-    _baseWeightG = weightG;
-    _baseHrs     = hrs;
+      _baseWeightG = resinWeightG;
+      _baseHrs     = slaHrs;
 
-    document.getElementById('materialGrams').value = weightG.toFixed(1);
-    document.getElementById('printHours').value    = hrs.toFixed(2);
+      document.getElementById('slaResinMl').value    = resinMl.toFixed(2);
+      document.getElementById('slaPrintHours').value = slaHrs.toFixed(3);
+      // Keep FDM hidden fields at 0 so FDM calc() stays $0 when in SLA mode
+      document.getElementById('materialGrams').value = '0';
+      document.getElementById('printHours').value    = '0';
+
+      // Update SLA chip display
+      const volDisp = document.getElementById('slaVolDisp');
+      if (volDisp) volDisp.textContent = resinMl.toFixed(1) + ' mL';
+      const layDisp = document.getElementById('slaLayerDisp');
+      if (layDisp) layDisp.textContent = layerCount.toLocaleString();
+      const slaVolumeRow = document.getElementById('slaVolumeRow');
+      if (slaVolumeRow) slaVolumeRow.style.display = '';
+    } else {
+      const infill      = parseFloat(document.getElementById('slicerInfill').value);
+      const supportType = document.getElementById('slicerSupport').value;
+      const material    = document.getElementById('materialType').value;
+      const { weightG, hrs } = estimate(meshMM3, infill, supportType, material);
+
+      _baseWeightG = weightG;
+      _baseHrs     = hrs;
+
+      document.getElementById('materialGrams').value = weightG.toFixed(1);
+      document.getElementById('printHours').value    = hrs.toFixed(2);
+    }
     if (typeof calc === 'function') calc(); // calc() calls updateSlicerDisplay()
   }
 
@@ -2653,9 +2757,10 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   window.clearSTLCache = function () {
-    _cachedMeshMM3 = null;
-    _baseWeightG   = null;
-    _baseHrs       = null;
+    _cachedMeshMM3      = null;
+    _cachedMeshHeightMM = null;
+    _baseWeightG        = null;
+    _baseHrs            = null;
   };
 
   window.getSTLMeshVol  = function ()  { return _cachedMeshMM3; };
@@ -2663,6 +2768,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.handleSTLUpload = async function (file) {
     if (!file) return;
+    window._currentSTLFile = file;
+    window._stlOversized = false; // reset until viewer confirms otherwise
+    var errElReset = document.getElementById('stlOversizeError');
+    if (errElReset) errElReset.style.display = 'none';
     document.getElementById('stlFileName').textContent = file.name;
     document.getElementById('partName').value = file.name.replace(/\.stl$/i, '');
     slicerState('slicing');
@@ -2696,10 +2805,18 @@ document.addEventListener('DOMContentLoaded', () => {
       _cachedMeshMM3 = meshMM3;
       applyEstimate(meshMM3);
       slicerState('done');
-      const w = document.getElementById('slicerWeightDisp').textContent;
-      const t = document.getElementById('slicerTimeDisp').textContent;
-      console.log('[STL Estimator] ✓', t, '·', w);
-      if (typeof showToast === 'function') showToast(`Estimated: ~${t} · ~${w}`);
+      let toastMsg;
+      if (window._printMode === 'sla') {
+        const t = document.getElementById('slicerTimeDisp').textContent;
+        const layers = document.getElementById('slaLayerDisp')?.textContent || '—';
+        toastMsg = `Estimated: ~${t} · ${layers} layers`;
+      } else {
+        const t = document.getElementById('slicerTimeDispFdm')?.textContent || '—';
+        const w = document.getElementById('slicerWeightDisp').textContent;
+        toastMsg = `Estimated: ~${t} · ~${w}`;
+      }
+      console.log('[STL Estimator] ✓', toastMsg);
+      if (typeof showToast === 'function') showToast(toastMsg);
 
     } catch (err) {
       console.error('[STL Estimator] Error:', err.message, err);
@@ -2871,6 +2988,24 @@ document.addEventListener('DOMContentLoaded', () => {
       ? (fileSize / 1024).toFixed(1) + ' KB'
       : (fileSize / 1048576).toFixed(2) + ' MB';
     document.getElementById('stlFileInfo').textContent = fileName + '  \u00b7  ' + kb;
+
+    // ── Print volume check (Bambu Lab H2D: 350 × 320 × 325 mm) ───────────────
+    var H2D_SORTED = [320, 325, 350];
+    var partSorted = [size.x, size.y, size.z].slice().sort(function (a, b) { return a - b; });
+    var oversized   = partSorted.some(function (d, i) { return d > H2D_SORTED[i]; });
+    window._stlOversized = oversized;
+    var errEl  = document.getElementById('stlOversizeError');
+    var dimsEl = document.getElementById('stlOversizeDims');
+    if (oversized) {
+      dimsEl.textContent = L + ' \u00d7 ' + Wd + ' \u00d7 ' + Ht + ' mm';
+      errEl.style.display = 'block';
+      var acBtn = document.getElementById('addToCartBtn');
+      var ucBtn = document.getElementById('updateCartBtn');
+      if (acBtn) acBtn.style.display = 'none';
+      if (ucBtn) ucBtn.style.display = 'none';
+    } else {
+      errEl.style.display = 'none';
+    }
   };
 }());
 
@@ -2902,6 +3037,8 @@ const TAX_RATE = 0.085; // Tennessee sales tax
 // ── Cart state ────────────────────────────────────────────────────────────────
 let cart = loadCart();
 window._editingCartItemId = null;
+window._currentSTLFile    = null;  // File object for the currently loaded STL
+window._cartSTLFiles      = {};    // Map of cart item id → File object
 
 function loadCart() {
   try {
@@ -2935,7 +3072,9 @@ function addToCart() {
   const color      = colorSel.options[colorSel.selectedIndex].text.replace(/ \+\$5\.00/, '');
   const qty        = Math.max(1, parseFloat(document.getElementById('qty').value) || 1);
   const weightDisp = document.getElementById('slicerWeightDisp').textContent || '—';
-  const timeDisp   = document.getElementById('slicerTimeDisp').textContent   || '—';
+  const timeDisp   = (window._printMode === 'sla'
+    ? document.getElementById('slicerTimeDisp')
+    : document.getElementById('slicerTimeDispFdm'))?.textContent || '—';
 
   const thumbnail = (typeof window.captureSTLViewerSnapshot === 'function')
     ? window.captureSTLViewerSnapshot()
@@ -2978,6 +3117,9 @@ function addToCart() {
   };
 
   cart.push(item);
+  if (window._currentSTLFile) {
+    window._cartSTLFiles[item.id] = window._currentSTLFile;
+  }
   saveCart();
   updateCartBadge();
 
@@ -3060,7 +3202,8 @@ function cartEditItem(id) {
   document.getElementById('printHours').value    = item.printHours || 0;
 
   // Restore slicer chips
-  document.getElementById('slicerTimeDisp').textContent   = item.printTimeStr || '—';
+  const _tdFdm = document.getElementById('slicerTimeDispFdm');
+  if (_tdFdm) _tdFdm.textContent = item.printTimeStr || '—';
   document.getElementById('slicerWeightDisp').textContent = item.filamentStr  || '—';
   document.getElementById('slicerResults').style.display  = 'block';
   document.getElementById('stlFileName').textContent      = item.fileName;
@@ -3113,6 +3256,10 @@ function updateCartItem() {
   if (idx === -1) return;
   const lc = window._lastCalc;
   if (!lc || lc.total <= 0) { showToast('Cannot update — no valid quote'); return; }
+  // If the user re-uploaded an STL while editing, update the stored file
+  if (window._currentSTLFile) {
+    window._cartSTLFiles[id] = window._currentSTLFile;
+  }
 
   const infillSel = document.getElementById('slicerInfill');
   const colorSel  = document.getElementById('printColor');
@@ -3127,7 +3274,9 @@ function updateCartItem() {
     supports:      document.getElementById('slicerSupport').value === 'auto' ? 'Auto' : 'None',
     color:         colorSel.options[colorSel.selectedIndex].text.replace(/ \+\$5\.00/, ''),
     qty:           Math.max(1, parseFloat(document.getElementById('qty').value) || 1),
-    printTimeStr:  document.getElementById('slicerTimeDisp').textContent   || cart[idx].printTimeStr,
+    printTimeStr:  (window._printMode === 'sla'
+      ? document.getElementById('slicerTimeDisp')
+      : document.getElementById('slicerTimeDispFdm'))?.textContent || cart[idx].printTimeStr,
     filamentStr:   document.getElementById('slicerWeightDisp').textContent || cart[idx].filamentStr,
     printHours:    parseFloat(document.getElementById('printHours').value)    || cart[idx].printHours,
     filamentG:     parseFloat(document.getElementById('materialGrams').value) || cart[idx].filamentG,
@@ -3408,6 +3557,12 @@ async function submitOrderToBackend(orderData, paymentId) {
   body.append('orderTotal',    fmtPrice(total));
   body.append('paymentStatus', 'Pending — to be collected upon confirmation');
   if (paymentId) body.append('paymentId', paymentId);
+  // Extra fields for admin order storage
+  body.append('leadTime',      leadTime || 'Standard');
+  body.append('subtotalRaw',   String(subtotal));
+  body.append('taxRaw',        String(tax));
+  body.append('orderTotalRaw', String(total));
+  body.append('itemsJson',     JSON.stringify(items));
   const ltLine = ltSurcharge > 0 ? `Lead Time Surcharge (${leadTime}): ${fmtPrice(ltSurcharge)}\n` : '';
   body.append('message',
     `=== NEW ORDER REQUEST ===\n\nCustomer: ${customer.name}\nEmail: ${customer.email}\nPhone: ${customer.phone || '—'}\nShip To: ${customer.address}\n\n` +
@@ -3415,6 +3570,14 @@ async function submitOrderToBackend(orderData, paymentId) {
     `--- Items ---\n${itemsSummary}\n\n--- Totals ---\nSubtotal: ${fmtPrice(subtotal)}\n${ltLine}Tax (8.5%): ${fmtPrice(tax)}\nORDER TOTAL: ${fmtPrice(total)}\n\n` +
     `--- Notes ---\n${notes || 'None'}\n\nPayment: Pending — to be collected upon confirmation`
   );
+
+  // Attach STL files for each cart item (if available in memory)
+  items.forEach(item => {
+    const stlFile = window._cartSTLFiles && window._cartSTLFiles[item.id];
+    if (stlFile instanceof File) {
+      body.append(`stlFile_${item.id}`, stlFile, stlFile.name);
+    }
+  });
 
   const res = await fetch('/.netlify/functions/submit-quote', { method: 'POST', body });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);

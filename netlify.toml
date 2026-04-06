@@ -5,6 +5,11 @@
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
+  # Keep these packages un-bundled so they detect the Netlify runtime context correctly
+  external_node_modules = ["@netlify/blobs", "bcryptjs"]
+
+[edge_functions]
+  directory = "netlify/edge-functions"
 
 [[edge_functions]]
   path = "/admin"
@@ -22,4 +27,34 @@
 [[redirects]]
   from = "/api/admin/logout"
   to = "/.netlify/functions/admin-logout"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/orders"
+  to = "/.netlify/functions/list-orders"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/orders/*"
+  to = "/.netlify/functions/list-orders"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/jobs"
+  to = "/.netlify/functions/manage-jobs"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/jobs/*"
+  to = "/.netlify/functions/manage-jobs"
+  status = 200
+
+[[redirects]]
+  from = "/api/invoice"
+  to = "/.netlify/functions/get-invoice"
+  status = 200
+
+[[redirects]]
+  from = "/api/checkout"
+  to = "/.netlify/functions/create-checkout"
   status = 200

@@ -3,176 +3,1456 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin – Superior 3D and Laser</title>
+<title>Admin Dashboard — Superior 3D and Laser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
   :root {
     --bg:       #ffffff;
     --bg-card:  #f8f8f8;
     --bg-light: #f1f1f1;
     --border:   #e0e0e0;
     --accent:   #b91c1c;
+    --accent-lt:#dc2626;
     --text:     #111111;
     --muted:    #555555;
-    --radius:   10px;
+    --label:    #777777;
     --font:     'Inter', 'Segoe UI', system-ui, sans-serif;
+    --radius:   10px;
+    --sidebar:  220px;
+  }
+  html, body { height: 100%; }
+  body { font-family: var(--font); background: var(--bg-light); color: var(--text); display: flex; flex-direction: column; min-height: 100vh; }
+
+  /* ── TOP NAV ── */
+  .topnav {
+    height: 56px; background: var(--bg); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; gap: 16px; flex-shrink: 0; position: sticky; top: 0; z-index: 50;
+  }
+  .topnav-left { display: flex; align-items: center; gap: 12px; }
+  .topnav-brand { font-size: 15px; font-weight: 800; letter-spacing: -.01em; }
+  .topnav-brand span { color: var(--accent); }
+  .admin-chip {
+    font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+    color: var(--accent); background: rgba(185,28,28,.08); border: 1px solid rgba(185,28,28,.18);
+    border-radius: 4px; padding: 2px 7px;
+  }
+  .topnav-right { display: flex; align-items: center; gap: 10px; }
+  .site-link {
+    font-size: 12px; font-weight: 600; color: var(--muted); text-decoration: none;
+    padding: 5px 10px; border-radius: 6px; transition: color .15s, background .15s;
+  }
+  .site-link:hover { color: var(--text); background: var(--bg-light); }
+  .logout-btn {
+    font-size: 12px; font-weight: 700; color: var(--accent);
+    background: none; border: 1px solid rgba(185,28,28,.3); border-radius: 6px;
+    padding: 6px 12px; cursor: pointer; font-family: var(--font);
+    transition: all .15s;
+  }
+  .logout-btn:hover { background: rgba(185,28,28,.06); border-color: var(--accent); }
+
+  /* ── LAYOUT ── */
+  .layout { display: flex; flex: 1; }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: var(--sidebar); background: var(--bg); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; padding: 20px 12px; gap: 4px;
+    flex-shrink: 0;
+  }
+  .sidebar-section { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--label); padding: 4px 8px 8px; margin-top: 8px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; font-weight: 600; color: var(--muted);
+    transition: all .15s; background: none; border: none; width: 100%;
+    text-align: left; font-family: var(--font);
+  }
+  .nav-item:hover { background: var(--bg-light); color: var(--text); }
+  .nav-item.active { background: rgba(185,28,28,.08); color: var(--accent); }
+  .nav-item .nav-icon { font-size: 16px; flex-shrink: 0; }
+  .nav-badge {
+    margin-left: auto; background: var(--accent); color: #fff;
+    font-size: 10px; font-weight: 800; min-width: 18px; height: 18px;
+    border-radius: 9px; display: inline-flex; align-items: center; justify-content: center;
+    padding: 0 5px;
   }
 
-  body {
-    font-family: var(--font);
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
+  /* ── MAIN ── */
+  .main { flex: 1; padding: 28px; overflow-y: auto; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .page-header { margin-bottom: 24px; }
+  .page-title { font-size: 22px; font-weight: 900; letter-spacing: -.02em; }
+  .page-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+  /* ── STAT CARDS ── */
+  .stat-row { display: flex; gap: 14px; margin-bottom: 24px; flex-wrap: wrap; }
+  .stat-card {
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 18px 22px; flex: 1; min-width: 140px;
+  }
+  .stat-label { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--label); margin-bottom: 6px; }
+  .stat-val { font-size: 28px; font-weight: 900; letter-spacing: -.02em; color: var(--accent); line-height: 1; }
+  .stat-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  /* ── ORDERS TABLE ── */
+  .table-wrap { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .table-header {
+    padding: 14px 18px; background: var(--bg-light); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  }
+  .table-title { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--label); }
+  .refresh-btn {
+    background: none; border: 1px solid var(--border); border-radius: 6px;
+    padding: 5px 12px; font-size: 12px; font-weight: 600; color: var(--muted);
+    cursor: pointer; font-family: var(--font); transition: all .15s;
+  }
+  .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { background: var(--bg-light); }
+  th { padding: 10px 14px; text-align: left; font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); white-space: nowrap; border-bottom: 1px solid var(--border); }
+  td { padding: 11px 14px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: rgba(185,28,28,.02); }
+  .order-total { font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+    border-radius: 5px; padding: 3px 8px; cursor: pointer; transition: all .15s; white-space: nowrap;
+  }
+  .status-badge.pending { background: rgba(234,179,8,.12); color: #854d0e; border: 1px solid rgba(234,179,8,.3); }
+  .status-badge.confirmed { background: rgba(21,128,61,.1); color: #15803d; border: 1px solid rgba(21,128,61,.25); }
+  .status-badge:hover { opacity: .75; }
+  .expand-btn { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 12px; padding: 2px 6px; border-radius: 4px; transition: all .15s; }
+  .expand-btn:hover { background: var(--bg-light); }
+  .expand-row { display: none; }
+  .expand-row.open { display: table-row; }
+  .expand-row td { padding: 0; border-bottom: 1px solid var(--border); }
+  .expand-inner { padding: 14px 18px; background: rgba(185,28,28,.02); font-size: 12px; }
+  .expand-items { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .expand-item { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; color: var(--muted); }
+  .expand-item strong { color: var(--text); }
+  .expand-item .item-price { color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .empty-state { text-align: center; padding: 48px 20px; color: var(--muted); font-size: 13px; }
+  .empty-icon { font-size: 36px; margin-bottom: 12px; }
+
+  /* ── SECTION CARD (Pricing / Materials) ── */
+  .section-card {
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+    margin-bottom: 16px; overflow: hidden;
+  }
+  .section-card-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 20px; background: var(--bg-light); border-bottom: 1px solid var(--border);
+  }
+  .section-card-icon { width: 32px; height: 32px; border-radius: 8px; background: rgba(185,28,28,.1); display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .section-card-title { font-size: 12px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--label); }
+  .section-card-body { padding: 20px; }
+
+  /* ── PRICING FIELDS ── */
+  .fields-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 600px) { .fields-grid { grid-template-columns: 1fr; } }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--label); }
+  .input-wrap { position: relative; display: flex; align-items: center; }
+  .input-wrap input {
+    width: 100%; padding: 9px 38px 9px 12px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: var(--font); font-size: 13px; outline: none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .input-wrap input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(185,28,28,.10); }
+  .unit-tag { position: absolute; right: 10px; font-size: 11px; color: var(--muted); pointer-events: none; }
+  .hint { font-size: 10px; color: var(--muted); }
+  .btn-primary {
+    padding: 10px 20px; background: var(--accent); color: #fff;
+    border: none; border-radius: 8px; font-family: var(--font); font-size: 13px;
+    font-weight: 700; cursor: pointer; letter-spacing: .02em; transition: all .2s;
+    display: inline-flex; align-items: center; gap: 7px;
+  }
+  .btn-primary:hover { background: var(--accent-lt); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(185,28,28,.3); }
+  .btn-secondary {
+    padding: 10px 20px; background: var(--bg-light); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px; font-family: var(--font);
+    font-size: 13px; font-weight: 700; cursor: pointer; letter-spacing: .02em; transition: all .2s;
+    display: inline-flex; align-items: center; gap: 7px; text-decoration: none;
+  }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+
+  /* ── MATERIALS LIBRARY EDITOR ── */
+  .mat-table { width: 100%; border-collapse: collapse; }
+  .mat-table th { padding: 8px 12px; font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); text-align: left; }
+  .mat-table td { padding: 6px 8px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .mat-table tbody tr:last-child > td { border-bottom: none; }
+  .mat-cell-input {
+    width: 100%; border: 1px solid transparent; border-radius: 6px; padding: 5px 8px;
+    font-family: var(--font); font-size: 13px; color: var(--text); background: transparent;
+    outline: none; transition: border-color .15s, background .15s;
+  }
+  .mat-cell-input:hover { border-color: var(--border); background: var(--bg); }
+  .mat-cell-input:focus { border-color: var(--accent); background: var(--bg); box-shadow: 0 0 0 3px rgba(185,28,28,.08); }
+  .mat-cell-input.price { width: 80px; font-variant-numeric: tabular-nums; }
+  .mat-type-select {
+    border: 1px solid transparent; border-radius: 6px; padding: 5px 8px;
+    font-family: var(--font); font-size: 12px; color: var(--text); background: transparent;
+    outline: none; cursor: pointer; transition: border-color .15s, background .15s;
+  }
+  .mat-type-select:hover { border-color: var(--border); background: var(--bg); }
+  .mat-type-select:focus { border-color: var(--accent); background: var(--bg); }
+  .mat-del-btn {
+    background: none; border: none; cursor: pointer; color: var(--muted); font-size: 13px;
+    padding: 4px 8px; border-radius: 5px; transition: all .15s; line-height: 1;
+  }
+  .mat-del-btn:hover { color: #dc2626; background: rgba(220,38,38,.08); }
+  .mat-add-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-top: 1px solid var(--border); }
+  .mat-save-note { font-size: 11px; color: var(--muted); }
+  .mat-save-note.saved { color: #15803d; }
+  .mat-color-btn {
+    font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 5px;
+    border: 1px solid var(--border); background: var(--bg-light); color: var(--muted);
+    cursor: pointer; font-family: var(--font); transition: all .15s; white-space: nowrap;
+  }
+  .mat-color-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .mat-color-btn.open { border-color: var(--accent); color: var(--accent); background: rgba(185,28,28,.04); }
+  .mat-color-panel-row { background: var(--bg-light); }
+  .mat-color-panel { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .mat-color-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .color-swatch { width: 22px; height: 22px; border-radius: 4px; border: 1px solid rgba(0,0,0,.12); flex-shrink: 0; }
+  .instock-lbl { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); cursor: pointer; white-space: nowrap; }
+  .instock-lbl input { cursor: pointer; }
+  .color-del-btn {
+    background: none; border: none; cursor: pointer; color: var(--muted); font-size: 11px;
+    padding: 2px 6px; border-radius: 4px; transition: all .15s; margin-left: auto;
+  }
+  .color-del-btn:hover { color: #dc2626; background: rgba(220,38,38,.08); }
+  .type-badge {
+    font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+    border-radius: 4px; padding: 2px 6px;
+  }
+  .type-badge.fdm { background: rgba(29,78,216,.08); color: #1d4ed8; }
+  .type-badge.sla { background: rgba(185,28,28,.08); color: var(--accent); }
+  .price-col { color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  /* ── JOB STATUS BADGES ── */
+  .status-badge.printing { background: rgba(37,99,235,.1); color: #1d4ed8; border: 1px solid rgba(37,99,235,.25); }
+  .status-badge.ready    { background: rgba(124,58,237,.1); color: #6d28d9; border: 1px solid rgba(124,58,237,.25); }
+  .status-badge.complete { background: rgba(15,118,110,.1); color: #0f766e; border: 1px solid rgba(15,118,110,.25); }
+  .status-badge.confirmed { background: rgba(21,128,61,.1); color: #15803d; border: 1px solid rgba(21,128,61,.25); }
+  .status-badge.quoted   { background: rgba(234,179,8,.12); color: #854d0e; border: 1px solid rgba(234,179,8,.3); cursor: default !important; }
+  .invoice-btn { font-size: 11px; font-weight: 700; color: var(--muted); background: var(--bg-light); border: 1px solid var(--border); border-radius: 5px; padding: 3px 8px; cursor: pointer; transition: all .15s; }
+  .invoice-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .edit-job-btn   { font-size: 12px; background: none; border: none; cursor: pointer; color: var(--muted); padding: 2px 5px; border-radius: 4px; transition: all .15s; margin-left: 2px; }
+  .edit-job-btn:hover   { color: #1d4ed8; background: rgba(29,78,216,.1); }
+  .delete-job-btn { font-size: 12px; background: none; border: none; cursor: pointer; color: var(--muted); padding: 2px 5px; border-radius: 4px; transition: all .15s; margin-left: 2px; }
+  .delete-job-btn:hover { color: #dc2626; background: rgba(220,38,38,.1); }
+
+  /* ── FILTER PILLS ── */
+  .filter-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .filter-pill {
+    padding: 5px 13px; border-radius: 20px; font-size: 12px; font-weight: 600;
+    cursor: pointer; border: 1px solid var(--border); background: var(--bg); color: var(--muted);
+    font-family: var(--font); transition: all .15s;
+  }
+  .filter-pill:hover { border-color: var(--accent); color: var(--accent); }
+  .filter-pill.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  /* ── JOB OVERLAY ── */
+  .job-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: var(--bg); display: flex; flex-direction: column;
+  }
+  .job-overlay.hidden { display: none; }
+  .overlay-topbar {
+    height: 56px; background: var(--bg); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; padding: 0 20px; gap: 14px; flex-shrink: 0;
+  }
+  .overlay-title { font-size: 15px; font-weight: 800; flex: 1; }
+  .overlay-body { flex: 1; display: flex; overflow: hidden; }
+  .overlay-left { flex: 0 0 60%; border-right: 1px solid var(--border); overflow: hidden; }
+  .overlay-left.hidden { display: none; }
+  .overlay-right { flex: 1; overflow-y: auto; padding: 22px 24px; display: flex; flex-direction: column; gap: 18px; }
+  .overlay-section-title { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--label); margin-bottom: 10px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-field { display: flex; flex-direction: column; gap: 5px; }
+  .form-field.full { grid-column: 1 / -1; }
+  .form-field label { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--label); }
+  .form-field input, .form-field select, .form-field textarea {
+    padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px;
+    font-family: var(--font); font-size: 13px; color: var(--text); background: var(--bg);
+    outline: none; transition: border-color .2s, box-shadow .2s;
+  }
+  .form-field input:focus, .form-field select:focus, .form-field textarea:focus {
+    border-color: var(--accent); box-shadow: 0 0 0 3px rgba(185,28,28,.10);
+  }
+  .form-field textarea { resize: vertical; min-height: 70px; }
+  .import-btn {
+    padding: 8px 14px; background: var(--bg-light); color: var(--text);
+    border: 1px solid var(--border); border-radius: 7px; font-family: var(--font);
+    font-size: 12px; font-weight: 700; cursor: pointer; transition: all .15s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .import-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .items-preview { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+  .items-preview th { padding: 6px 10px; text-align: left; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); }
+  .items-preview td { padding: 7px 10px; border-bottom: 1px solid var(--border); }
+  .items-preview tr:last-child td { border-bottom: none; }
+  .totals-row { display: flex; gap: 20px; font-size: 13px; padding: 10px 0; border-top: 1px solid var(--border); }
+  .overlay-footer { display: flex; gap: 10px; padding-top: 8px; border-top: 1px solid var(--border); margin-top: auto; flex-shrink: 0; }
+  .job-create-btn {
+    font-size: 11px; font-weight: 700; color: var(--accent);
+    background: rgba(185,28,28,.07); border: 1px solid rgba(185,28,28,.2);
+    border-radius: 5px; padding: 3px 8px; cursor: pointer; font-family: var(--font);
+    transition: all .15s; white-space: nowrap;
+  }
+  .job-create-btn:hover { background: rgba(185,28,28,.15); }
+  .advance-btn {
+    font-size: 12px; font-weight: 700; padding: 5px 12px;
+    border-radius: 6px; cursor: pointer; font-family: var(--font);
+    background: var(--bg-light); border: 1px solid var(--border); color: var(--text);
+    transition: all .15s;
+  }
+  .advance-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── CONFIRM MODAL ── */
+  .confirm-modal {
+    position: fixed; inset: 0; z-index: 300;
+    background: rgba(0,0,0,.45);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .confirm-modal.hidden { display: none; }
+  .confirm-box {
+    background: var(--bg); border-radius: var(--radius);
+    padding: 24px; max-width: 340px; width: 100%;
+    box-shadow: 0 8px 40px rgba(0,0,0,.2);
+  }
+  .confirm-msg { font-size: 14px; font-weight: 600; line-height: 1.5; margin-bottom: 20px; }
+  .confirm-btns { display: flex; gap: 10px; justify-content: flex-end; }
+  .confirm-btns .btn-primary { background: #dc2626; }
+  .confirm-btns .btn-primary:hover { background: #b91c1c; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--bg); border: 1px solid var(--accent); border-radius: 10px;
+    padding: 12px 18px; font-size: 13px; font-weight: 600; color: var(--accent);
+    box-shadow: 0 4px 24px rgba(0,0,0,.08);
+    display: flex; align-items: center; gap: 8px;
+    transform: translateY(80px); opacity: 0; transition: all .3s cubic-bezier(.34,1.56,.64,1); z-index: 100;
+  }
+  .toast.show { transform: none; opacity: 1; }
+
+  /* ── MOBILE (≤ 768px) ── */
+  @media (max-width: 768px) {
+    /* Sidebar collapses to icon strip */
+    .sidebar { width: 54px; padding: 12px 6px; }
+    .sidebar-section,
+    .nav-item span:not(.nav-icon):not(.nav-badge) { display: none; }
+    .nav-item { justify-content: center; padding: 10px; }
+
+    /* Top nav */
+    .topnav { padding: 0 12px; gap: 8px; }
+    .topnav-brand { font-size: 13px; }
+    .admin-chip { display: none; }
+    .site-link { font-size: 11px; padding: 5px 7px; }
+    .logout-btn { font-size: 11px; padding: 5px 9px; }
+
+    /* Main content */
+    .main { padding: 14px 12px; }
+
+    /* Tables scroll horizontally instead of clipping */
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table { min-width: 540px; }
+
+    /* Table header stacks filter row above refresh button */
+    .table-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .filter-row { flex-wrap: wrap; }
+
+    /* Jobs page header — stack title above Create button */
+    #page-jobs .page-header > div { flex-direction: column; align-items: flex-start; }
+
+    /* Stat cards wrap to 2×2 grid */
+    .stat-row { display: grid; grid-template-columns: 1fr 1fr; }
+    .stat-card { min-width: 0; }
+
+    /* Job overlay — single column, no calculator iframe */
+    .job-overlay { overflow-y: auto; }
+    .overlay-topbar { padding: 0 12px; gap: 8px; flex-wrap: wrap; height: auto; min-height: 56px; padding-top: 8px; padding-bottom: 8px; }
+    .overlay-title { font-size: 13px; flex: 1 1 100%; order: -1; }
+    .overlay-topbar .btn-secondary,
+    .overlay-topbar .btn-primary { flex: 1; justify-content: center; font-size: 12px; padding: 8px 10px; }
+    .overlay-body { flex-direction: column; overflow: visible; }
+    .overlay-left { display: none !important; }
+    .overlay-right { flex: 1; padding: 16px; gap: 14px; overflow: visible; }
+    .form-row { grid-template-columns: 1fr; }
+    .form-field.full { grid-column: 1; }
+    .totals-row { flex-direction: column; gap: 4px; }
+    .overlay-footer { flex-wrap: wrap; }
+    .overlay-footer .btn-primary,
+    .overlay-footer .btn-secondary { flex: 1; justify-content: center; }
+
+    /* Expand rows on mobile — let inner content scroll if needed */
+    .expand-inner { overflow-x: auto; }
   }
 
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image:
-      linear-gradient(var(--border) 1px, transparent 1px),
-      linear-gradient(90deg, var(--border) 1px, transparent 1px);
-    background-size: 48px 48px;
-    opacity: .18;
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  .app {
-    position: relative;
-    z-index: 1;
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 40px 24px 80px;
-  }
-
-  /* Header */
-  header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 40px;
-    gap: 16px;
-    flex-wrap: wrap;
-  }
-
-  .logo-area { display: flex; flex-direction: column; gap: 4px; }
-
-  .brand-tag {
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: .14em;
-    text-transform: uppercase;
-    color: var(--accent);
-  }
-
-  h1 {
-    font-size: clamp(22px, 4vw, 32px);
-    font-weight: 800;
-    letter-spacing: -.02em;
-  }
-
-  h1 span { color: var(--accent); }
-
-  /* Logout button */
-  .btn-logout {
-    font-family: var(--font);
-    font-size: 13px;
-    font-weight: 700;
-    background: transparent;
-    color: var(--accent);
-    border: 1.5px solid var(--accent);
-    border-radius: var(--radius);
-    padding: 9px 18px;
-    cursor: pointer;
-    letter-spacing: .02em;
-    transition: background .15s, color .15s;
-    white-space: nowrap;
-  }
-
-  .btn-logout:hover { background: var(--accent); color: #fff; }
-
-  /* Cards */
-  .card-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 16px;
-  }
-
-  .card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    text-decoration: none;
-    color: inherit;
-    transition: border-color .15s, box-shadow .15s;
-  }
-
-  a.card:hover {
-    border-color: var(--accent);
-    box-shadow: 0 4px 16px rgba(185,28,28,.08);
-  }
-
-  .card-icon { font-size: 28px; line-height: 1; }
-
-  .card-title {
-    font-size: 15px;
-    font-weight: 700;
-    margin-top: 4px;
-  }
-
-  .card-desc {
-    font-size: 13px;
-    color: var(--muted);
-    line-height: 1.5;
-  }
-
-  /* Divider */
-  .section-label {
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: .1em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin: 32px 0 12px;
+  /* ── VERY SMALL (≤ 480px) ── */
+  @media (max-width: 480px) {
+    .topnav-brand { display: none; }
+    .stat-val { font-size: 22px; }
+    .stat-card { padding: 14px 16px; }
   }
 </style>
 </head>
 <body>
-<div class="app">
-  <header>
-    <div class="logo-area">
-      <div class="brand-tag">Superior 3D and Laser</div>
-      <h1>Admin <span>Panel</span></h1>
-    </div>
-    <button class="btn-logout" onclick="logout()">Logout</button>
-  </header>
 
-  <div class="section-label">Tools</div>
-  <div class="card-grid">
-    <a class="card" href="/3dprintingquotecalculator.html">
-      <div class="card-icon">🖨️</div>
-      <div class="card-title">Instant Quote Calculator</div>
-      <div class="card-desc">Configure materials, pricing, and settings for the customer-facing quote tool.</div>
-    </a>
+<!-- TOP NAV -->
+<nav class="topnav">
+  <div class="topnav-left">
+    <span class="topnav-brand">Superior <span>3D & Laser</span></span>
+    <span class="admin-chip">Admin</span>
+  </div>
+  <div class="topnav-right">
+    <a href="/" class="site-link">← View Site</a>
+    <button class="logout-btn" onclick="logout()">Log Out</button>
+  </div>
+</nav>
+
+<div class="layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <span class="sidebar-section">Dashboard</span>
+    <button class="nav-item active" onclick="showPage('orders', this)">
+      <span class="nav-icon">📦</span>
+      <span>Orders</span>
+      <span class="nav-badge" id="pendingBadge" style="display:none;"></span>
+    </button>
+    <button class="nav-item" onclick="showPage('jobs', this)">
+      <span class="nav-icon">🖨</span>
+      <span>Print Jobs</span>
+      <span class="nav-badge" id="jobsBadge" style="display:none;"></span>
+    </button>
+    <span class="sidebar-section">Configuration</span>
+    <button class="nav-item" onclick="showPage('pricing', this)">
+      <span class="nav-icon">💰</span>
+      <span>Pricing</span>
+    </button>
+    <button class="nav-item" onclick="showPage('materials', this)">
+      <span class="nav-icon">🧱</span>
+      <span>Materials & Rates</span>
+    </button>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main">
+
+    <!-- ── ORDERS PAGE ── -->
+    <div class="page active" id="page-orders">
+      <div class="page-header">
+        <div class="page-title">Orders</div>
+        <div class="page-sub">All submitted cart orders. Click a row to expand details.</div>
+      </div>
+
+      <div class="stat-row" id="orderStats">
+        <div class="stat-card"><div class="stat-label">Total Orders</div><div class="stat-val" id="statTotal">—</div></div>
+        <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-val" id="statPending">—</div></div>
+        <div class="stat-card"><div class="stat-label">Confirmed</div><div class="stat-val" id="statConfirmed">—</div></div>
+        <div class="stat-card"><div class="stat-label">Revenue</div><div class="stat-val" id="statRevenue">—</div></div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-header">
+          <span class="table-title">Order History</span>
+          <button class="refresh-btn" onclick="loadOrders()">↺ Refresh</button>
+        </div>
+        <div id="ordersContainer">
+          <div class="empty-state"><div class="empty-icon">⏳</div><div>Loading orders…</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PRICING PAGE ── -->
+    <div class="page" id="page-pricing">
+      <div class="page-header">
+        <div class="page-title">Pricing Defaults</div>
+        <div class="page-sub">These values are stored in the browser and used by the Instant Quote calculator. Changes here update the calculator's admin defaults on this device.</div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-card-header">
+          <div class="section-card-icon">⚙️</div>
+          <span class="section-card-title">FDM Pricing Defaults</span>
+        </div>
+        <div class="section-card-body">
+          <div class="fields-grid">
+            <div class="field"><label>Printer Cost</label><div class="input-wrap"><input type="number" id="ap-printerCost" step="0.01"><span class="unit-tag">$/hr</span></div><span class="hint">Electricity + depreciation</span></div>
+            <div class="field"><label>Labour Rate</label><div class="input-wrap"><input type="number" id="ap-labourRate" step="1"><span class="unit-tag">$/hr</span></div><span class="hint">Post-processing & assembly</span></div>
+            <div class="field"><label>Material Cost</label><div class="input-wrap"><input type="number" id="ap-matCostKg" step="1"><span class="unit-tag">$/kg</span></div><span class="hint">Filament / resin base price</span></div>
+            <div class="field"><label>Print Labour</label><div class="input-wrap"><input type="number" id="ap-printLabourHrs" step="0.05"><span class="unit-tag">hrs</span></div><span class="hint">Setup + monitoring per order</span></div>
+            <div class="field"><label>Waste / Support Factor</label><div class="input-wrap"><input type="number" id="ap-wasteFactor" step="0.01"><span class="unit-tag">×</span></div><span class="hint">1.10 = 10% waste</span></div>
+            <div class="field"><label>Failure Rate</label><div class="input-wrap"><input type="number" id="ap-failureRate" step="0.01"><span class="unit-tag">%</span></div><span class="hint">0.05 = 5% contingency</span></div>
+            <div class="field"><label>Overhead Rate</label><div class="input-wrap"><input type="number" id="ap-overheadRate" step="0.01"><span class="unit-tag">%</span></div><span class="hint">0.50 = 50% of direct costs</span></div>
+            <div class="field"><label>Profit Margin</label><div class="input-wrap"><input type="number" id="ap-profitMargin" step="0.01"><span class="unit-tag">%</span></div><span class="hint">0.25 = 25% mark-up</span></div>
+            <div class="field"><label>Expedite Surcharge</label><div class="input-wrap"><input type="number" id="ap-expediteSurcharge" step="1"><span class="unit-tag">$</span></div><span class="hint">1–2 day orders</span></div>
+            <div class="field"><label>Rush Surcharge</label><div class="input-wrap"><input type="number" id="ap-rushSurcharge" step="1"><span class="unit-tag">$</span></div><span class="hint">3–5 day orders</span></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn-primary" onclick="savePricingSettings()">💾 Save to Calculator</button>
+            <button class="btn-secondary" onclick="openCalculator()">🖥 Open Full Calculator</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PRINT JOBS PAGE ── -->
+    <div class="page" id="page-jobs">
+      <div class="page-header">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div class="page-title">Print Jobs</div>
+            <div class="page-sub">Track and manage active print jobs. Create manually or promote from an order.</div>
+          </div>
+          <button class="btn-primary" onclick="openJobOverlay()">+ Create Print Job</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-header">
+          <div class="filter-row" id="jobFilterRow">
+            <button class="filter-pill active" onclick="setJobFilter('all', this)">All</button>
+            <button class="filter-pill" onclick="setJobFilter('confirmed', this)">Confirmed</button>
+            <button class="filter-pill" onclick="setJobFilter('printing', this)">Printing</button>
+            <button class="filter-pill" onclick="setJobFilter('ready', this)">Ready</button>
+            <button class="filter-pill" onclick="setJobFilter('complete', this)">Complete</button>
+          </div>
+          <button class="refresh-btn" onclick="loadJobs()">↺ Refresh</button>
+        </div>
+        <div id="jobsContainer">
+          <div class="empty-state"><div class="empty-icon">⏳</div><div>Loading jobs…</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── MATERIALS PAGE ── -->
+    <div class="page" id="page-materials">
+      <div class="page-header">
+        <div class="page-title">Materials & Rates</div>
+        <div class="page-sub">Edit material names, pricing, types, and available colors. Changes sync automatically with the Instant Quote calculator.</div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-card-header">
+          <div class="section-card-icon">🧱</div>
+          <span class="section-card-title">Material Library</span>
+          <button class="btn-primary" style="margin-left:auto;padding:7px 16px;font-size:12px;" onclick="addMaterial()">+ Add Material</button>
+        </div>
+        <div class="section-card-body" style="padding:0;">
+          <div style="overflow-x:auto;">
+            <table class="mat-table" id="matLibTable">
+              <thead>
+                <tr>
+                  <th style="min-width:140px;">Material</th>
+                  <th style="width:90px;">$/kg</th>
+                  <th style="width:70px;">Type</th>
+                  <th>Notes</th>
+                  <th style="width:110px;">Colors</th>
+                  <th style="width:40px;"></th>
+                </tr>
+              </thead>
+              <tbody id="matLibBody">
+                <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted);">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="mat-add-bar">
+            <span class="mat-save-note" id="matLibSaveNote">Changes save automatically and sync with the calculator</span>
+            <button class="btn-secondary" style="font-size:12px;padding:6px 14px;" onclick="resetMatLibrary()">↺ Reset to defaults</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ── JOB OVERLAY ── -->
+<div class="job-overlay hidden" id="jobOverlay">
+  <div class="overlay-topbar">
+    <span class="overlay-title" id="overlayTitle">Create Print Job</span>
+    <button class="btn-secondary" style="padding:6px 14px;font-size:12px;" onclick="closeJobOverlay()">✕ Cancel</button>
+    <button class="btn-primary"   style="padding:6px 14px;font-size:12px;" onclick="submitNewJob()">✓ Create Job</button>
+  </div>
+  <div class="overlay-body">
+    <!-- Left: Calculator iframe (hidden when promoting from order) -->
+    <div class="overlay-left" id="overlayLeft">
+      <iframe id="jobPricerFrame" src="" style="width:100%;height:100%;border:none;display:block;" title="Instant Quote Calculator"></iframe>
+    </div>
+    <!-- Right: Job form -->
+    <div class="overlay-right">
+
+      <!-- Customer -->
+      <div>
+        <div class="overlay-section-title">Customer</div>
+        <div class="form-row">
+          <div class="form-field"><label>Name *</label><input type="text" id="jf-name" placeholder="Full name" required></div>
+          <div class="form-field"><label>Email *</label><input type="email" id="jf-email" placeholder="customer@email.com" required></div>
+          <div class="form-field"><label>Phone</label><input type="tel" id="jf-phone" placeholder="(optional)"></div>
+        </div>
+      </div>
+
+      <!-- Items -->
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div class="overlay-section-title" style="margin-bottom:0;">Order Items</div>
+          <button class="import-btn" id="importCartBtn" onclick="importFromCart()">📥 Import from Cart</button>
+        </div>
+        <div id="jobItemsWrap">
+          <div style="font-size:12px;color:var(--muted);padding:10px 0;">No items imported yet. Add items in the calculator then click "Import from Cart".</div>
+        </div>
+        <div class="totals-row" id="jobTotals" style="display:none;">
+          <span>Subtotal: <strong id="jf-subtotal">$0.00</strong></span>
+          <span>Tax (8.5%): <strong id="jf-tax">$0.00</strong></span>
+          <span>Total: <strong style="color:var(--accent);" id="jf-total">$0.00</strong></span>
+        </div>
+      </div>
+
+      <!-- Print Setup -->
+      <div>
+        <div class="overlay-section-title">Print Setup</div>
+        <div class="form-row">
+          <div class="form-field">
+            <label>Printer</label>
+            <select id="jf-printer">
+              <option value="H2D-1">H2D-1</option>
+              <option value="K1 Max">K1 Max</option>
+              <option value="Saturn Ultra 16K">Saturn Ultra 16K</option>
+            </select>
+          </div>
+          <div class="form-field"><label>Start Time</label><input type="datetime-local" id="jf-start"></div>
+          <div class="form-field"><label>Est. End Time</label><input type="datetime-local" id="jf-end"></div>
+        </div>
+        <div class="form-row" style="margin-top:10px;">
+          <div class="form-field full"><label>Notes</label><textarea id="jf-notes" placeholder="Internal notes…"></textarea></div>
+        </div>
+      </div>
+
+      <div class="overlay-footer">
+        <button class="btn-primary" onclick="submitNewJob()">✓ Create Job</button>
+        <button class="btn-secondary" onclick="closeJobOverlay()">Cancel</button>
+      </div>
+
+    </div>
   </div>
 </div>
 
+<!-- CONFIRM MODAL (replaces window.confirm for mobile compatibility) -->
+<div class="confirm-modal hidden" id="confirmModal">
+  <div class="confirm-box">
+    <div class="confirm-msg" id="confirmMsg"></div>
+    <div class="confirm-btns">
+      <button class="btn-secondary" id="confirmCancel">Cancel</button>
+      <button class="btn-primary"   id="confirmOk">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
 <script>
-async function logout() {
-  try {
-    await fetch('/api/admin/logout', { method: 'POST' });
-  } catch { /* ignore */ }
-  window.location.replace('/admin/login.html');
+// ── Navigation ────────────────────────────────────────────────────────────────
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  btn.classList.add('active');
+  if (id === 'pricing')   loadPricingSettings();
+  if (id === 'materials') loadMatLibrary();
+  if (id === 'jobs')      loadJobs();
 }
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── Logout ────────────────────────────────────────────────────────────────────
+async function logout() {
+  await fetch('/api/admin/logout', { method: 'POST' }).catch(() => {});
+  window.location.href = '/admin/login.html';
+}
+
+// ── Calculator deep-links ─────────────────────────────────────────────────────
+function openCalculator() {
+  window.open('/3dprintingquotecalculator.html', '_blank');
+}
+
+// ── Orders ────────────────────────────────────────────────────────────────────
+let _orders = [];
+async function loadOrders() {
+  const container = document.getElementById('ordersContainer');
+  container.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div>Loading…</div></div>';
+
+  try {
+    const res = await fetch('/api/admin/orders');
+    if (res.status === 401 || res.status === 403) { window.location.href = '/admin/login.html'; return; }
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const orders = await res.json();
+    renderOrders(orders);
+  } catch (err) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div>Failed to load orders: ${err.message}</div></div>`;
+  }
+}
+
+function renderOrders(orders) {
+  _orders = orders;
+  const container = document.getElementById('ordersContainer');
+
+  // Stats
+  const total     = orders.length;
+  const pending   = orders.filter(o => o.status !== 'confirmed').length;
+  const confirmed = orders.filter(o => o.status === 'confirmed').length;
+  const revenue   = orders.reduce((s, o) => s + (parseFloat(o.total) || 0), 0);
+  document.getElementById('statTotal').textContent     = total;
+  document.getElementById('statPending').textContent   = pending;
+  document.getElementById('statConfirmed').textContent = confirmed;
+  document.getElementById('statRevenue').textContent   = '$' + revenue.toFixed(2);
+  const badge = document.getElementById('pendingBadge');
+  if (pending > 0) { badge.textContent = pending; badge.style.display = ''; }
+  else badge.style.display = 'none';
+
+  if (!orders.length) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><div>No orders yet. Orders will appear here once customers submit through the cart.</div></div>';
+    return;
+  }
+
+  let html = '<table><thead><tr><th>Date</th><th>Customer</th><th>Email</th><th>Lead Time</th><th>Items</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>';
+  orders.forEach((o, idx) => {
+    const date    = o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+    const isQuoted = o.status === 'quoted';
+    const status  = isQuoted ? 'quoted' : (o.status === 'confirmed' ? 'confirmed' : 'pending');
+    const label   = isQuoted ? '📋 Quoted' : (status === 'confirmed' ? '✓ Confirmed' : '⏳ Pending');
+    const clickAttr = isQuoted ? '' : `onclick="toggleStatus('${esc(o.id)}', '${status}', this)"`;
+    const itemCount = (o.items || []).length;
+    const invoiceHref = o.invoiceToken ? `/invoice.html?job=${esc(o.id)}&token=${esc(o.invoiceToken)}` : null;
+
+    html += `<tr>
+      <td style="white-space:nowrap;color:var(--muted);">${date}</td>
+      <td style="font-weight:600;">${esc(o.customerName || '—')}</td>
+      <td style="color:var(--muted);">${esc(o.customerEmail || '—')}</td>
+      <td>${esc(o.leadTime || '—')}</td>
+      <td>${itemCount} part${itemCount !== 1 ? 's' : ''}</td>
+      <td class="order-total">$${parseFloat(o.total || 0).toFixed(2)}</td>
+      <td><span class="status-badge ${status}" ${clickAttr}>${label}</span></td>
+      <td style="white-space:nowrap;">
+        ${isQuoted && invoiceHref
+          ? `<a class="invoice-btn" href="${invoiceHref}" target="_blank">📄 Invoice</a>`
+          : `<button class="job-create-btn" onclick="openJobOverlay(_orders[${idx}])">→ Job</button>`}
+        <button class="expand-btn" onclick="toggleExpand('row-${idx}', this)">▾</button>
+      </td>
+    </tr>
+    <tr class="expand-row" id="row-${idx}">
+      <td colspan="8">
+        <div class="expand-inner">
+          ${o.address ? `<div style="margin-bottom:6px;color:var(--muted);font-size:12px;">📦 Ship to: <strong style="color:var(--text);">${esc(o.address)}</strong></div>` : ''}
+          ${o.notes && o.notes !== '—' ? `<div style="margin-bottom:6px;color:var(--muted);font-size:12px;">📝 Notes: ${esc(o.notes)}</div>` : ''}
+          <div class="expand-items">
+            ${(o.items || []).map(item => `
+              <div class="expand-item">
+                <div><strong>${esc(item.fileName || item.projectName || 'Part')}</strong> &nbsp;×${item.qty || 1} &nbsp;<span style="font-size:11px;">${esc(item.material || '')} ${esc(item.color || '')}</span></div>
+                <div class="item-price">$${parseFloat(item.lineTotal || 0).toFixed(2)}</div>
+              </div>`).join('')}
+          </div>
+          <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);display:flex;gap:24px;font-size:12px;color:var(--muted);">
+            <span>Subtotal: <strong>$${parseFloat(o.subtotal || 0).toFixed(2)}</strong></span>
+            <span>Tax: <strong>$${parseFloat(o.tax || 0).toFixed(2)}</strong></span>
+            <span>Total: <strong style="color:var(--accent);">$${parseFloat(o.total || 0).toFixed(2)}</strong></span>
+          </div>
+        </div>
+      </td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function toggleExpand(rowId, btn) {
+  const row = document.getElementById(rowId);
+  const open = row.classList.toggle('open');
+  btn.textContent = open ? '▴' : '▾';
+}
+
+async function toggleStatus(orderId, currentStatus, badgeEl) {
+  const newStatus = currentStatus === 'confirmed' ? 'pending' : 'confirmed';
+  try {
+    const res = await fetch(`/api/admin/orders/${encodeURIComponent(orderId)}/status`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ status: newStatus }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    badgeEl.className = `status-badge ${newStatus}`;
+    badgeEl.textContent = newStatus === 'confirmed' ? '✓ Confirmed' : '⏳ Pending';
+    badgeEl.setAttribute('onclick', `toggleStatus('${orderId}', '${newStatus}', this)`);
+    showToast(newStatus === 'confirmed' ? 'Order marked as confirmed' : 'Order marked as pending');
+    // Refresh stats
+    loadOrders();
+  } catch {
+    showToast('Failed to update status');
+  }
+}
+
+function esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Pricing settings ──────────────────────────────────────────────────────────
+const PRICING_KEYS = ['printerCost','labourRate','matCostKg','printLabourHrs','wasteFactor','failureRate','overheadRate','profitMargin','expediteSurcharge','rushSurcharge'];
+const PRICING_DEFAULTS = { printerCost:0.15, labourRate:25, matCostKg:75, printLabourHrs:0.25, wasteFactor:1.10, failureRate:0.05, overheadRate:0.50, profitMargin:0.25, expediteSurcharge:50, rushSurcharge:25 };
+
+function loadPricingSettings() {
+  let s = {};
+  try {
+    const raw = localStorage.getItem('3dp_settings');
+    if (raw) s = { ...PRICING_DEFAULTS, ...JSON.parse(raw) };
+    else s = { ...PRICING_DEFAULTS };
+  } catch { s = { ...PRICING_DEFAULTS }; }
+  PRICING_KEYS.forEach(k => {
+    const el = document.getElementById('ap-' + k);
+    if (el) el.value = s[k] ?? PRICING_DEFAULTS[k] ?? '';
+  });
+}
+
+function savePricingSettings() {
+  const s = { _v: 6 };
+  PRICING_KEYS.forEach(k => {
+    const el = document.getElementById('ap-' + k);
+    if (el) s[k] = parseFloat(el.value);
+  });
+  localStorage.setItem('3dp_settings', JSON.stringify(s));
+  showToast('Pricing settings saved — open the calculator to apply');
+}
+
+// ── Materials Library (full CRUD) ─────────────────────────────────────────────
+const VIEWER_KEYS = ['black','white','gray','red','blue','green','yellow','orange','natural','custom'];
+
+const MAT_DEFAULT = [
+  { name: 'HT-PLA', midpoint: 24.99, type: 'FDM', notes: 'Easy to print', colors: [
+    { name: 'Black',  hex: '#070707', viewerKey: 'black',   inStock: true },
+    { name: 'White',  hex: '#F3F3F1', viewerKey: 'white',   inStock: true },
+    { name: 'Grey',   hex: '#6C7477', viewerKey: 'gray',    inStock: true },
+    { name: 'Red',    hex: '#AC0200', viewerKey: 'red',     inStock: true },
+    { name: 'Blue',   hex: '#0F5EA0', viewerKey: 'blue',    inStock: true },
+    { name: 'Green',  hex: '#05AF47', viewerKey: 'green',   inStock: true },
+    { name: 'Yellow', hex: '#F0C940', viewerKey: 'yellow',  inStock: true },
+    { name: 'Orange', hex: '#DC6E38', viewerKey: 'orange',  inStock: true },
+    { name: 'Brown',  hex: '#4D2D1C', viewerKey: 'custom',  inStock: true },
+  ]},
+  { name: 'PETG', midpoint: 18.99, type: 'FDM', notes: 'Durable, flexible', colors: [
+    { name: 'Black',      hex: '#070908', viewerKey: 'black',   inStock: true },
+    { name: 'Grey',       hex: '#A7AEB2', viewerKey: 'gray',    inStock: true },
+    { name: 'White',      hex: '#F8FAF8', viewerKey: 'white',   inStock: true },
+    { name: 'Red',        hex: '#C23320', viewerKey: 'red',     inStock: true },
+    { name: 'Dark Green', hex: '#223622', viewerKey: 'green',   inStock: true },
+    { name: 'Dark Blue',  hex: '#081B36', viewerKey: 'blue',    inStock: true },
+    { name: 'Orange',     hex: '#DC7C40', viewerKey: 'orange',  inStock: true },
+  ]},
+  { name: 'ABS', midpoint: 19.99, type: 'FDM', notes: 'Heat resistant', colors: [
+    { name: 'Black',  hex: '#16161A', viewerKey: 'black',   inStock: true },
+    { name: 'White',  hex: '#F0EBE8', viewerKey: 'white',   inStock: true },
+    { name: 'Grey',   hex: '#8C8D93', viewerKey: 'gray',    inStock: true },
+    { name: 'Blue',   hex: '#003276', viewerKey: 'blue',    inStock: true },
+    { name: 'Red',    hex: '#F3442B', viewerKey: 'red',     inStock: true },
+    { name: 'Green',  hex: '#479161', viewerKey: 'green',   inStock: true },
+    { name: 'Yellow', hex: '#EDA900', viewerKey: 'yellow',  inStock: true },
+    { name: 'Orange', hex: '#F57517', viewerKey: 'orange',  inStock: true },
+  ]},
+  { name: 'ASA', midpoint: 26.99, type: 'FDM', notes: 'UV resistant', colors: [
+    { name: 'Black',  hex: '#17161A', viewerKey: 'black',   inStock: false },
+    { name: 'White',  hex: '#DBD7D6', viewerKey: 'white',   inStock: false },
+    { name: 'Grey',   hex: '#8D8E92', viewerKey: 'gray',    inStock: false },
+    { name: 'Blue',   hex: '#003576', viewerKey: 'blue',    inStock: false },
+    { name: 'Red',    hex: '#D82B1C', viewerKey: 'red',     inStock: false },
+    { name: 'Green',  hex: '#2E784D', viewerKey: 'green',   inStock: false },
+    { name: 'Orange', hex: '#F37716', viewerKey: 'orange',  inStock: false },
+  ]},
+  { name: 'TPU (95A)', midpoint: 49.99, type: 'FDM', notes: 'Flexible/rubber', colors: [
+    { name: 'Black', hex: '#16161A', viewerKey: 'black', inStock: true },
+    { name: 'White', hex: '#F0EBE8', viewerKey: 'white', inStock: true },
+  ]},
+  { name: 'PA12-CF', midpoint: 139.98, type: 'FDM', notes: 'High strength', colors: [
+    { name: 'Black', hex: '#302F2F', viewerKey: 'black', inStock: true },
+  ]},
+  { name: 'PA6-CF20', midpoint: 79.98, type: 'FDM', notes: 'Stiff & light', colors: [
+    { name: 'Black', hex: '#312F2F', viewerKey: 'black', inStock: true },
+  ]},
+  { name: 'RESIN (std)',      midpoint: 37.5,  type: 'SLA', notes: 'High detail',    colors: [] },
+  { name: 'RESIN (ABS-like)', midpoint: 55,    type: 'SLA', notes: 'Tougher blend',  colors: [] },
+  { name: 'PPS-CF', midpoint: 139.98, type: 'FDM', notes: 'Engineered for Extreme Environments', colors: [
+    { name: 'Black', hex: '#302E2F', viewerKey: 'black', inStock: true },
+  ]},
+  { name: 'ASA-CF', midpoint: 39.98, type: 'FDM', notes: 'Engineered for Performance', colors: [
+    { name: 'Dark Grey',   hex: '#4D5E70', viewerKey: 'gray',    inStock: true },
+    { name: 'Black',       hex: '#000000', viewerKey: 'black',   inStock: true },
+    { name: 'Navy Blue',   hex: '#30548E', viewerKey: 'blue',    inStock: true },
+    { name: 'Dark Red',    hex: '#855261', viewerKey: 'red',     inStock: true },
+    { name: 'Desert Sand', hex: '#CEB69C', viewerKey: 'natural', inStock: true },
+  ]},
+  { name: 'PPS-GF', midpoint: 119.98, type: 'FDM', notes: 'Engineered for Performance', colors: [
+    { name: 'Grey', hex: '#75787B', viewerKey: 'gray', inStock: true },
+  ]},
+];
+
+let _matLib = [];
+
+function loadMatLib() {
+  try {
+    const raw = localStorage.getItem('3dp_materials');
+    _matLib = raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(MAT_DEFAULT));
+  } catch { _matLib = JSON.parse(JSON.stringify(MAT_DEFAULT)); }
+  // Ensure every material has type and colors
+  _matLib = _matLib.map(m => ({
+    type: m.name && m.name.toLowerCase().includes('resin') ? 'SLA' : 'FDM',
+    colors: [],
+    ...m,
+  }));
+}
+
+function saveMatLib() {
+  try { localStorage.setItem('3dp_materials', JSON.stringify(_matLib)); } catch(e) {}
+  const note = document.getElementById('matLibSaveNote');
+  if (note) {
+    note.textContent = '✓ Saved';
+    note.classList.add('saved');
+    clearTimeout(note._t);
+    note._t = setTimeout(() => { note.textContent = 'Changes save automatically and sync with the calculator'; note.classList.remove('saved'); }, 1800);
+  }
+}
+
+function loadMatLibrary() {
+  loadMatLib();
+  renderMatLib();
+}
+
+function renderMatLib() {
+  const tbody = document.getElementById('matLibBody');
+  if (!tbody) return;
+  if (!_matLib.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted);">No materials. Click "+ Add Material" to start.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = _matLib.map((m, i) => {
+    const type = (m.type === 'SLA') ? 'SLA' : 'FDM';
+    const colorCount = (m.colors || []).length;
+    return `<tr id="mat-row-${i}">
+      <td><input class="mat-cell-input" value="${esc(m.name)}" oninput="_matLib[${i}].name=this.value; saveMatLib()" placeholder="Material name"></td>
+      <td><input class="mat-cell-input price" type="number" value="${parseFloat(m.midpoint||0).toFixed(2)}" step="0.5" oninput="_matLib[${i}].midpoint=+this.value; saveMatLib()"></td>
+      <td>
+        <select class="mat-type-select" onchange="_matLib[${i}].type=this.value; saveMatLib()">
+          <option value="FDM"${type==='FDM'?' selected':''}>FDM</option>
+          <option value="SLA"${type==='SLA'?' selected':''}>SLA</option>
+        </select>
+      </td>
+      <td><input class="mat-cell-input" value="${esc(m.notes||'')}" oninput="_matLib[${i}].notes=this.value; saveMatLib()" placeholder="e.g. Heat resistant"></td>
+      <td>
+        <button class="mat-color-btn${document.getElementById('mat-colors-'+i) ? ' open' : ''}" id="mat-color-btn-${i}" onclick="toggleMatColors(${i})">
+          🎨 ${colorCount} color${colorCount!==1?'s':''}
+        </button>
+      </td>
+      <td><button class="mat-del-btn" onclick="deleteMaterial(${i})" title="Delete material">✕</button></td>
+    </tr>
+    <tr id="mat-colors-${i}" class="mat-color-panel-row" style="display:none;">
+      <td colspan="6">
+        <div class="mat-color-panel">
+          ${(m.colors||[]).map((c,j) => `
+            <div class="mat-color-row">
+              <div class="color-swatch" style="background:${esc(c.hex||'#cccccc')};"></div>
+              <input class="mat-cell-input" value="${esc(c.name)}" oninput="_matLib[${i}].colors[${j}].name=this.value; saveMatLib()" placeholder="Color name" style="width:110px;">
+              <input class="mat-cell-input" value="${esc(c.hex||'')}" maxlength="7" placeholder="#rrggbb" style="width:80px;"
+                oninput="_matLib[${i}].colors[${j}].hex=this.value; this.previousElementSibling.previousElementSibling.style.background=this.value; saveMatLib()">
+              <select class="mat-type-select" style="width:88px;" title="3D Viewer color" onchange="_matLib[${i}].colors[${j}].viewerKey=this.value; saveMatLib()">
+                ${VIEWER_KEYS.map(k=>`<option value="${k}"${(c.viewerKey||'custom')===k?' selected':''}>${k}</option>`).join('')}
+              </select>
+              <label class="instock-lbl">
+                <input type="checkbox" ${c.inStock!==false?'checked':''} onchange="_matLib[${i}].colors[${j}].inStock=this.checked; saveMatLib()"> In stock
+              </label>
+              <button class="color-del-btn" onclick="deleteMaterialColor(${i},${j})" title="Remove color">✕</button>
+            </div>`).join('')}
+          <button class="btn-secondary" style="font-size:12px;padding:5px 12px;margin-top:4px;" onclick="addMaterialColor(${i})">+ Add Color</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function toggleMatColors(i) {
+  const panel = document.getElementById('mat-colors-' + i);
+  const btn   = document.getElementById('mat-color-btn-' + i);
+  if (!panel) return;
+  const opening = panel.style.display === 'none';
+  panel.style.display = opening ? '' : 'none';
+  if (btn) btn.classList.toggle('open', opening);
+}
+
+function addMaterial() {
+  _matLib.push({ name: 'New Material', midpoint: 30, type: 'FDM', notes: '', colors: [] });
+  saveMatLib();
+  renderMatLib();
+  // Focus the new row's name input
+  const rows = document.querySelectorAll('#matLibBody tr');
+  if (rows.length) {
+    const inp = rows[rows.length - 2].querySelector('.mat-cell-input');
+    if (inp) inp.focus();
+  }
+}
+
+function deleteMaterial(i) {
+  showConfirm(`Delete "${_matLib[i].name}"?`).then(confirmed => {
+    if (!confirmed) return;
+    _matLib.splice(i, 1);
+    saveMatLib();
+    renderMatLib();
+  });
+}
+
+function addMaterialColor(i) {
+  if (!_matLib[i].colors) _matLib[i].colors = [];
+  _matLib[i].colors.push({ name: 'New Color', hex: '#cccccc', viewerKey: 'custom', inStock: true });
+  saveMatLib();
+  renderMatLib();
+  // Re-open the color panel
+  const panel = document.getElementById('mat-colors-' + i);
+  const btn   = document.getElementById('mat-color-btn-' + i);
+  if (panel) { panel.style.display = ''; }
+  if (btn)   { btn.classList.add('open'); }
+}
+
+function deleteMaterialColor(i, j) {
+  _matLib[i].colors.splice(j, 1);
+  saveMatLib();
+  renderMatLib();
+  // Re-open the color panel
+  const panel = document.getElementById('mat-colors-' + i);
+  const btn   = document.getElementById('mat-color-btn-' + i);
+  if (panel) { panel.style.display = ''; }
+  if (btn)   { btn.classList.add('open'); }
+}
+
+function resetMatLibrary() {
+  showConfirm('Reset all materials to factory defaults? Your changes will be lost.').then(confirmed => {
+    if (!confirmed) return;
+    _matLib = JSON.parse(JSON.stringify(MAT_DEFAULT));
+    saveMatLib();
+    renderMatLib();
+    showToast('Materials reset to defaults');
+  });
+}
+
+// ── Print Jobs ────────────────────────────────────────────────────────────────
+let _jobs      = [];
+let _jobFilter = 'all';
+
+const JOB_STATUS_NEXT  = { confirmed: 'printing', printing: 'ready', ready: 'complete' };
+const JOB_STATUS_LABEL = { confirmed: '✓ Confirmed', printing: '🖨 Printing', ready: '📦 Ready', complete: '✅ Complete' };
+
+async function loadJobs() {
+  const container = document.getElementById('jobsContainer');
+  if (container) container.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div>Loading…</div></div>';
+  try {
+    const res = await fetch('/api/admin/jobs', { cache: 'no-store', credentials: 'include' });
+    if (res.status === 401 || res.status === 403) { window.location.href = '/admin/login.html'; return; }
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      throw new Error(e.error || 'HTTP ' + res.status);
+    }
+    _jobs = await res.json();
+    renderJobs(_jobFilter);
+    // Update sidebar badge for active jobs
+    const active = _jobs.filter(j => j.status !== 'complete').length;
+    const badge = document.getElementById('jobsBadge');
+    if (badge) { if (active > 0) { badge.textContent = active; badge.style.display = ''; } else badge.style.display = 'none'; }
+  } catch (err) {
+    if (container) container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div>Failed to load jobs: ${esc(err.message)}</div></div>`;
+  }
+}
+
+function setJobFilter(filter, btn) {
+  _jobFilter = filter;
+  document.querySelectorAll('#jobFilterRow .filter-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  renderJobs(filter);
+}
+
+function renderJobs(filter) {
+  const container = document.getElementById('jobsContainer');
+  if (!container) return;
+  const list = filter === 'all' ? _jobs : _jobs.filter(j => j.status === filter);
+  if (!list.length) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">🖨</div><div>No print jobs yet. Create one to get started.</div></div>';
+    return;
+  }
+  let html = '<table><thead><tr><th>Date</th><th>Customer</th><th>Printer</th><th>Items</th><th>Total</th><th>Est. End</th><th>Status</th><th></th></tr></thead><tbody>';
+  list.forEach((j, idx) => {
+    const date    = j.createdAt ? new Date(j.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+    const estEnd  = j.estEndTime ? new Date(j.estEndTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
+    const label   = JOB_STATUS_LABEL[j.status] || j.status;
+    const itemCnt = (j.items || []).length;
+    const canAdv  = j.status !== 'complete';
+    const jIdx    = _jobs.indexOf(j);
+    html += `<tr>
+      <td style="white-space:nowrap;color:var(--muted);">${date}</td>
+      <td style="font-weight:600;">${esc(j.customerName || '—')}</td>
+      <td style="color:var(--muted);">${esc(j.printer || '—')}</td>
+      <td>${itemCnt} part${itemCnt !== 1 ? 's' : ''}</td>
+      <td class="order-total">$${parseFloat(j.total || 0).toFixed(2)}</td>
+      <td style="color:var(--muted);">${estEnd}</td>
+      <td><span class="status-badge ${esc(j.status)}">${label}</span></td>
+      <td style="white-space:nowrap;">
+        ${canAdv ? `<button class="advance-btn" onclick="advanceJobStatus('${esc(j.id)}', this)">Advance ›</button>` : ''}
+        ${j.invoiceToken ? `<a class="invoice-btn" href="/invoice.html?job=${esc(j.id)}&token=${esc(j.invoiceToken)}" target="_blank">📄 Invoice</a>` : ''}
+        <button class="edit-job-btn" onclick="openEditJobOverlay(_jobs.find(x=>x.id==='${esc(j.id)}'))" title="Edit job">✏</button>
+        <button class="expand-btn" onclick="toggleExpand('jrow-${idx}', this)">▾</button>
+        <button class="delete-job-btn" onclick="deleteJob('${esc(j.id)}', this)" title="Delete job">🗑</button>
+      </td>
+    </tr>
+    <tr class="expand-row" id="jrow-${idx}">
+      <td colspan="8">
+        <div class="expand-inner">
+          ${j.customerEmail ? `<div style="margin-bottom:6px;color:var(--muted);font-size:12px;">✉️ ${esc(j.customerEmail)}${j.customerPhone ? ' · ' + esc(j.customerPhone) : ''}</div>` : ''}
+          ${j.startTime ? `<div style="margin-bottom:4px;color:var(--muted);font-size:12px;">▶ Start: ${new Date(j.startTime).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'})}</div>` : ''}
+          ${j.estEndTime ? `<div style="margin-bottom:4px;color:var(--muted);font-size:12px;">⏱ Est. end: ${new Date(j.estEndTime).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'})}</div>` : ''}
+          ${j.notes ? `<div style="margin-bottom:6px;color:var(--muted);font-size:12px;">📝 ${esc(j.notes)}</div>` : ''}
+          <div class="expand-items">
+            ${(j.items || []).map(it => `
+              <div class="expand-item">
+                <div><strong>${esc(it.partName || 'Part')}</strong> &nbsp;×${it.qty || 1} &nbsp;<span style="font-size:11px;">${esc(it.material || '')} ${esc(it.color || '')}</span></div>
+                <div class="item-price">$${parseFloat(it.lineTotal || 0).toFixed(2)}</div>
+              </div>`).join('')}
+          </div>
+          <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);display:flex;gap:24px;font-size:12px;color:var(--muted);">
+            <span>Subtotal: <strong>$${parseFloat(j.subtotal || 0).toFixed(2)}</strong></span>
+            <span>Tax: <strong>$${parseFloat(j.tax || 0).toFixed(2)}</strong></span>
+            <span>Total: <strong style="color:var(--accent);">$${parseFloat(j.total || 0).toFixed(2)}</strong></span>
+          </div>
+          ${j.orderId ? `<div style="margin-top:8px;font-size:11px;color:var(--muted);">Promoted from order ${esc(j.orderId)}</div>` : ''}
+        </div>
+      </td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+async function advanceJobStatus(jobId, btn) {
+  btn.disabled = true;
+  btn.textContent = '…';
+  try {
+    const res = await fetch(`/api/admin/jobs/${encodeURIComponent(jobId)}/status`, { method: 'PATCH' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const { status } = await res.json();
+    showToast(`Job advanced to ${JOB_STATUS_LABEL[status] || status}`);
+    loadJobs();
+  } catch (err) {
+    showToast('Failed to advance job: ' + err.message);
+    btn.disabled = false;
+    btn.textContent = 'Advance ›';
+  }
+}
+
+function showConfirm(msg) {
+  return new Promise(resolve => {
+    const modal  = document.getElementById('confirmModal');
+    const okBtn  = document.getElementById('confirmOk');
+    const canBtn = document.getElementById('confirmCancel');
+    document.getElementById('confirmMsg').textContent = msg;
+    modal.classList.remove('hidden');
+    function done(result) {
+      modal.classList.add('hidden');
+      okBtn.removeEventListener('click', onOk);
+      canBtn.removeEventListener('click', onCancel);
+      resolve(result);
+    }
+    const onOk     = () => done(true);
+    const onCancel = () => done(false);
+    okBtn.addEventListener('click',  onOk);
+    canBtn.addEventListener('click', onCancel);
+  });
+}
+
+async function deleteJob(jobId, btn) {
+  if (!await showConfirm('Delete this job? This cannot be undone.')) return;
+  btn.disabled = true;
+  btn.textContent = '…';
+  try {
+    const res = await fetch(`/api/admin/jobs/${encodeURIComponent(jobId)}`, {
+      method: 'DELETE', credentials: 'include', cache: 'no-store',
+    });
+    if (res.status === 401 || res.status === 403) { window.location.href = '/admin/login.html'; return; }
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    showToast('Job deleted');
+    loadJobs();
+  } catch (err) {
+    showToast('Failed to delete job: ' + err.message);
+    btn.disabled = false;
+    btn.textContent = '🗑';
+  }
+}
+
+// ── Job Overlay ───────────────────────────────────────────────────────────────
+let _jobPrefill = null; // order data when promoting, null for manual
+let _editJobId  = null; // job id when editing, null for create
+
+function openJobOverlay(orderData) {
+  _jobPrefill = orderData || null;
+  _editJobId  = null;
+  const overlay   = document.getElementById('jobOverlay');
+  const leftPane  = document.getElementById('overlayLeft');
+  const titleEl   = document.getElementById('overlayTitle');
+  const importBtn = document.getElementById('importCartBtn');
+
+  // Reset form
+  ['jf-name','jf-email','jf-phone','jf-notes'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('jf-printer').value = 'H2D-1';
+  document.getElementById('jf-start').value = '';
+  document.getElementById('jf-end').value   = '';
+  const _resetWrap = document.getElementById('jobItemsWrap');
+  _resetWrap.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:10px 0;">No items imported yet.</div>';
+  delete _resetWrap.dataset.items; delete _resetWrap.dataset.subtotal; delete _resetWrap.dataset.tax; delete _resetWrap.dataset.total;
+  document.getElementById('jobTotals').style.display = 'none';
+
+  if (_jobPrefill) {
+    // Promote from order — skip iframe, pre-fill customer + items
+    titleEl.textContent = 'Create Job from Order';
+    leftPane.classList.add('hidden');
+    importBtn.style.display = 'none';
+    // Fill customer
+    document.getElementById('jf-name').value  = orderData.customerName  || '';
+    document.getElementById('jf-email').value = orderData.customerEmail || '';
+    document.getElementById('jf-phone').value = orderData.phone         || '';
+    document.getElementById('jf-notes').value = orderData.notes         || '';
+    // Fill items from order
+    const items = (orderData.items || []).map(it => ({
+      partName:  it.fileName || it.projectName || 'Part',
+      material:  it.material || '',
+      color:     it.color    || '',
+      qty:       it.qty      || 1,
+      unitPrice: it.unitPrice|| 0,
+      lineTotal: it.lineTotal|| 0,
+    }));
+    renderJobItems(items, parseFloat(orderData.subtotal)||0, parseFloat(orderData.tax)||0, parseFloat(orderData.total)||0);
+  } else {
+    // Manual creation — show calculator iframe
+    titleEl.textContent = 'Create Print Job';
+    leftPane.classList.remove('hidden');
+    importBtn.style.display = '';
+    localStorage.removeItem('3dp_cart');
+    const frame = document.getElementById('jobPricerFrame');
+    frame.src = '/3dprintingquotecalculator.html';
+    _startCartListener();
+  }
+
+  overlay.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function openEditJobOverlay(job) {
+  _jobPrefill = null;
+  _editJobId  = job.id;
+
+  const overlay   = document.getElementById('jobOverlay');
+  const leftPane  = document.getElementById('overlayLeft');
+  const titleEl   = document.getElementById('overlayTitle');
+  const importBtn = document.getElementById('importCartBtn');
+
+  // Update title and button labels
+  titleEl.textContent = 'Edit Print Job';
+  document.querySelectorAll('#jobOverlay .btn-primary').forEach(b => { b.textContent = '✓ Save Changes'; });
+
+  // Pre-fill customer fields
+  document.getElementById('jf-name').value  = job.customerName  || '';
+  document.getElementById('jf-email').value = job.customerEmail || '';
+  document.getElementById('jf-phone').value = job.customerPhone || '';
+  document.getElementById('jf-notes').value = job.notes         || '';
+
+  // Pre-fill print setup
+  document.getElementById('jf-printer').value = job.printer || 'H2D-1';
+  document.getElementById('jf-start').value   = job.startTime  ? job.startTime.slice(0, 16)  : '';
+  document.getElementById('jf-end').value     = job.estEndTime ? job.estEndTime.slice(0, 16) : '';
+
+  // Pre-fill items
+  const items = (job.items || []).map(it => ({
+    partName:  it.partName  || 'Part',
+    material:  it.material  || '',
+    color:     it.color     || '',
+    qty:       it.qty       || 1,
+    unitPrice: it.unitPrice || 0,
+    lineTotal: it.lineTotal || 0,
+  }));
+  if (items.length) {
+    renderJobItems(items, parseFloat(job.subtotal)||0, parseFloat(job.tax)||0, parseFloat(job.total)||0);
+  } else {
+    const wrap = document.getElementById('jobItemsWrap');
+    wrap.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:10px 0;">No items yet — use the calculator to add parts.</div>';
+    delete wrap.dataset.items; delete wrap.dataset.subtotal; delete wrap.dataset.tax; delete wrap.dataset.total;
+    document.getElementById('jobTotals').style.display = 'none';
+  }
+
+  // Show calculator so items can be added/changed
+  leftPane.classList.remove('hidden');
+  importBtn.style.display = '';
+
+  // Pre-populate cart with existing items so new additions append rather than replace
+  const cartSeed = (job.items || []).map(it => ({
+    projectName: it.partName  || 'Part',
+    material:    it.material  || '',
+    color:       it.color     || '',
+    qty:         it.qty       || 1,
+    unitPrice:   it.unitPrice || 0,
+    lineTotal:   it.lineTotal || 0,
+  }));
+  localStorage.setItem('3dp_cart', JSON.stringify(cartSeed));
+
+  const frame = document.getElementById('jobPricerFrame');
+  frame.src = '/3dprintingquotecalculator.html';
+  _startCartListener();
+
+  overlay.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function _startCartListener() {
+  if (window._cartImportListener) window.removeEventListener('storage', window._cartImportListener);
+  window._cartImportListener = function (e) {
+    if (e.key !== '3dp_cart') return;
+    if (document.getElementById('jobOverlay').classList.contains('hidden')) return;
+    importFromCart(true); // silent auto-import
+  };
+  window.addEventListener('storage', window._cartImportListener);
+}
+
+function closeJobOverlay() {
+  document.getElementById('jobOverlay').classList.add('hidden');
+  document.body.style.overflow = '';
+  document.getElementById('jobPricerFrame').src = '';
+  _jobPrefill = null;
+  _editJobId  = null;
+  if (window._cartImportListener) {
+    window.removeEventListener('storage', window._cartImportListener);
+    window._cartImportListener = null;
+  }
+  // Reset button labels for next open
+  document.querySelectorAll('#jobOverlay .btn-primary').forEach(b => { b.textContent = '✓ Create Job'; });
+}
+
+function importFromCart(silent) {
+  let cart = [];
+  try { cart = JSON.parse(localStorage.getItem('3dp_cart') || '[]'); } catch { cart = []; }
+  if (!cart.length) { if (!silent) showToast('Cart is empty — add items in the calculator first'); return; }
+
+  const items = cart.map(it => ({
+    partName:  it.fileName || it.projectName || 'Part',
+    material:  it.material || '',
+    color:     it.color    || '',
+    qty:       it.qty      || 1,
+    unitPrice: parseFloat(it.unitPrice) || 0,
+    lineTotal: parseFloat(it.lineTotal) || 0,
+  }));
+
+  const subtotal = items.reduce((s, it) => s + it.lineTotal, 0);
+  const tax      = subtotal * 0.085;
+  const total    = subtotal + tax;
+  renderJobItems(items, subtotal, tax, total);
+  if (!silent) showToast('Cart imported — ' + items.length + ' item(s)');
+}
+
+function renderJobItems(items, subtotal, tax, total) {
+  if (!items.length) return;
+  let html = '<table class="items-preview"><thead><tr><th>Part</th><th>Material</th><th>Color</th><th>Qty</th><th>Total</th></tr></thead><tbody>';
+  items.forEach(it => {
+    html += `<tr>
+      <td style="font-weight:600;">${esc(it.partName)}</td>
+      <td style="color:var(--muted);">${esc(it.material)}</td>
+      <td style="color:var(--muted);">${esc(it.color)}</td>
+      <td>${it.qty}</td>
+      <td class="price-col">$${parseFloat(it.lineTotal).toFixed(2)}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('jobItemsWrap').innerHTML = html;
+  document.getElementById('jf-subtotal').textContent = '$' + subtotal.toFixed(2);
+  document.getElementById('jf-tax').textContent      = '$' + tax.toFixed(2);
+  document.getElementById('jf-total').textContent    = '$' + total.toFixed(2);
+  document.getElementById('jobTotals').style.display = '';
+  // Store for submission
+  document.getElementById('jobItemsWrap').dataset.items    = JSON.stringify(items);
+  document.getElementById('jobItemsWrap').dataset.subtotal = subtotal;
+  document.getElementById('jobItemsWrap').dataset.tax      = tax;
+  document.getElementById('jobItemsWrap').dataset.total    = total;
+}
+
+async function submitNewJob() {
+  const name  = document.getElementById('jf-name').value.trim();
+  const email = document.getElementById('jf-email').value.trim();
+  if (!name || !email) { showToast('Customer name and email are required'); return; }
+
+  const isEdit = !!_editJobId;
+  const btns   = document.querySelectorAll('#jobOverlay .btn-primary');
+  btns.forEach(b => { b.disabled = true; b.textContent = isEdit ? 'Saving…' : 'Creating…'; });
+
+  try {
+    const wrap = document.getElementById('jobItemsWrap');
+    let items = [];
+    try { items = JSON.parse(wrap.dataset.items || '[]'); } catch { items = []; }
+    const subtotal = parseFloat(wrap.dataset.subtotal || 0);
+    const tax      = parseFloat(wrap.dataset.tax      || 0);
+    const total    = parseFloat(wrap.dataset.total    || 0);
+
+    const payload = {
+      customerName:  name,
+      customerEmail: email,
+      customerPhone: document.getElementById('jf-phone').value.trim(),
+      items, subtotal, tax, total,
+      printer:   document.getElementById('jf-printer').value,
+      startTime: document.getElementById('jf-start').value  || null,
+      estEndTime:document.getElementById('jf-end').value    || null,
+      notes:     document.getElementById('jf-notes').value.trim(),
+      ...(!isEdit ? {
+        source:  _jobPrefill ? 'order' : 'manual',
+        orderId: _jobPrefill ? (_jobPrefill.id || null) : null,
+      } : {}),
+    };
+
+    const url    = isEdit ? `/api/admin/jobs/${encodeURIComponent(_editJobId)}` : '/api/admin/jobs';
+    const method = isEdit ? 'PUT' : 'POST';
+
+    const res = await fetch(url, {
+      method, headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload), credentials: 'include', cache: 'no-store',
+    });
+    if (res.status === 401 || res.status === 403) { window.location.href = '/admin/login.html'; return; }
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'HTTP ' + res.status);
+    }
+    closeJobOverlay();
+    showToast(isEdit ? 'Job updated' : 'Print job created — confirmation email sent');
+    loadJobs();
+  } catch (err) {
+    const label = isEdit ? '✓ Save Changes' : '✓ Create Job';
+    showToast((isEdit ? 'Failed to update job: ' : 'Failed to create job: ') + err.message);
+    btns.forEach(b => { b.disabled = false; b.textContent = label; });
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadOrders();
 </script>
 </body>
 </html>

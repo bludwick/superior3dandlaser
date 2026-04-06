@@ -16,25 +16,13 @@ Netlify runs `npm install` on each deploy (to bundle the serverless function dep
 
 ## Architecture
 
-**Static pages** (`index.html`, `services.html`, `contact.html`, `contact-us.html`) share a single `styles.css`. No framework, no bundler — edit HTML/CSS directly.
+### Static Pages
 
-**Serverless function** (`netlify/functions/submit-quote.js`) handles both the "Get a Quote" form (`contact.html`) and the "Contact" form (`contact-us.html`). It:
-1. Parses multipart form data with `busboy`
-2. Saves any uploaded file to Netlify Blobs (store name: `uploads`)
-3. Sends an email via Microsoft 365 SMTP (`smtp.office365.com:587`) using `nodemailer`
-
-The function requires two env vars set in Netlify's dashboard (not in the repo):
-- `SMTP_USER` — M365 email address
-- `SMTP_PASS` — M365 password or app password
-- `SITE_URL` — `https://superior3dandlaser.com` (used to build blob download URLs)
-
-**`.env`** is gitignored and only used as a local reference template — it is not loaded automatically.
-
-## Page Structure
+All public-facing pages share `styles.css`. No framework, no bundler — edit HTML/CSS directly.
 
 | Page | Purpose | Form destination |
 |------|---------|-----------------|
-| `index.html` | Homepage | — |
+| `index.html` | Homepage with services overview, materials band, stats | — |
 | `services.html` | Full service details + process steps | — |
 | `contact.html` | "Get a Quote" — full form with file upload | `/.netlify/functions/submit-quote` |
 | `contact-us.html` | General contact — simplified form, no file upload | `/.netlify/functions/submit-quote` |
@@ -42,20 +30,144 @@ The function requires two env vars set in Netlify's dashboard (not in the repo):
 
 `3dprintingquotecalculator.html` uses self-contained inline CSS with its own `:root` variables — it does **not** share `styles.css`. Keep changes to this page self-contained.
 
+### Admin Dashboard
+
+Protected admin interface living in the `admin/` directory:
+
+| File | Purpose |
+|------|---------|
+| `admin/login.html` | Login portal with rate-limited auth |
+| `admin/index.html` | Full dashboard (orders, print jobs, pricing, materials) |
+
+The `/admin/*` route is protected by a Netlify Edge Function (`netlify/edge-functions/admin-auth.js`) that validates a JWT cookie before any page is served. `/admin/login*` is the only exempt path.
+
+### Serverless Functions
+
+All functions live in `netlify/functions/`. API routes are aliased in `netlify.toml`.
+
+| Function | Route | Purpose |
+|----------|-------|---------|
+| `submit-quote.js` | `/.netlify/functions/submit-quote` | Handles quote, contact, and cart order submissions |
+| `admin-login.js` | `/api/admin/login` | Authenticates admin; issues JWT cookie |
+| `admin-logout.js` | `/api/admin/logout` | Clears JWT cookie |
+| `list-orders.js` | `/api/admin/orders` | Lists orders; updates order status |
+| `manage-jobs.js` | `/api/admin/jobs` | Full CRUD for print jobs + Stripe checkout creation |
+| `get-invoice.js` | `/api/invoice` | Public job lookup by ID + invoice token |
+| `create-checkout.js` | `/api/checkout` | Creates Stripe payment session for an invoice |
+
+### Edge Function
+
+`netlify/edge-functions/admin-auth.js` runs on Deno (no npm deps). It validates the `admin_token` JWT cookie using the Web Crypto API (HS256) and redirects unauthenticated requests to `/admin/login.html`.
+
+### Data Persistence (Netlify Blobs)
+
+| Store name | Contents |
+|-----------|----------|
+| `uploads` | User-uploaded quote files |
+| `orders` | Submitted quote/cart orders |
+| `jobs` | Admin-managed print jobs |
+
+Jobs and orders are mirrored: creating/updating/deleting a job also updates the corresponding entry in the `orders` store.
+
+### Email
+
+Email is sent via the **Resend API** (`resend` npm package). The `nodemailer` dependency remains in `package.json` but is no longer used — do not re-introduce SMTP logic.
+
+Three email template types exist in `submit-quote.js`:
+- **contact** — simple message from `contact-us.html`
+- **quote** — quote request with project details and optional file link
+- **cart** — cart order summary with items, totals, and payment status
+
+Outbound address: `sales@superior3dandlaser.com`
+
+### Payment
+
+Stripe integration in `manage-jobs.js` and `create-checkout.js`. When a job is created from the admin dashboard, a Stripe checkout session can be created automatically (if `STRIPE_SECRET_KEY` is set). Customers receive an invoice URL (`/api/invoice?job=…&token=…`) that links to a public `invoice.html` page for viewing and paying.
+
+---
+
+## Environment Variables
+
+Set in Netlify's dashboard — never committed to the repo. `.env` is gitignored and used only as a local reference.
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `ADMIN_EMAIL` | Yes | Admin login email address |
+| `ADMIN_PASSWORD_HASH` | Preferred | bcrypt hash of admin password (cost factor 12) |
+| `ADMIN_PASSWORD` | Fallback | Plain-text admin password (use only if hash not set) |
+| `JWT_SECRET` | Yes | Secret for signing/verifying admin JWT tokens |
+| `RESEND_API_KEY` | Yes | Resend API key for email delivery |
+| `STRIPE_SECRET_KEY` | Optional | Enables Stripe checkout session creation |
+| `SITE_URL` | Yes | `https://superior3dandlaser.com` — used to build invoice and blob download URLs |
+
+To generate a bcrypt password hash: `node scripts/gen-password-hash.js`
+
+---
+
 ## Navigation Convention
 
 Active services (FDM 3D Printing, Design Assistance) link to `contact.html`. Coming Soon services (Resin, Laser Cutting, Laser Engraving) link to `contact-us.html` with a "Notify Me When Available" CTA.
 
 Coming Soon sections use `style="opacity:.65"` on their `<section>` element.
 
+---
+
 ## CSS Theme
 
-All colors use CSS custom properties defined at the top of `styles.css`. Current theme is light mode with dark red accent (`--accent: #b91c1c`). Key variables: `--bg`, `--bg-card`, `--bg-light`, `--text`, `--muted`, `--border`, `--accent`.
+All colors use CSS custom properties defined at the top of `styles.css`. Current theme: light mode with dark red accent.
+
+| Variable | Value | Usage |
+|----------|-------|-------|
+| `--bg` | `#ffffff` | Page background |
+| `--bg-card` | `#f8f8f8` | Card backgrounds |
+| `--bg-light` | `#f1f1f1` | Light section backgrounds |
+| `--accent` | `#b91c1c` | Primary accent (red) |
+| `--accent-lt` | `#dc2626` | Lighter accent variant |
+| `--text` | `#111111` | Body text |
+| `--muted` | `#555555` | Secondary text |
+| `--border` | `#e0e0e0` | Borders |
 
 Material tags on the homepage use `data-tooltip` attributes and a CSS `::after` pseudo-element for hover tooltips — no JavaScript involved.
+
+Responsive breakpoints: `900px` (multi-column → single column), `768px` (mobile nav, form stacking).
+
+---
 
 ## Accepted File Formats
 
 Both the quote form UI and the "Send Your Files" process step should consistently list: **STEP, F3D, SLDPRT, STL, PDF, DXF, SVG, AI**
 
-The file input `accept` attribute: `.step,.stp,.f3d,.sldprt,.stl,.pdf,.dxf,.svg,.ai`
+File input `accept` attribute: `.step,.stp,.f3d,.sldprt,.stl,.pdf,.dxf,.svg,.ai`
+
+---
+
+## Admin Auth Flow
+
+1. `admin/login.html` POSTs credentials to `/api/admin/login`
+2. `admin-login.js` rate-limits by IP (5 attempts / 15 min via Blobs), verifies bcrypt hash, issues a signed JWT (8-hour expiry) as an `HttpOnly` cookie
+3. `admin-auth.js` (edge function) intercepts every `/admin/*` request, verifies the cookie JWT, redirects to login if invalid
+4. Dashboard pages call `/api/admin/*` endpoints; each function independently re-validates the JWT cookie
+
+---
+
+## Print Job Lifecycle
+
+Jobs managed via the admin dashboard follow this status progression:
+
+```
+confirmed → printing → ready → complete
+```
+
+When status advances to `ready`, an email is sent to the customer. Stripe checkout sessions are optionally created at job creation time.
+
+---
+
+## Key Conventions
+
+- **No framework, no bundler** for the public site. Vanilla HTML/CSS/JS only.
+- **Inline JS** for form validation and submission in `contact.html` and `contact-us.html` — keep it inline, not in separate script files.
+- **Admin dashboard JS/CSS is inline** in `admin/index.html` — same rule applies.
+- **Do not add `styles.css` imports** to `3dprintingquotecalculator.html` or `admin/` pages; they are intentionally self-contained.
+- **bcryptjs not bcrypt** — `bcryptjs` is the pure-JS implementation used here (no native addon required on Netlify).
+- **Blobs not a database** — Netlify Blobs is used for all persistence. There is no SQL database.
+- **Resend not SMTP** — do not re-introduce `nodemailer` SMTP logic.
