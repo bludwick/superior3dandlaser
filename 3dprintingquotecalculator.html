@@ -1222,6 +1222,28 @@
         </div>
       </div>
     </div>
+    <!-- Materials Library (inline, admin-only) -->
+    <div class="section-card admin-only collapsed" id="matLibCard">
+      <div class="section-header" onclick="toggleSection(this)">
+        <div class="section-icon">🧱</div>
+        <span class="section-title">Materials Library</span>
+        <button class="add-row-btn" style="margin-left:auto;margin-right:8px;" onclick="event.stopPropagation();addMaterialRow()">+ Add Material</button>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="section-body" style="padding:0;">
+        <div class="ref-table-scroll">
+          <table class="ref-table">
+            <thead><tr><th>Material</th><th>$/kg</th><th>Type</th><th>Notes</th><th>Colors</th><th></th></tr></thead>
+            <tbody id="matTableBody"></tbody>
+          </table>
+        </div>
+        <div class="rates-save-bar">
+          <span class="save-note" id="matSaveNote">Changes update the Material dropdown automatically</span>
+          <button class="btn btn-secondary" style="padding:6px 14px;font-size:11px;" onclick="resetMaterials()">↺ Reset Defaults</button>
+        </div>
+      </div>
+    </div>
+
   </div><!-- /calculator -->
 
   <!-- BATCH -->
@@ -1271,56 +1293,36 @@
 
   <!-- RATES -->
   <div id="panel-rates" class="panel admin-only">
-    <div class="rates-full-grid">
+    <div style="display:flex;flex-direction:column;gap:20px;max-width:600px;">
       <div class="rates-section">
         <div class="rates-table-wrap">
           <div class="rates-table-header">
-            <h3>🧱 Material Cost Guide (per kg)</h3>
-            <button class="add-row-btn" onclick="addMaterialRow()">+ Add Material</button>
+            <h3>👤 Labour Rate Guide</h3>
+            <button class="add-row-btn" onclick="addLabourRow()">+ Add Row</button>
           </div>
-          <div class="ref-table-scroll">
           <table class="ref-table">
-            <thead><tr><th>Material</th><th>$/kg</th><th>Type</th><th>Notes</th><th>Colors</th><th></th></tr></thead>
-            <tbody id="matTableBody"></tbody>
+            <thead><tr><th>Context</th><th>$/hr Range</th><th>Notes</th><th></th></tr></thead>
+            <tbody id="labourTableBody"></tbody>
           </table>
-          </div>
           <div class="rates-save-bar">
-            <span class="save-note" id="matSaveNote">Changes update the Calculator dropdown automatically</span>
-            <button class="btn btn-secondary" style="padding:6px 14px;font-size:11px;" onclick="resetMaterials()">↺ Reset Defaults</button>
+            <span class="save-note" id="labourSaveNote">Reference only</span>
+            <button class="btn btn-secondary" style="padding:6px 14px;font-size:11px;" onclick="resetLabour()">↺ Reset Defaults</button>
           </div>
         </div>
       </div>
-      <div>
-        <div class="rates-section">
-          <div class="rates-table-wrap">
-            <div class="rates-table-header">
-              <h3>👤 Labour Rate Guide</h3>
-              <button class="add-row-btn" onclick="addLabourRow()">+ Add Row</button>
-            </div>
-            <table class="ref-table">
-              <thead><tr><th>Context</th><th>$/hr Range</th><th>Notes</th><th></th></tr></thead>
-              <tbody id="labourTableBody"></tbody>
-            </table>
-            <div class="rates-save-bar">
-              <span class="save-note" id="labourSaveNote">Reference only</span>
-              <button class="btn btn-secondary" style="padding:6px 14px;font-size:11px;" onclick="resetLabour()">↺ Reset Defaults</button>
-            </div>
+      <div class="rates-section">
+        <div class="rates-table-wrap">
+          <div class="rates-table-header">
+            <h3>🔩 Heat Insert Reference</h3>
+            <button class="add-row-btn" onclick="addInsertRow()">+ Add Size</button>
           </div>
-        </div>
-        <div class="rates-section">
-          <div class="rates-table-wrap">
-            <div class="rates-table-header">
-              <h3>🔩 Heat Insert Reference</h3>
-              <button class="add-row-btn" onclick="addInsertRow()">+ Add Size</button>
-            </div>
-            <table class="ref-table">
-              <thead><tr><th>Size</th><th>Thread</th><th>OD</th><th>Cost/pc</th><th></th></tr></thead>
-              <tbody id="insertTableBody"></tbody>
-            </table>
-            <div class="rates-save-bar">
-              <span class="save-note" id="insertSaveNote">Reference only</span>
-              <button class="btn btn-secondary" style="padding:6px 14px;font-size:11px;" onclick="resetInserts()">↺ Reset Defaults</button>
-            </div>
+          <table class="ref-table">
+            <thead><tr><th>Size</th><th>Thread</th><th>OD</th><th>Cost/pc</th><th></th></tr></thead>
+            <tbody id="insertTableBody"></tbody>
+          </table>
+          <div class="rates-save-bar">
+            <span class="save-note" id="insertSaveNote">Reference only</span>
+            <button class="btn btn-secondary" style="padding:6px 14px;font-size:11px;" onclick="resetInserts()">↺ Reset Defaults</button>
           </div>
         </div>
       </div>
