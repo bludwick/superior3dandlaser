@@ -2,6 +2,14 @@ const busboy        = require('busboy');
 const { getStore }  = require('@netlify/blobs');
 const { Resend }    = require('resend');
 
+function blobStore(name) {
+  const opts = { name };
+  const siteID = process.env.NETLIFY_SITE_ID;
+  const token  = process.env.NETLIFY_AUTH_TOKEN || process.env.NETLIFY_TOKEN;
+  if (siteID && token) { opts.siteID = siteID; opts.token = token; }
+  return getStore(opts);
+}
+
 // Parse multipart form data — returns all files as an array
 function parseForm(event) {
   return new Promise((resolve, reject) => {
@@ -39,7 +47,7 @@ function parseForm(event) {
 
 // Save a file buffer to the 'uploads' Netlify Blobs store
 async function saveBlobFile(buffer, fileName, fileMime) {
-  const store         = getStore('uploads');
+  const store         = blobStore('uploads');
   const savedFileName = `${Date.now()}-${fileName}`;
   await store.set(savedFileName, buffer, {
     metadata: { contentType: fileMime, originalName: fileName },
@@ -182,12 +190,12 @@ exports.handler = async (event) => {
 
       // Save order to Netlify Blobs for admin dashboard
       try {
-        const orderStore = getStore('orders');
+        const orderStore = blobStore('orders');
         const orderId    = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         const orderKey   = `order_${orderId}`;
         let parsedItems  = [];
         try { parsedItems = JSON.parse(fields.itemsJson || '[]'); } catch { /* best-effort */ }
-        await orderStore.setJSON(orderKey, {
+        await orderStore.set(orderKey, JSON.stringify({
           id:            orderId,
           customerName:  fields.name    || '',
           customerEmail: fields.email   || '',
@@ -202,7 +210,7 @@ exports.handler = async (event) => {
           stlFiles:      stlFiles.map(f => ({ fileName: f.fileName, blobKey: f.key })),
           status:        'pending',
           createdAt:     new Date().toISOString(),
-        });
+        }));
       } catch (saveErr) {
         console.error('[submit-quote] Order save error:', saveErr.message);
       }

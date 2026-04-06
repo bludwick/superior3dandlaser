@@ -206,6 +206,8 @@
   .status-badge.quoted   { background: rgba(234,179,8,.12); color: #854d0e; border: 1px solid rgba(234,179,8,.3); cursor: default !important; }
   .invoice-btn { font-size: 11px; font-weight: 700; color: var(--muted); background: var(--bg-light); border: 1px solid var(--border); border-radius: 5px; padding: 3px 8px; cursor: pointer; transition: all .15s; }
   .invoice-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .delete-job-btn { font-size: 12px; background: none; border: none; cursor: pointer; color: var(--muted); padding: 2px 5px; border-radius: 4px; transition: all .15s; margin-left: 2px; }
+  .delete-job-btn:hover { color: #dc2626; background: rgba(220,38,38,.1); }
 
   /* ── FILTER PILLS ── */
   .filter-row { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -795,6 +797,7 @@ function renderJobs(filter) {
         ${canAdv ? `<button class="advance-btn" onclick="advanceJobStatus('${esc(j.id)}', this)">Advance ›</button>` : ''}
         ${j.invoiceToken ? `<a class="invoice-btn" href="/invoice.html?job=${esc(j.id)}&token=${esc(j.invoiceToken)}" target="_blank">📄 Invoice</a>` : ''}
         <button class="expand-btn" onclick="toggleExpand('jrow-${idx}', this)">▾</button>
+        <button class="delete-job-btn" onclick="deleteJob('${esc(j.id)}', this)" title="Delete job">🗑</button>
       </td>
     </tr>
     <tr class="expand-row" id="jrow-${idx}">
@@ -838,6 +841,25 @@ async function advanceJobStatus(jobId, btn) {
     showToast('Failed to advance job: ' + err.message);
     btn.disabled = false;
     btn.textContent = 'Advance ›';
+  }
+}
+
+async function deleteJob(jobId, btn) {
+  if (!confirm('Delete this job? This cannot be undone.')) return;
+  btn.disabled = true;
+  btn.textContent = '…';
+  try {
+    const res = await fetch(`/api/admin/jobs/${encodeURIComponent(jobId)}`, {
+      method: 'DELETE', credentials: 'include', cache: 'no-store',
+    });
+    if (res.status === 401 || res.status === 403) { window.location.href = '/admin/login.html'; return; }
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    showToast('Job deleted');
+    loadJobs();
+  } catch (err) {
+    showToast('Failed to delete job: ' + err.message);
+    btn.disabled = false;
+    btn.textContent = '🗑';
   }
 }
 

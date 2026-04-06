@@ -25,11 +25,15 @@ exports.handler = async function (event) {
   try { jwt.verify(token, jwtSecret); } catch { return authError(); }
 
   // ── Routes ──────────────────────────────────────────────────────────────────
-  if (event.httpMethod === 'GET')   return listJobs();
-  if (event.httpMethod === 'POST')  return createJob(event.body, event.isBase64Encoded);
+  if (event.httpMethod === 'GET')    return listJobs();
+  if (event.httpMethod === 'POST')   return createJob(event.body, event.isBase64Encoded);
   if (event.httpMethod === 'PATCH') {
     const match = (event.path || '').match(/\/([^/]+)\/status$/);
     if (match) return advanceJobStatus(match[1]);
+  }
+  if (event.httpMethod === 'DELETE') {
+    const match = (event.path || '').match(/\/([^/]+)$/);
+    if (match) return deleteJob(match[1]);
   }
   return { statusCode: 405, body: 'Method Not Allowed' };
 };
@@ -301,6 +305,37 @@ async function sendStatusEmail(job, status, invoiceUrl, paymentUrl) {
     subject,
     text: body,
   });
+}
+
+// ── Delete a job ─────────────────────────────────────────────────────────────
+async function deleteJob(jobId) {
+  try {
+    const bs = blobStore('jobs');
+    await bs.delete(`job_${jobId}`);
+    console.log('[manage-jobs] deleted job_' + jobId);
+
+    // Best-effort: remove matching order mirror
+    try {
+      const obs = blobStore('orders');
+      const { blobs } = await obs.list();
+      for (const blob of blobs) {
+        const text = await obs.get(blob.key).catch(() => null);
+        const order = text ? JSON.parse(text) : null;
+        if (order && (order.jobId === jobId || order.id === jobId)) {
+          await obs.delete(blob.key);
+          console.log('[manage-jobs] deleted order mirror ' + blob.key);
+          break;
+        }
+      }
+    } catch (err) {
+      console.error('[manage-jobs] order mirror delete error:', err.message);
+    }
+
+    return jsonResponse(200, { ok: true });
+  } catch (err) {
+    console.error('[manage-jobs] deleteJob error:', err.message);
+    return jsonResponse(500, { error: 'Failed to delete job: ' + err.message });
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

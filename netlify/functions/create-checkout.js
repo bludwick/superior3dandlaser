@@ -2,6 +2,14 @@ const { getStore } = require('@netlify/blobs');
 
 const SITE_URL = process.env.SITE_URL || 'https://superior3dandlaser.com';
 
+function blobStore(name) {
+  const opts = { name, consistency: 'strong' };
+  const siteID = process.env.NETLIFY_SITE_ID;
+  const token  = process.env.NETLIFY_AUTH_TOKEN || process.env.NETLIFY_TOKEN;
+  if (siteID && token) { opts.siteID = siteID; opts.token = token; }
+  return getStore(opts);
+}
+
 exports.handler = async function (event) {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
@@ -27,14 +35,9 @@ exports.handler = async function (event) {
 
   try {
     // Look up job and validate token
-    const store = getStore({ name: 'jobs', consistency: 'strong' });
-    const { blobs } = await store.list();
-    let job = null;
-    for (const blob of blobs) {
-      const j = await store.get(blob.key, { type: 'json' }).catch(() => null);
-      if (j && j.id === jobId && j.invoiceToken === token) { job = j; break; }
-    }
-    if (!job) return jsonResponse(404, { error: 'Invoice not found or token invalid' });
+    const text = await blobStore('jobs').get(`job_${jobId}`);
+    const job  = text ? JSON.parse(text) : null;
+    if (!job || job.invoiceToken !== token) return jsonResponse(404, { error: 'Invoice not found or token invalid' });
 
     const Stripe = require('stripe');
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
