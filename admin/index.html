@@ -206,6 +206,8 @@
   .status-badge.quoted   { background: rgba(234,179,8,.12); color: #854d0e; border: 1px solid rgba(234,179,8,.3); cursor: default !important; }
   .invoice-btn { font-size: 11px; font-weight: 700; color: var(--muted); background: var(--bg-light); border: 1px solid var(--border); border-radius: 5px; padding: 3px 8px; cursor: pointer; transition: all .15s; }
   .invoice-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .edit-job-btn   { font-size: 12px; background: none; border: none; cursor: pointer; color: var(--muted); padding: 2px 5px; border-radius: 4px; transition: all .15s; margin-left: 2px; }
+  .edit-job-btn:hover   { color: #1d4ed8; background: rgba(29,78,216,.1); }
   .delete-job-btn { font-size: 12px; background: none; border: none; cursor: pointer; color: var(--muted); padding: 2px 5px; border-radius: 4px; transition: all .15s; margin-left: 2px; }
   .delete-job-btn:hover { color: #dc2626; background: rgba(220,38,38,.1); }
 
@@ -796,6 +798,7 @@ function renderJobs(filter) {
       <td style="white-space:nowrap;">
         ${canAdv ? `<button class="advance-btn" onclick="advanceJobStatus('${esc(j.id)}', this)">Advance ›</button>` : ''}
         ${j.invoiceToken ? `<a class="invoice-btn" href="/invoice.html?job=${esc(j.id)}&token=${esc(j.invoiceToken)}" target="_blank">📄 Invoice</a>` : ''}
+        <button class="edit-job-btn" onclick="openEditJobOverlay(_jobs[${idx}])" title="Edit job">✏</button>
         <button class="expand-btn" onclick="toggleExpand('jrow-${idx}', this)">▾</button>
         <button class="delete-job-btn" onclick="deleteJob('${esc(j.id)}', this)" title="Delete job">🗑</button>
       </td>
@@ -865,9 +868,11 @@ async function deleteJob(jobId, btn) {
 
 // ── Job Overlay ───────────────────────────────────────────────────────────────
 let _jobPrefill = null; // order data when promoting, null for manual
+let _editJobId  = null; // job id when editing, null for create
 
 function openJobOverlay(orderData) {
   _jobPrefill = orderData || null;
+  _editJobId  = null;
   const overlay   = document.getElementById('jobOverlay');
   const leftPane  = document.getElementById('overlayLeft');
   const titleEl   = document.getElementById('overlayTitle');
@@ -917,11 +922,67 @@ function openJobOverlay(orderData) {
   document.body.style.overflow = 'hidden';
 }
 
+function openEditJobOverlay(job) {
+  _jobPrefill = null;
+  _editJobId  = job.id;
+
+  const overlay   = document.getElementById('jobOverlay');
+  const leftPane  = document.getElementById('overlayLeft');
+  const titleEl   = document.getElementById('overlayTitle');
+  const importBtn = document.getElementById('importCartBtn');
+
+  // Update title and button labels
+  titleEl.textContent = 'Edit Print Job';
+  document.querySelectorAll('#jobOverlay .btn-primary').forEach(b => { b.textContent = '✓ Save Changes'; });
+
+  // Pre-fill customer fields
+  document.getElementById('jf-name').value  = job.customerName  || '';
+  document.getElementById('jf-email').value = job.customerEmail || '';
+  document.getElementById('jf-phone').value = job.customerPhone || '';
+  document.getElementById('jf-notes').value = job.notes         || '';
+
+  // Pre-fill print setup
+  document.getElementById('jf-printer').value = job.printer || 'H2D-1';
+  document.getElementById('jf-start').value   = job.startTime  ? job.startTime.slice(0, 16)  : '';
+  document.getElementById('jf-end').value     = job.estEndTime ? job.estEndTime.slice(0, 16) : '';
+
+  // Pre-fill items
+  const items = (job.items || []).map(it => ({
+    partName:  it.partName  || 'Part',
+    material:  it.material  || '',
+    color:     it.color     || '',
+    qty:       it.qty       || 1,
+    unitPrice: it.unitPrice || 0,
+    lineTotal: it.lineTotal || 0,
+  }));
+  if (items.length) {
+    renderJobItems(items, parseFloat(job.subtotal)||0, parseFloat(job.tax)||0, parseFloat(job.total)||0);
+  } else {
+    const wrap = document.getElementById('jobItemsWrap');
+    wrap.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:10px 0;">No items yet — use the calculator to add parts.</div>';
+    delete wrap.dataset.items; delete wrap.dataset.subtotal; delete wrap.dataset.tax; delete wrap.dataset.total;
+    document.getElementById('jobTotals').style.display = 'none';
+  }
+
+  // Show calculator so items can be changed
+  leftPane.classList.remove('hidden');
+  importBtn.style.display = '';
+  localStorage.removeItem('3dp_cart');
+  const frame = document.getElementById('jobPricerFrame');
+  frame.src = '/3dprintingquotecalculator.html?admin=1';
+
+  overlay.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
 function closeJobOverlay() {
   document.getElementById('jobOverlay').classList.add('hidden');
   document.body.style.overflow = '';
   document.getElementById('jobPricerFrame').src = '';
   _jobPrefill = null;
+  _editJobId  = null;
+  // Reset button labels for next open
+  document.querySelectorAll('#jobOverlay .btn-primary').forEach(b => { b.textContent = '✓ Create Job'; });
 }
 
 function importFromCart() {
@@ -975,11 +1036,12 @@ async function submitNewJob() {
   const email = document.getElementById('jf-email').value.trim();
   if (!name || !email) { showToast('Customer name and email are required'); return; }
 
-  const btns = document.querySelectorAll('#jobOverlay .btn-primary');
-  btns.forEach(b => { b.disabled = true; b.textContent = 'Creating…'; });
+  const isEdit = !!_editJobId;
+  const btns   = document.querySelectorAll('#jobOverlay .btn-primary');
+  btns.forEach(b => { b.disabled = true; b.textContent = isEdit ? 'Saving…' : 'Creating…'; });
 
   try {
-    const wrap     = document.getElementById('jobItemsWrap');
+    const wrap = document.getElementById('jobItemsWrap');
     let items = [];
     try { items = JSON.parse(wrap.dataset.items || '[]'); } catch { items = []; }
     const subtotal = parseFloat(wrap.dataset.subtotal || 0);
@@ -987,22 +1049,26 @@ async function submitNewJob() {
     const total    = parseFloat(wrap.dataset.total    || 0);
 
     const payload = {
-      source:        _jobPrefill ? 'order' : 'manual',
-      orderId:       _jobPrefill ? (_jobPrefill.id || null) : null,
       customerName:  name,
       customerEmail: email,
       customerPhone: document.getElementById('jf-phone').value.trim(),
       items, subtotal, tax, total,
-      printer:       document.getElementById('jf-printer').value,
-      startTime:     document.getElementById('jf-start').value  || null,
-      estEndTime:    document.getElementById('jf-end').value    || null,
-      notes:         document.getElementById('jf-notes').value.trim(),
+      printer:   document.getElementById('jf-printer').value,
+      startTime: document.getElementById('jf-start').value  || null,
+      estEndTime:document.getElementById('jf-end').value    || null,
+      notes:     document.getElementById('jf-notes').value.trim(),
+      ...(!isEdit ? {
+        source:  _jobPrefill ? 'order' : 'manual',
+        orderId: _jobPrefill ? (_jobPrefill.id || null) : null,
+      } : {}),
     };
 
-    const res = await fetch('/api/admin/jobs', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(payload),
+    const url    = isEdit ? `/api/admin/jobs/${encodeURIComponent(_editJobId)}` : '/api/admin/jobs';
+    const method = isEdit ? 'PUT' : 'POST';
+
+    const res = await fetch(url, {
+      method, headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload), credentials: 'include', cache: 'no-store',
     });
     if (res.status === 401 || res.status === 403) { window.location.href = '/admin/login.html'; return; }
     if (!res.ok) {
@@ -1010,11 +1076,12 @@ async function submitNewJob() {
       throw new Error(errData.error || 'HTTP ' + res.status);
     }
     closeJobOverlay();
-    showToast('Print job created — confirmation email sent');
+    showToast(isEdit ? 'Job updated' : 'Print job created — confirmation email sent');
     loadJobs();
   } catch (err) {
-    showToast('Failed to create job: ' + err.message);
-    btns.forEach(b => { b.disabled = false; b.textContent = '✓ Create Job'; });
+    const label = isEdit ? '✓ Save Changes' : '✓ Create Job';
+    showToast((isEdit ? 'Failed to update job: ' : 'Failed to create job: ') + err.message);
+    btns.forEach(b => { b.disabled = false; b.textContent = label; });
   }
 }
 

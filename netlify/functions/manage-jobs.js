@@ -31,6 +31,10 @@ exports.handler = async function (event) {
     const match = (event.path || '').match(/\/([^/]+)\/status$/);
     if (match) return advanceJobStatus(match[1]);
   }
+  if (event.httpMethod === 'PUT') {
+    const match = (event.path || '').match(/\/([^/]+)$/);
+    if (match) return updateJob(match[1], event.body, event.isBase64Encoded);
+  }
   if (event.httpMethod === 'DELETE') {
     const match = (event.path || '').match(/\/([^/]+)$/);
     if (match) return deleteJob(match[1]);
@@ -305,6 +309,79 @@ async function sendStatusEmail(job, status, invoiceUrl, paymentUrl) {
     subject,
     text: body,
   });
+}
+
+// ── Update a job ─────────────────────────────────────────────────────────────
+async function updateJob(jobId, rawBody, isBase64) {
+  let bodyStr = rawBody || '{}';
+  if (isBase64) {
+    try { bodyStr = Buffer.from(rawBody, 'base64').toString('utf8'); } catch { bodyStr = '{}'; }
+  }
+  let data;
+  try { data = JSON.parse(bodyStr); }
+  catch (e) { return jsonResponse(400, { error: 'Invalid JSON body' }); }
+
+  try {
+    const bs  = blobStore('jobs');
+    const key = `job_${jobId}`;
+    const existing = await bs.get(key);
+    if (!existing) return jsonResponse(404, { error: 'Job not found' });
+    const job = JSON.parse(existing);
+
+    // Update mutable fields; preserve identity/audit fields
+    job.customerName  = data.customerName  ?? job.customerName;
+    job.customerEmail = data.customerEmail ?? job.customerEmail;
+    job.customerPhone = data.customerPhone ?? job.customerPhone;
+    job.items         = Array.isArray(data.items) ? data.items : job.items;
+    job.subtotal      = data.subtotal != null ? parseFloat(data.subtotal)  : job.subtotal;
+    job.tax           = data.tax      != null ? parseFloat(data.tax)       : job.tax;
+    job.total         = data.total    != null ? parseFloat(data.total)     : job.total;
+    job.printer       = data.printer       ?? job.printer;
+    job.startTime     = data.startTime     !== undefined ? (data.startTime || null)    : job.startTime;
+    job.estEndTime    = data.estEndTime    !== undefined ? (data.estEndTime || null)   : job.estEndTime;
+    job.notes         = data.notes         ?? job.notes;
+    job.updatedAt     = new Date().toISOString();
+
+    await bs.set(key, JSON.stringify(job));
+    console.log('[manage-jobs] updated job_' + jobId);
+
+    // Best-effort update order mirror
+    try {
+      const obs = blobStore('orders');
+      const { blobs } = await obs.list();
+      for (const blob of blobs) {
+        const text = await obs.get(blob.key).catch(() => null);
+        const order = text ? JSON.parse(text) : null;
+        if (order && (order.jobId === jobId || order.id === jobId)) {
+          order.customerName  = job.customerName;
+          order.customerEmail = job.customerEmail;
+          order.phone         = job.customerPhone;
+          order.items         = job.items.map(it => ({
+            projectName: it.partName  || 'Part',
+            material:    it.material  || '',
+            color:       it.color     || '',
+            qty:         it.qty       || 1,
+            unitPrice:   it.unitPrice || 0,
+            lineTotal:   it.lineTotal || 0,
+          }));
+          order.subtotal  = job.subtotal;
+          order.tax       = job.tax;
+          order.total     = job.total;
+          order.notes     = job.notes;
+          order.updatedAt = job.updatedAt;
+          await obs.set(blob.key, JSON.stringify(order));
+          break;
+        }
+      }
+    } catch (err) {
+      console.error('[manage-jobs] order mirror update error:', err.message);
+    }
+
+    return jsonResponse(200, { ok: true, id: jobId });
+  } catch (err) {
+    console.error('[manage-jobs] updateJob error:', err.message);
+    return jsonResponse(500, { error: 'Failed to update job: ' + err.message });
+  }
 }
 
 // ── Delete a job ─────────────────────────────────────────────────────────────
