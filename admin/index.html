@@ -185,11 +185,52 @@
   .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
   .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
 
-  /* ── MATERIALS PREVIEW TABLE ── */
-  .mat-table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+  /* ── MATERIALS LIBRARY EDITOR ── */
+  .mat-table { width: 100%; border-collapse: collapse; }
   .mat-table th { padding: 8px 12px; font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); text-align: left; }
-  .mat-table td { padding: 8px 12px; font-size: 13px; border-bottom: 1px solid var(--border); }
-  .mat-table tr:last-child td { border-bottom: none; }
+  .mat-table td { padding: 6px 8px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .mat-table tbody tr:last-child > td { border-bottom: none; }
+  .mat-cell-input {
+    width: 100%; border: 1px solid transparent; border-radius: 6px; padding: 5px 8px;
+    font-family: var(--font); font-size: 13px; color: var(--text); background: transparent;
+    outline: none; transition: border-color .15s, background .15s;
+  }
+  .mat-cell-input:hover { border-color: var(--border); background: var(--bg); }
+  .mat-cell-input:focus { border-color: var(--accent); background: var(--bg); box-shadow: 0 0 0 3px rgba(185,28,28,.08); }
+  .mat-cell-input.price { width: 80px; font-variant-numeric: tabular-nums; }
+  .mat-type-select {
+    border: 1px solid transparent; border-radius: 6px; padding: 5px 8px;
+    font-family: var(--font); font-size: 12px; color: var(--text); background: transparent;
+    outline: none; cursor: pointer; transition: border-color .15s, background .15s;
+  }
+  .mat-type-select:hover { border-color: var(--border); background: var(--bg); }
+  .mat-type-select:focus { border-color: var(--accent); background: var(--bg); }
+  .mat-del-btn {
+    background: none; border: none; cursor: pointer; color: var(--muted); font-size: 13px;
+    padding: 4px 8px; border-radius: 5px; transition: all .15s; line-height: 1;
+  }
+  .mat-del-btn:hover { color: #dc2626; background: rgba(220,38,38,.08); }
+  .mat-add-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-top: 1px solid var(--border); }
+  .mat-save-note { font-size: 11px; color: var(--muted); }
+  .mat-save-note.saved { color: #15803d; }
+  .mat-color-btn {
+    font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 5px;
+    border: 1px solid var(--border); background: var(--bg-light); color: var(--muted);
+    cursor: pointer; font-family: var(--font); transition: all .15s; white-space: nowrap;
+  }
+  .mat-color-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .mat-color-btn.open { border-color: var(--accent); color: var(--accent); background: rgba(185,28,28,.04); }
+  .mat-color-panel-row { background: var(--bg-light); }
+  .mat-color-panel { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .mat-color-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .color-swatch { width: 22px; height: 22px; border-radius: 4px; border: 1px solid rgba(0,0,0,.12); flex-shrink: 0; }
+  .instock-lbl { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); cursor: pointer; white-space: nowrap; }
+  .instock-lbl input { cursor: pointer; }
+  .color-del-btn {
+    background: none; border: none; cursor: pointer; color: var(--muted); font-size: 11px;
+    padding: 2px 6px; border-radius: 4px; transition: all .15s; margin-left: auto;
+  }
+  .color-del-btn:hover { color: #dc2626; background: rgba(220,38,38,.08); }
   .type-badge {
     font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
     border-radius: 4px; padding: 2px 6px;
@@ -500,22 +541,36 @@
     <div class="page" id="page-materials">
       <div class="page-header">
         <div class="page-title">Materials & Rates</div>
-        <div class="page-sub">Material pricing is managed inside the Instant Quote calculator. Use the button below to open it in admin mode.</div>
+        <div class="page-sub">Edit material names, pricing, types, and available colors. Changes sync automatically with the Instant Quote calculator.</div>
       </div>
 
       <div class="section-card">
         <div class="section-card-header">
           <div class="section-card-icon">🧱</div>
           <span class="section-card-title">Material Library</span>
+          <button class="btn-primary" style="margin-left:auto;padding:7px 16px;font-size:12px;" onclick="addMaterial()">+ Add Material</button>
         </div>
-        <div class="section-card-body">
-          <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Current materials loaded from this device's calculator settings. To edit names, prices, or colors, use the full Materials Editor.</p>
-          <div id="matPreview">
-            <div class="empty-state" style="padding:24px 0;"><div>Loading materials…</div></div>
+        <div class="section-card-body" style="padding:0;">
+          <div style="overflow-x:auto;">
+            <table class="mat-table" id="matLibTable">
+              <thead>
+                <tr>
+                  <th style="min-width:140px;">Material</th>
+                  <th style="width:90px;">$/kg</th>
+                  <th style="width:70px;">Type</th>
+                  <th>Notes</th>
+                  <th style="width:110px;">Colors</th>
+                  <th style="width:40px;"></th>
+                </tr>
+              </thead>
+              <tbody id="matLibBody">
+                <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted);">Loading…</td></tr>
+              </tbody>
+            </table>
           </div>
-          <div class="btn-row">
-            <button class="btn-primary" onclick="openCalculatorRates()">✏️ Open Materials Editor</button>
-            <button class="btn-secondary" onclick="openCalculator()">🖥 Open Full Calculator</button>
+          <div class="mat-add-bar">
+            <span class="mat-save-note" id="matLibSaveNote">Changes save automatically and sync with the calculator</span>
+            <button class="btn-secondary" style="font-size:12px;padding:6px 14px;" onclick="resetMatLibrary()">↺ Reset to defaults</button>
           </div>
         </div>
       </div>
@@ -615,7 +670,7 @@ function showPage(id, btn) {
   document.getElementById('page-' + id).classList.add('active');
   btn.classList.add('active');
   if (id === 'pricing')   loadPricingSettings();
-  if (id === 'materials') loadMatPreview();
+  if (id === 'materials') loadMatLibrary();
   if (id === 'jobs')      loadJobs();
 }
 
@@ -636,11 +691,7 @@ async function logout() {
 
 // ── Calculator deep-links ─────────────────────────────────────────────────────
 function openCalculator() {
-  window.open('/3dprintingquotecalculator.html?admin=1', '_blank');
-}
-function openCalculatorRates() {
-  window.open('/3dprintingquotecalculator.html?admin=1', '_blank');
-  // The calculator's tab system doesn't respond to hash, so open full calc — admin will switch tabs
+  window.open('/3dprintingquotecalculator.html', '_blank');
 }
 
 // ── Orders ────────────────────────────────────────────────────────────────────
@@ -789,32 +840,219 @@ function savePricingSettings() {
   showToast('Pricing settings saved — open the calculator to apply');
 }
 
-// ── Materials preview ─────────────────────────────────────────────────────────
-function loadMatPreview() {
-  const el = document.getElementById('matPreview');
-  let materials = [];
+// ── Materials Library (full CRUD) ─────────────────────────────────────────────
+const VIEWER_KEYS = ['black','white','gray','red','blue','green','yellow','orange','natural','custom'];
+
+const MAT_DEFAULT = [
+  { name: 'HT-PLA', midpoint: 24.99, type: 'FDM', notes: 'Easy to print', colors: [
+    { name: 'Black',  hex: '#070707', viewerKey: 'black',   inStock: true },
+    { name: 'White',  hex: '#F3F3F1', viewerKey: 'white',   inStock: true },
+    { name: 'Grey',   hex: '#6C7477', viewerKey: 'gray',    inStock: true },
+    { name: 'Red',    hex: '#AC0200', viewerKey: 'red',     inStock: true },
+    { name: 'Blue',   hex: '#0F5EA0', viewerKey: 'blue',    inStock: true },
+    { name: 'Green',  hex: '#05AF47', viewerKey: 'green',   inStock: true },
+    { name: 'Yellow', hex: '#F0C940', viewerKey: 'yellow',  inStock: true },
+    { name: 'Orange', hex: '#DC6E38', viewerKey: 'orange',  inStock: true },
+    { name: 'Brown',  hex: '#4D2D1C', viewerKey: 'custom',  inStock: true },
+  ]},
+  { name: 'PETG', midpoint: 18.99, type: 'FDM', notes: 'Durable, flexible', colors: [
+    { name: 'Black',      hex: '#070908', viewerKey: 'black',   inStock: true },
+    { name: 'Grey',       hex: '#A7AEB2', viewerKey: 'gray',    inStock: true },
+    { name: 'White',      hex: '#F8FAF8', viewerKey: 'white',   inStock: true },
+    { name: 'Red',        hex: '#C23320', viewerKey: 'red',     inStock: true },
+    { name: 'Dark Green', hex: '#223622', viewerKey: 'green',   inStock: true },
+    { name: 'Dark Blue',  hex: '#081B36', viewerKey: 'blue',    inStock: true },
+    { name: 'Orange',     hex: '#DC7C40', viewerKey: 'orange',  inStock: true },
+  ]},
+  { name: 'ABS', midpoint: 19.99, type: 'FDM', notes: 'Heat resistant', colors: [
+    { name: 'Black',  hex: '#16161A', viewerKey: 'black',   inStock: true },
+    { name: 'White',  hex: '#F0EBE8', viewerKey: 'white',   inStock: true },
+    { name: 'Grey',   hex: '#8C8D93', viewerKey: 'gray',    inStock: true },
+    { name: 'Blue',   hex: '#003276', viewerKey: 'blue',    inStock: true },
+    { name: 'Red',    hex: '#F3442B', viewerKey: 'red',     inStock: true },
+    { name: 'Green',  hex: '#479161', viewerKey: 'green',   inStock: true },
+    { name: 'Yellow', hex: '#EDA900', viewerKey: 'yellow',  inStock: true },
+    { name: 'Orange', hex: '#F57517', viewerKey: 'orange',  inStock: true },
+  ]},
+  { name: 'ASA', midpoint: 26.99, type: 'FDM', notes: 'UV resistant', colors: [
+    { name: 'Black',  hex: '#17161A', viewerKey: 'black',   inStock: false },
+    { name: 'White',  hex: '#DBD7D6', viewerKey: 'white',   inStock: false },
+    { name: 'Grey',   hex: '#8D8E92', viewerKey: 'gray',    inStock: false },
+    { name: 'Blue',   hex: '#003576', viewerKey: 'blue',    inStock: false },
+    { name: 'Red',    hex: '#D82B1C', viewerKey: 'red',     inStock: false },
+    { name: 'Green',  hex: '#2E784D', viewerKey: 'green',   inStock: false },
+    { name: 'Orange', hex: '#F37716', viewerKey: 'orange',  inStock: false },
+  ]},
+  { name: 'TPU (95A)', midpoint: 49.99, type: 'FDM', notes: 'Flexible/rubber', colors: [
+    { name: 'Black', hex: '#16161A', viewerKey: 'black', inStock: true },
+    { name: 'White', hex: '#F0EBE8', viewerKey: 'white', inStock: true },
+  ]},
+  { name: 'PA12-CF', midpoint: 139.98, type: 'FDM', notes: 'High strength', colors: [
+    { name: 'Black', hex: '#302F2F', viewerKey: 'black', inStock: true },
+  ]},
+  { name: 'PA6-CF20', midpoint: 79.98, type: 'FDM', notes: 'Stiff & light', colors: [
+    { name: 'Black', hex: '#312F2F', viewerKey: 'black', inStock: true },
+  ]},
+  { name: 'RESIN (std)',      midpoint: 37.5,  type: 'SLA', notes: 'High detail',    colors: [] },
+  { name: 'RESIN (ABS-like)', midpoint: 55,    type: 'SLA', notes: 'Tougher blend',  colors: [] },
+  { name: 'PPS-CF', midpoint: 139.98, type: 'FDM', notes: 'Engineered for Extreme Environments', colors: [
+    { name: 'Black', hex: '#302E2F', viewerKey: 'black', inStock: true },
+  ]},
+  { name: 'ASA-CF', midpoint: 39.98, type: 'FDM', notes: 'Engineered for Performance', colors: [
+    { name: 'Dark Grey',   hex: '#4D5E70', viewerKey: 'gray',    inStock: true },
+    { name: 'Black',       hex: '#000000', viewerKey: 'black',   inStock: true },
+    { name: 'Navy Blue',   hex: '#30548E', viewerKey: 'blue',    inStock: true },
+    { name: 'Dark Red',    hex: '#855261', viewerKey: 'red',     inStock: true },
+    { name: 'Desert Sand', hex: '#CEB69C', viewerKey: 'natural', inStock: true },
+  ]},
+  { name: 'PPS-GF', midpoint: 119.98, type: 'FDM', notes: 'Engineered for Performance', colors: [
+    { name: 'Grey', hex: '#75787B', viewerKey: 'gray', inStock: true },
+  ]},
+];
+
+let _matLib = [];
+
+function loadMatLib() {
   try {
     const raw = localStorage.getItem('3dp_materials');
-    if (raw) materials = JSON.parse(raw);
-  } catch { /* empty */ }
+    _matLib = raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(MAT_DEFAULT));
+  } catch { _matLib = JSON.parse(JSON.stringify(MAT_DEFAULT)); }
+  // Ensure every material has type and colors
+  _matLib = _matLib.map(m => ({
+    type: m.name && m.name.toLowerCase().includes('resin') ? 'SLA' : 'FDM',
+    colors: [],
+    ...m,
+  }));
+}
 
-  if (!materials.length) {
-    el.innerHTML = '<div class="empty-state" style="padding:20px 0;"><div>No materials found. Open the calculator first to initialise the library.</div></div>';
+function saveMatLib() {
+  try { localStorage.setItem('3dp_materials', JSON.stringify(_matLib)); } catch(e) {}
+  const note = document.getElementById('matLibSaveNote');
+  if (note) {
+    note.textContent = '✓ Saved';
+    note.classList.add('saved');
+    clearTimeout(note._t);
+    note._t = setTimeout(() => { note.textContent = 'Changes save automatically and sync with the calculator'; note.classList.remove('saved'); }, 1800);
+  }
+}
+
+function loadMatLibrary() {
+  loadMatLib();
+  renderMatLib();
+}
+
+function renderMatLib() {
+  const tbody = document.getElementById('matLibBody');
+  if (!tbody) return;
+  if (!_matLib.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted);">No materials. Click "+ Add Material" to start.</td></tr>';
     return;
   }
-
-  let html = '<table class="mat-table"><thead><tr><th>Material</th><th>Type</th><th>$/kg</th><th>Notes</th></tr></thead><tbody>';
-  materials.forEach(m => {
-    const type = (m.type === 'SLA' || (m.name||'').toLowerCase().includes('resin')) ? 'SLA' : 'FDM';
-    html += `<tr>
-      <td style="font-weight:600;">${esc(m.name)}</td>
-      <td><span class="type-badge ${type.toLowerCase()}">${type}</span></td>
-      <td class="price-col">$${parseFloat(m.midpoint || 0).toFixed(2)}</td>
-      <td style="color:var(--muted);">${esc(m.notes || '')}</td>
+  tbody.innerHTML = _matLib.map((m, i) => {
+    const type = (m.type === 'SLA') ? 'SLA' : 'FDM';
+    const colorCount = (m.colors || []).length;
+    return `<tr id="mat-row-${i}">
+      <td><input class="mat-cell-input" value="${esc(m.name)}" oninput="_matLib[${i}].name=this.value; saveMatLib()" placeholder="Material name"></td>
+      <td><input class="mat-cell-input price" type="number" value="${parseFloat(m.midpoint||0).toFixed(2)}" step="0.5" oninput="_matLib[${i}].midpoint=+this.value; saveMatLib()"></td>
+      <td>
+        <select class="mat-type-select" onchange="_matLib[${i}].type=this.value; saveMatLib()">
+          <option value="FDM"${type==='FDM'?' selected':''}>FDM</option>
+          <option value="SLA"${type==='SLA'?' selected':''}>SLA</option>
+        </select>
+      </td>
+      <td><input class="mat-cell-input" value="${esc(m.notes||'')}" oninput="_matLib[${i}].notes=this.value; saveMatLib()" placeholder="e.g. Heat resistant"></td>
+      <td>
+        <button class="mat-color-btn${document.getElementById('mat-colors-'+i) ? ' open' : ''}" id="mat-color-btn-${i}" onclick="toggleMatColors(${i})">
+          🎨 ${colorCount} color${colorCount!==1?'s':''}
+        </button>
+      </td>
+      <td><button class="mat-del-btn" onclick="deleteMaterial(${i})" title="Delete material">✕</button></td>
+    </tr>
+    <tr id="mat-colors-${i}" class="mat-color-panel-row" style="display:none;">
+      <td colspan="6">
+        <div class="mat-color-panel">
+          ${(m.colors||[]).map((c,j) => `
+            <div class="mat-color-row">
+              <div class="color-swatch" style="background:${esc(c.hex||'#cccccc')};"></div>
+              <input class="mat-cell-input" value="${esc(c.name)}" oninput="_matLib[${i}].colors[${j}].name=this.value; saveMatLib()" placeholder="Color name" style="width:110px;">
+              <input class="mat-cell-input" value="${esc(c.hex||'')}" maxlength="7" placeholder="#rrggbb" style="width:80px;"
+                oninput="_matLib[${i}].colors[${j}].hex=this.value; this.previousElementSibling.previousElementSibling.style.background=this.value; saveMatLib()">
+              <select class="mat-type-select" style="width:88px;" title="3D Viewer color" onchange="_matLib[${i}].colors[${j}].viewerKey=this.value; saveMatLib()">
+                ${VIEWER_KEYS.map(k=>`<option value="${k}"${(c.viewerKey||'custom')===k?' selected':''}>${k}</option>`).join('')}
+              </select>
+              <label class="instock-lbl">
+                <input type="checkbox" ${c.inStock!==false?'checked':''} onchange="_matLib[${i}].colors[${j}].inStock=this.checked; saveMatLib()"> In stock
+              </label>
+              <button class="color-del-btn" onclick="deleteMaterialColor(${i},${j})" title="Remove color">✕</button>
+            </div>`).join('')}
+          <button class="btn-secondary" style="font-size:12px;padding:5px 12px;margin-top:4px;" onclick="addMaterialColor(${i})">+ Add Color</button>
+        </div>
+      </td>
     </tr>`;
+  }).join('');
+}
+
+function toggleMatColors(i) {
+  const panel = document.getElementById('mat-colors-' + i);
+  const btn   = document.getElementById('mat-color-btn-' + i);
+  if (!panel) return;
+  const opening = panel.style.display === 'none';
+  panel.style.display = opening ? '' : 'none';
+  if (btn) btn.classList.toggle('open', opening);
+}
+
+function addMaterial() {
+  _matLib.push({ name: 'New Material', midpoint: 30, type: 'FDM', notes: '', colors: [] });
+  saveMatLib();
+  renderMatLib();
+  // Focus the new row's name input
+  const rows = document.querySelectorAll('#matLibBody tr');
+  if (rows.length) {
+    const inp = rows[rows.length - 2].querySelector('.mat-cell-input');
+    if (inp) inp.focus();
+  }
+}
+
+function deleteMaterial(i) {
+  showConfirm(`Delete "${_matLib[i].name}"?`).then(confirmed => {
+    if (!confirmed) return;
+    _matLib.splice(i, 1);
+    saveMatLib();
+    renderMatLib();
   });
-  html += '</tbody></table>';
-  el.innerHTML = html;
+}
+
+function addMaterialColor(i) {
+  if (!_matLib[i].colors) _matLib[i].colors = [];
+  _matLib[i].colors.push({ name: 'New Color', hex: '#cccccc', viewerKey: 'custom', inStock: true });
+  saveMatLib();
+  renderMatLib();
+  // Re-open the color panel
+  const panel = document.getElementById('mat-colors-' + i);
+  const btn   = document.getElementById('mat-color-btn-' + i);
+  if (panel) { panel.style.display = ''; }
+  if (btn)   { btn.classList.add('open'); }
+}
+
+function deleteMaterialColor(i, j) {
+  _matLib[i].colors.splice(j, 1);
+  saveMatLib();
+  renderMatLib();
+  // Re-open the color panel
+  const panel = document.getElementById('mat-colors-' + i);
+  const btn   = document.getElementById('mat-color-btn-' + i);
+  if (panel) { panel.style.display = ''; }
+  if (btn)   { btn.classList.add('open'); }
+}
+
+function resetMatLibrary() {
+  showConfirm('Reset all materials to factory defaults? Your changes will be lost.').then(confirmed => {
+    if (!confirmed) return;
+    _matLib = JSON.parse(JSON.stringify(MAT_DEFAULT));
+    saveMatLib();
+    renderMatLib();
+    showToast('Materials reset to defaults');
+  });
 }
 
 // ── Print Jobs ────────────────────────────────────────────────────────────────
@@ -1016,7 +1254,7 @@ function openJobOverlay(orderData) {
     importBtn.style.display = '';
     localStorage.removeItem('3dp_cart');
     const frame = document.getElementById('jobPricerFrame');
-    frame.src = '/3dprintingquotecalculator.html?admin=1';
+    frame.src = '/3dprintingquotecalculator.html';
     _startCartListener();
   }
 
@@ -1082,7 +1320,7 @@ function openEditJobOverlay(job) {
   localStorage.setItem('3dp_cart', JSON.stringify(cartSeed));
 
   const frame = document.getElementById('jobPricerFrame');
-  frame.src = '/3dprintingquotecalculator.html?admin=1';
+  frame.src = '/3dprintingquotecalculator.html';
   _startCartListener();
 
   overlay.classList.remove('hidden');

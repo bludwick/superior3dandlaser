@@ -448,10 +448,6 @@
     }
   }
 
-  /* ADMIN VISIBILITY — hidden from customers by default */
-  body:not(.admin-mode) .admin-only { display: none; }
-.admin-banner { display:none; background:rgba(185,28,28,.07); border:1px solid rgba(185,28,28,.2); border-radius:8px; padding:8px 14px; font-size:11px; font-weight:700; color:var(--accent); letter-spacing:.05em; margin-bottom:16px; }
-  body.admin-mode .admin-banner { display:block; }
 
   /* ── PRINT MODE TOGGLE ───────────────────────────────────────────────── */
   .mode-toggle-wrap {
@@ -833,15 +829,12 @@
     <div class="header-right">
       <span class="brand-tag">Superior 3D and Laser</span>
       <div class="tabs">
-        <button class="tab admin-only" onclick="switchTab('batch')">Batch</button>
-        <button class="tab admin-only" onclick="switchTab('rates')">Rates &amp; Ref</button>
       </div>
     </div>
   </header>
 
   <!-- CALCULATOR -->
   <div id="panel-calculator" class="panel active">
-    <div class="admin-banner">🔓 Admin mode — internal fields visible</div>
     <div id="editModeBanner" style="display:none;background:rgba(29,78,216,.07);border:1px solid rgba(29,78,216,.3);border-radius:8px;padding:8px 14px;font-size:11px;font-weight:700;color:#1d4ed8;letter-spacing:.04em;margin-bottom:16px;align-items:center;gap:8px;">
       ✏ Editing: <span id="editModeBannerName" style="font-weight:400;"></span>
       <button onclick="resetCalc()" style="background:none;border:none;cursor:pointer;color:#1d4ed8;font-family:var(--font);font-size:11px;font-weight:700;margin-left:auto;text-decoration:underline;padding:0;">Cancel</button>
@@ -873,7 +866,7 @@
       <div class="section-header" onclick="toggleSection(this)">
         <div class="section-icon"><img src="3dprint-icon.svg" style="width:18px;height:auto;" alt=""></div>
         <span class="section-title">Print Settings</span>
-        <span class="section-result admin-only" id="res-print-total">$0.00</span>
+        <span class="section-result" id="res-print-total" style="display:none;">$0.00</span>
         <span class="chevron">▾</span>
       </div>
       <div class="section-body">
@@ -1032,35 +1025,13 @@
 
         <!-- Print Time & admin inputs -->
         <div class="section-divider"></div>
-        <div class="fields">
-          <div class="field admin-only">
-            <label>Material Cost per kg</label>
-            <div class="input-wrap"><input type="number" id="matCostKg" value="75" step="0.5" oninput="calc()"><span class="unit-tag">$/kg</span></div>
-            <span class="hint" id="matHint">⚡ Auto-set from material selection</span>
-          </div>
-          <input type="hidden" id="materialGrams" value="0">
-          <input type="hidden" id="printHours" value="0">
-          <div class="field admin-only">
-            <label>Waste / Support Factor</label>
-            <div class="input-wrap"><input type="number" id="wasteFactor" value="1.10" step="0.01" oninput="calc()"><span class="unit-tag">×</span></div>
-            <span class="hint">1.10 = 10% waste</span>
-          </div>
-          <div class="field admin-only">
-            <label>Printer Operating Cost</label>
-            <div class="input-wrap"><input type="number" id="printerCost" value="0.15" step="0.01" oninput="calc()"><span class="unit-tag">$/hr</span></div>
-            <span class="hint">Electricity + depreciation</span>
-          </div>
-          <div class="field admin-only">
-            <label>Print Labour (per order)</label>
-            <div class="input-wrap"><input type="number" id="printLabourHrs" value="0.25" step="0.05" oninput="calc()"><span class="unit-tag">hrs</span></div>
-            <span class="hint">Flat labour hours billed at professional rate</span>
-          </div>
-          <div class="field admin-only">
-            <label>Failure Rate (contingency)</label>
-            <div class="input-wrap"><input type="number" id="failureRate" value="0.05" step="0.01" oninput="calc()"><span class="unit-tag">%</span></div>
-            <span class="hint">0.05 = 5% contingency</span>
-          </div>
-        </div>
+        <input type="hidden" id="matCostKg" value="75">
+        <input type="hidden" id="materialGrams" value="0">
+        <input type="hidden" id="printHours" value="0">
+        <input type="hidden" id="wasteFactor" value="1.10">
+        <input type="hidden" id="printerCost" value="0.15">
+        <input type="hidden" id="printLabourHrs" value="0.25">
+        <input type="hidden" id="failureRate" value="0.05">
 
         <!-- Add-ons -->
         <div class="addons-section">
@@ -1081,7 +1052,6 @@
               <div class="input-wrap" id="post-custom" style="display:none;">
                 <input type="number" id="postHrs" value="1" step="0.5" oninput="calc()"><span class="unit-tag">hrs</span>
               </div>
-              <span class="addon-cost admin-only" id="cost-post"></span>
             </div>
           </div>
 
@@ -1095,7 +1065,6 @@
               <div class="input-wrap">
                 <input type="number" id="insertCount" value="4" min="1" oninput="calc()"><span class="unit-tag">inserts</span>
               </div>
-              <span class="addon-cost admin-only" id="cost-inserts"></span>
             </div>
           </div>
           <!-- SLA only: mandatory wash + cure -->
@@ -1106,7 +1075,6 @@
             </label>
             <div class="addon-ctrl" style="display:flex;">
               <span style="font-size:12px;color:var(--muted);">~35 min (IPA wash + UV cure station)</span>
-              <span class="addon-cost admin-only" id="cost-wash-cure"></span>
             </div>
           </div>
 
@@ -1125,65 +1093,19 @@
               <div class="input-wrap" id="assembly-custom" style="display:none;">
                 <input type="number" id="assemblyHrs" value="1" step="0.5" oninput="calc()"><span class="unit-tag">hrs</span>
               </div>
-              <span class="addon-cost admin-only" id="cost-assembly"></span>
             </div>
           </div>
-
-          <!-- Admin labour rates (hidden from customers) -->
-          <div class="fields admin-only" style="margin-top:14px;">
-            <div class="field">
-              <label>Labour Rate</label>
-              <div class="input-wrap"><input type="number" id="labourRate" value="25" step="1" oninput="calc()"><span class="unit-tag">$/hr</span></div>
-              <span class="hint">Post-processing &amp; assembly</span>
-            </div>
-            <div class="field">
-              <label>Insert Install Cost</label>
-              <div class="input-wrap"><input type="number" id="insertUnitCost" value="0.50" step="0.10" oninput="calc()"><span class="unit-tag">$/ea</span></div>
-              <span class="hint">Per heat insert installed</span>
-            </div>
-          </div>
+          <input type="hidden" id="labourRate" value="25">
+          <input type="hidden" id="insertUnitCost" value="0.50">
         </div>
 
       </div>
     </div>
 
-    <div class="section-card admin-only">
-      <div class="section-header" onclick="toggleSection(this)">
-        <div class="section-icon">📊</div>
-        <span class="section-title">Section 6 — Overhead &amp; Profit Margin</span>
-        <span class="chevron">▾</span>
-      </div>
-      <div class="section-body">
-        <div class="fields">
-          <div class="field">
-            <label>Overhead Rate</label>
-            <div class="input-wrap"><input type="number" id="overheadRate" value="0.50" step="0.01" oninput="calc()"><span class="unit-tag">%</span></div>
-            <span class="hint">0.15 = 15% of direct costs</span>
-          </div>
-          <div class="field">
-            <label>Desired Profit Margin</label>
-            <div class="input-wrap"><input type="number" id="profitMargin" value="0.25" step="0.01" oninput="calc()"><span class="unit-tag">%</span></div>
-            <span class="hint">0.50 = 50% mark-up on cost</span>
-          </div>
-        </div>
-        <div class="fields" style="margin-top:12px;">
-          <div class="field">
-            <label>Expedite Surcharge (1–2 Days)</label>
-            <div class="input-wrap"><input type="number" id="expediteSurcharge" value="50" step="1" oninput="calc()"><span class="unit-tag">$</span></div>
-            <span class="hint">Flat fee added to order total</span>
-          </div>
-          <div class="field">
-            <label>Rush Surcharge (3–5 Days)</label>
-            <div class="input-wrap"><input type="number" id="rushSurcharge" value="25" step="1" oninput="calc()"><span class="unit-tag">$</span></div>
-            <span class="hint">Flat fee added to order total</span>
-          </div>
-        </div>
-        <div style="margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-          <span style="font-size:11px;color:var(--muted);">⚡ All pricing settings auto-save when in Admin mode</span>
-          <button class="btn btn-secondary" style="padding:6px 14px;font-size:12px;" onclick="resetPricingDefaults()">↺ Reset to factory defaults</button>
-        </div>
-      </div>
-    </div>
+    <input type="hidden" id="overheadRate" value="0.50">
+    <input type="hidden" id="profitMargin" value="0.25">
+    <input type="hidden" id="expediteSurcharge" value="50">
+    <input type="hidden" id="rushSurcharge" value="25">
 
     <div class="section-card" style="border-color:rgba(185,28,28,.35);">
       <div class="section-header" style="background:rgba(185,28,28,.05);">
@@ -1191,15 +1113,6 @@
         <span class="section-title" style="color:var(--accent);">Pricing Summary</span>
       </div>
       <div class="section-body">
-        <div class="summary-grid admin-only">
-          <div class="summary-row"><span class="label"><span class="fdm-only">Material Cost</span><span class="sla-only" style="display:none;">Resin Cost</span></span><span class="val" id="s-material">$0.00</span></div>
-          <div class="summary-row"><span class="label"><span class="fdm-only">Print Time Cost</span><span class="sla-only" style="display:none;">Exposure Time Cost</span></span><span class="val" id="s-print">$0.00</span></div>
-          <div class="summary-row"><span class="label">Print Labour <span style="font-weight:400;font-size:10px;">(per order)</span></span><span class="val" id="s-print-labour">$0.00</span></div>
-          <div class="summary-row"><span class="label">Add-ons</span><span class="val" id="s-addons">$0.00</span></div>
-          <div class="summary-row"><span class="label">Overhead</span><span class="val" id="s-overhead">$0.00</span></div>
-          <div class="summary-row" id="s-color-row" style="display:none;"><span class="label">Color Surcharge <span style="font-weight:400;font-size:10px;">(per order)</span></span><span class="val" id="s-color"></span></div>
-          <div class="summary-row sla-only" id="s-wash-cure-row" style="display:none;"><span class="label">Wash + Cure <span style="font-weight:400;font-size:10px;">(per order)</span></span><span class="val" id="s-wash-cure">$0.00</span></div>
-        </div>
         <div class="field" style="margin-bottom:16px;">
           <label>Quantity of Parts</label>
           <div class="input-wrap" style="max-width:180px;"><input type="number" id="qty" value="1" min="1" oninput="calc()"><span class="unit-tag">pcs</span></div>
@@ -1215,119 +1128,15 @@
           </div>
         </div>
         <div class="btn-row">
-          <button class="btn btn-primary admin-only" onclick="addToBatch()">+ Add to Batch</button>
           <button class="btn-add-cart" id="addToCartBtn" onclick="addToCart()">🛒 Add to Cart</button>
           <button class="btn-add-cart" id="updateCartBtn" onclick="updateCartItem()" style="display:none;background:#1d4ed8;">✏ Update Cart</button>
           <button class="btn btn-secondary" onclick="resetCalc()">↺ Reset</button>
         </div>
       </div>
     </div>
-    <!-- Materials Library (inline, admin-only) -->
-    <div class="section-card admin-only collapsed" id="matLibCard">
-      <div class="section-header" onclick="toggleSection(this)">
-        <div class="section-icon">🧱</div>
-        <span class="section-title">Materials Library</span>
-        <button class="add-row-btn" style="margin-left:auto;margin-right:8px;" onclick="event.stopPropagation();addMaterialRow()">+ Add Material</button>
-        <span class="chevron">▾</span>
-      </div>
-      <div class="section-body" style="padding:0;">
-        <div class="ref-table-scroll">
-          <table class="ref-table">
-            <thead><tr><th>Material</th><th>$/kg</th><th>Type</th><th>Notes</th><th>Colors</th><th></th></tr></thead>
-            <tbody id="matTableBody"></tbody>
-          </table>
-        </div>
-        <div class="rates-save-bar">
-          <span class="save-note" id="matSaveNote">Changes update the Material dropdown automatically</span>
-          <button class="btn btn-secondary" style="padding:6px 14px;font-size:11px;" onclick="resetMaterials()">↺ Reset Defaults</button>
-        </div>
-      </div>
-    </div>
 
   </div><!-- /calculator -->
 
-  <!-- BATCH -->
-  <div id="panel-batch" class="panel admin-only">
-    <div class="section-card">
-      <div class="section-header" style="cursor:default;">
-        <div class="section-icon">📋</div>
-        <span class="section-title">Batch / Multi-Part Estimator</span>
-        <div style="display:flex;gap:8px;margin-left:auto;">
-          <button class="btn btn-secondary" style="padding:7px 16px;font-size:12px;" onclick="openPrintPreview('internal')"><img src="3dprint-icon.svg" style="height:1em;width:auto;vertical-align:middle;margin-right:5px;" alt="">Print Summary</button>
-          <button class="btn btn-primary" style="padding:7px 16px;font-size:12px;" onclick="openPrintPreview('quote')">📄 Customer Quote</button>
-        </div>
-      </div>
-      <div class="section-body">
-        <div class="batch-controls">
-          <span class="batch-title" id="batch-count">0 parts</span>
-          <div class="btn-row" style="margin:0;">
-            <button class="btn btn-secondary" onclick="addEmptyBatchRow()">+ Add Row</button>
-            <button class="btn btn-danger" onclick="clearBatch()">Clear All</button>
-          </div>
-        </div>
-        <div class="batch-table-wrap">
-          <table id="batchTable">
-            <thead>
-              <tr>
-                <th>Part Name</th><th>Qty</th><th>Mat (g)</th><th>Print (hrs)</th>
-                <th>Mat $/kg</th><th>Unit Price</th><th></th>
-              </tr>
-            </thead>
-            <tbody id="batchBody"></tbody>
-            <tfoot>
-              <tr>
-                <td colspan="5" style="color:var(--label);font-size:11px;letter-spacing:.07em;text-transform:uppercase;">Batch Total</td>
-                <td id="batchTotal" class="price-col">$0.00</td>
-                <td></td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-        <div id="emptyBatch" class="empty-batch">
-          <div class="icon">📦</div>
-          <div>No parts yet. Use <strong>Add to Batch</strong> from the Calculator or add a row manually.</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- RATES -->
-  <div id="panel-rates" class="panel admin-only">
-    <div style="display:flex;flex-direction:column;gap:20px;max-width:600px;">
-      <div class="rates-section">
-        <div class="rates-table-wrap">
-          <div class="rates-table-header">
-            <h3>👤 Labour Rate Guide</h3>
-            <button class="add-row-btn" onclick="addLabourRow()">+ Add Row</button>
-          </div>
-          <table class="ref-table">
-            <thead><tr><th>Context</th><th>$/hr Range</th><th>Notes</th><th></th></tr></thead>
-            <tbody id="labourTableBody"></tbody>
-          </table>
-          <div class="rates-save-bar">
-            <span class="save-note" id="labourSaveNote">Reference only</span>
-            <button class="btn btn-secondary" style="padding:6px 14px;font-size:11px;" onclick="resetLabour()">↺ Reset Defaults</button>
-          </div>
-        </div>
-      </div>
-      <div class="rates-section">
-        <div class="rates-table-wrap">
-          <div class="rates-table-header">
-            <h3>🔩 Heat Insert Reference</h3>
-            <button class="add-row-btn" onclick="addInsertRow()">+ Add Size</button>
-          </div>
-          <table class="ref-table">
-            <thead><tr><th>Size</th><th>Thread</th><th>OD</th><th>Cost/pc</th><th></th></tr></thead>
-            <tbody id="insertTableBody"></tbody>
-          </table>
-          <div class="rates-save-bar">
-            <span class="save-note" id="insertSaveNote">Reference only</span>
-            <button class="btn btn-secondary" style="padding:6px 14px;font-size:11px;" onclick="resetInserts()">↺ Reset Defaults</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
 </div>
 
 <!-- Print Preview Modal -->
@@ -2056,7 +1865,7 @@ let insertRef   = load('3dp_inserts',   DEFAULT_INSERTS);
 
 function renderMaterials() {
   const tbody = document.getElementById('matTableBody');
-  tbody.innerHTML = materials.map((m, i) => {
+  if (tbody) tbody.innerHTML = materials.map((m, i) => {
     const colors   = m.colors || [];
     const colorCnt = colors.length;
     const colorRows = colors.length
@@ -2105,6 +1914,7 @@ function renderMaterials() {
   }).join('');
   rebuildMaterialDropdown();
 }
+
 
 function toggleMatColors(i) {
   const panel = document.getElementById('color-panel-' + i);
@@ -2239,7 +2049,7 @@ function setPrintMode(mode) {
   document.querySelectorAll('.fdm-only').forEach(el => { el.style.display = mode === 'fdm' ? '' : 'none'; });
   document.querySelectorAll('.sla-only').forEach(el => { el.style.display = mode === 'sla' ? '' : 'none'; });
 
-  // Swap pricing defaults into admin inputs
+  // Swap pricing defaults when mode changes
   const defaults = mode === 'sla' ? PRICING_DEFAULTS_SLA : PRICING_DEFAULTS;
   Object.keys(defaults).forEach(k => {
     const el = document.getElementById(k);
@@ -2333,28 +2143,6 @@ function calcSLA() {
 
   const total = unitPrice + printLabourFlat + washCureFlat;
 
-  // Update summary rows
-  const rpt = document.getElementById('res-print-total');
-  if (rpt) rpt.textContent = fmt(directCost);
-  document.getElementById('s-material').textContent     = fmt(matCost);
-  document.getElementById('s-print').textContent        = fmt(printCost);
-  document.getElementById('s-print-labour').textContent = fmt(printLabourFlat);
-  document.getElementById('s-addons').textContent       = fmt(addonCost);
-  document.getElementById('s-overhead').textContent     = fmt(overhead);
-  const cwcRow = document.getElementById('s-wash-cure-row');
-  if (cwcRow) cwcRow.style.display = '';
-  const cwcVal = document.getElementById('s-wash-cure');
-  if (cwcVal) cwcVal.textContent = fmt(washCureFlat);
-  const cwcCost = document.getElementById('cost-wash-cure');
-  if (cwcCost) cwcCost.textContent = fmt(washCureFlat);
-
-  // Color surcharge: N/A for SLA (resins don't have color options here)
-  const sc = document.getElementById('s-color-row');
-  if (sc) sc.style.display = 'none';
-
-  const cp = document.getElementById('cost-post');    if (cp) cp.textContent = postEnabled ? fmt(postCost)  : '';
-  const ca = document.getElementById('cost-assembly');if (ca) ca.textContent = asmEnabled  ? fmt(asmCost)   : '';
-
   const hasData = resinMl > 0 && slaHrs > 0;
   const displayUnit = unitPrice + (printLabourFlat + washCureFlat);
   document.getElementById('t-unit').textContent  = hasData ? fmt(displayUnit) : '$0.00';
@@ -2378,7 +2166,6 @@ function calcSLA() {
   }
 
   if (typeof updateSlicerDisplay === 'function') updateSlicerDisplay();
-  if (document.body.classList.contains('admin-mode')) saveSettings();
 }
 
 function saveSettings() {
@@ -2453,7 +2240,6 @@ function rebuildMaterialDropdown() {
   const current = sel.value;
   sel.innerHTML = materials.map(m => `<option value="${esc(m.name)}">${esc(m.name)}</option>`).join('') + `<option value="custom">Custom…</option>`;
   if ([...sel.options].some(o => o.value === current)) sel.value = current;
-  // Re-filter visible library dropdown to match admin material list
   if (typeof renderMatLibDropdown === 'function') renderMatLibDropdown(false);
 }
 
@@ -2470,9 +2256,6 @@ function onMaterialChange() {
   const price = getMatPrice(mat);
   if (mat !== 'custom' && price != null) {
     document.getElementById('matCostKg').value = price;
-    document.getElementById('matHint').textContent = '⚡ Auto-set from material selection';
-  } else if (mat === 'custom') {
-    document.getElementById('matHint').textContent = 'Enter your custom price above';
   }
   if (typeof reestimate === 'function') reestimate();
   calc();
@@ -2513,20 +2296,6 @@ function calc() {
   const printLabourFlat = printLabourCost * (1 + g('overheadRate')) * (1 + g('profitMargin'));
   const total      = unitPrice * qty + printLabourFlat + colorSurcharge;
 
-  const rpt = document.getElementById('res-print-total');
-  if (rpt) rpt.textContent = fmt(directCost);
-  document.getElementById('s-material').textContent      = fmt(matCost);
-  document.getElementById('s-print').textContent         = fmt(printCost);
-  document.getElementById('s-print-labour').textContent  = fmt(printLabourFlat);
-  document.getElementById('s-addons').textContent        = fmt(addonCost);
-  document.getElementById('s-overhead').textContent = fmt(overhead);
-  const cp = document.getElementById('cost-post');    if (cp) cp.textContent    = postEnabled  ? fmt(postCost)   : '';
-  const ci = document.getElementById('cost-inserts'); if (ci) ci.textContent = insEnabled  ? fmt(insertCost) : '';
-  const ca = document.getElementById('cost-assembly');if (ca) ca.textContent = asmEnabled  ? fmt(asmCost)    : '';
-  const sc = document.getElementById('s-color-row');
-  if (sc) sc.style.display = colorSurcharge > 0 ? '' : 'none';
-  const scv = document.getElementById('s-color');
-  if (scv) scv.textContent = colorSurcharge > 0 ? fmt(colorSurcharge) : '';
   const hasSTL = parseFloat(document.getElementById('materialGrams').value) > 0
                  && parseFloat(document.getElementById('printHours').value) > 0;
   const displayUnitPrice = unitPrice + (qty > 0 ? printLabourFlat / qty : 0);
@@ -2551,9 +2320,6 @@ function calc() {
 
   // Update print time & filament weight display to reflect current qty
   if (typeof updateSlicerDisplay === 'function') updateSlicerDisplay();
-
-  // Auto-save admin pricing settings on every calculation
-  if (document.body.classList.contains('admin-mode')) saveSettings();
 }
 
 function toggleAddon(which) {
@@ -2688,13 +2454,6 @@ function resetCalc(silent) {
   if (!silent) showToast('Calculator reset to defaults');
 }
 
-// Admin mode only activates via URL parameter — never from localStorage
-// This prevents the admin session from contaminating the public-facing calculator
-localStorage.removeItem('3dp_admin');
-if (new URLSearchParams(window.location.search).get('admin') === '1') {
-  document.body.classList.add('admin-mode');
-}
-
 function showToast(msg) {
   const t = document.getElementById('toast');
   document.getElementById('toastMsg').textContent = msg;
@@ -2816,7 +2575,7 @@ function triggerPrint() { window.print(); }
 
 document.addEventListener('click', e => { if (e.target.id === 'printModal') closePrintPreview(); });
 document.addEventListener('DOMContentLoaded', () => {
-  renderMaterials(); renderLabour(); renderInserts();
+  renderMaterials();
   loadSettings();
   const sel = document.getElementById('materialType');
   sel.value = 'PLA';
@@ -2824,7 +2583,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // Restore saved print mode (defaults to 'fdm')
   const savedMode = (() => { try { return localStorage.getItem('3dp_print_mode') || 'fdm'; } catch(e) { return 'fdm'; } })();
   setPrintMode(savedMode);
-  renderBatch();
 });
 </script>
 
