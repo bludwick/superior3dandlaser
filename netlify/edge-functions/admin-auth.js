@@ -3,35 +3,47 @@
  * Guards all /admin/* routes. Verifies the admin_token httpOnly cookie
  * using HS256 JWT via the Web Crypto API (Deno runtime, no npm deps).
  */
-export default async function adminAuth(request, _context) {
-  const url = new URL(request.url);
+export default async function adminAuth(request, context) {
+  try {
+    const url = new URL(request.url);
 
-  // Let the login page and its direct assets pass through unauthenticated
-  if (
-    url.pathname === '/admin/login' ||
-    url.pathname === '/admin/login.html' ||
-    url.pathname.startsWith('/admin/login.')
-  ) {
-    return; // continue to origin
-  }
+    // Let the login page and its direct assets pass through unauthenticated
+    if (
+      url.pathname === '/admin/login' ||
+      url.pathname === '/admin/login.html' ||
+      url.pathname.startsWith('/admin/login.')
+    ) {
+      return; // continue to origin
+    }
 
-  const secret = Deno.env.get('JWT_SECRET');
-  if (!secret) {
-    // JWT_SECRET not configured — block access
+    // Read JWT_SECRET from environment (Netlify edge function context)
+    const secret =
+      (typeof Netlify !== 'undefined' && Netlify.env
+        ? Netlify.env.get('JWT_SECRET')
+        : null) ??
+      (typeof Deno !== 'undefined' ? Deno.env.get('JWT_SECRET') : null);
+
+    if (!secret) {
+      // JWT_SECRET not configured — block access
+      return Response.redirect(new URL('/admin/login.html', request.url), 302);
+    }
+
+    const token = getCookie(request.headers.get('cookie') || '', 'admin_token');
+    if (!token) {
+      return Response.redirect(new URL('/admin/login.html', request.url), 302);
+    }
+
+    const valid = await verifyJWT(token, secret);
+    if (!valid) {
+      return Response.redirect(new URL('/admin/login.html', request.url), 302);
+    }
+
+    // Valid token — allow request to continue
+  } catch (err) {
+    // Unexpected runtime error — fail safe by redirecting to login
+    console.error('admin-auth edge function error:', err);
     return Response.redirect(new URL('/admin/login.html', request.url), 302);
   }
-
-  const token = getCookie(request.headers.get('cookie') || '', 'admin_token');
-  if (!token) {
-    return Response.redirect(new URL('/admin/login.html', request.url), 302);
-  }
-
-  const valid = await verifyJWT(token, secret);
-  if (!valid) {
-    return Response.redirect(new URL('/admin/login.html', request.url), 302);
-  }
-
-  // Valid token — allow request to continue
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
