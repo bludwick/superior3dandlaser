@@ -1,18 +1,21 @@
 const jwt          = require('jsonwebtoken');
 const { getStore } = require('@netlify/blobs');
-const { Resend }   = require('resend');
+
+let _Resend;
+try { _Resend = require('resend').Resend; } catch { _Resend = null; }
 
 const STATUS_NEXT  = { confirmed: 'printing', printing: 'ready', ready: 'complete' };
 const SITE_URL     = process.env.SITE_URL || 'https://superior3dandlaser.com';
 
 exports.handler = async function (event) {
   // ── Auth ────────────────────────────────────────────────────────────────────
-  const token = getCookie(event.headers['cookie'] || '', 'admin_token');
+  const cookieHeader = event.headers['cookie'] || event.headers['Cookie'] || '';
+  const token = getCookie(cookieHeader, 'admin_token');
   if (!token) return authError();
   const jwtSecret = process.env.JWT_SECRET || '';
   try { jwt.verify(token, jwtSecret); } catch { return authError(); }
 
-  // ── Routes ───────────────────────────────────────────────────────────────────
+  // ── Routes ──────────────────────────────────────────────────────────────────
   if (event.httpMethod === 'GET')   return listJobs();
   if (event.httpMethod === 'POST')  return createJob(event.body, event.isBase64Encoded);
   if (event.httpMethod === 'PATCH') {
@@ -27,11 +30,18 @@ async function listJobs() {
   try {
     const store = getStore({ name: 'jobs', consistency: 'strong' });
     const { blobs } = await store.list();
+    console.log('[manage-jobs] listJobs: blob count =', blobs.length);
 
     const jobs = await Promise.all(
       blobs.map(async (b) => {
-        try { return await store.get(b.key, { type: 'json' }); }
-        catch { return null; }
+        try {
+          const text = await store.get(b.key);
+          if (!text) return null;
+          return JSON.parse(text);
+        } catch (e) {
+          console.error('[manage-jobs] get error key=' + b.key, e.message);
+          return null;
+        }
       })
     );
 
@@ -48,7 +58,6 @@ async function listJobs() {
 
 // ── Create a job ──────────────────────────────────────────────────────────────
 async function createJob(rawBody, isBase64) {
-  // Handle Netlify's optional base64 encoding of POST bodies
   let bodyStr = rawBody || '{}';
   if (isBase64) {
     try { bodyStr = Buffer.from(rawBody, 'base64').toString('utf8'); }
@@ -57,7 +66,10 @@ async function createJob(rawBody, isBase64) {
 
   let data;
   try { data = JSON.parse(bodyStr); }
-  catch { return jsonResponse(400, { error: 'Invalid JSON body' }); }
+  catch (e) {
+    console.error('[manage-jobs] JSON parse error:', e.message, 'body was:', bodyStr.slice(0, 200));
+    return jsonResponse(400, { error: 'Invalid JSON body: ' + e.message });
+  }
 
   const id           = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const invoiceToken = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
@@ -82,19 +94,22 @@ async function createJob(rawBody, isBase64) {
     createdAt:     new Date().toISOString(),
   };
 
+  console.log('[manage-jobs] createJob id=' + id + ' customer=' + job.customerName + ' items=' + job.items.length);
+
   // Save to jobs store
   try {
     const store = getStore({ name: 'jobs', consistency: 'strong' });
-    await store.setJSON(`job_${id}`, job);
+    await store.set(`job_${id}`, JSON.stringify(job));
+    console.log('[manage-jobs] job saved: job_' + id);
   } catch (err) {
     console.error('[manage-jobs] jobs store write error:', err.message);
     return jsonResponse(500, { error: 'Failed to save job: ' + err.message });
   }
 
-  // Also mirror as an order with status 'quoted'
+  // Mirror as order with status 'quoted' (best-effort)
   try {
     const ordersStore = getStore({ name: 'orders', consistency: 'strong' });
-    await ordersStore.setJSON(`order_${id}`, {
+    await ordersStore.set(`order_${id}`, JSON.stringify({
       id,
       customerName:  job.customerName,
       customerEmail: job.customerEmail,
@@ -116,9 +131,9 @@ async function createJob(rawBody, isBase64) {
       invoiceToken: job.invoiceToken,
       jobId:        id,
       createdAt:    job.createdAt,
-    });
+    }));
+    console.log('[manage-jobs] order mirror saved: order_' + id);
   } catch (err) {
-    // Non-fatal — job was saved; order mirror is best-effort
     console.error('[manage-jobs] orders mirror write error:', err.message);
   }
 
@@ -164,8 +179,8 @@ async function createJob(rawBody, isBase64) {
     }
   }
 
-  // Send confirmation email
-  if (job.customerEmail) {
+  // Send confirmation email (best-effort)
+  if (job.customerEmail && _Resend) {
     try { await sendStatusEmail(job, 'confirmed', invoiceUrl, paymentUrl); }
     catch (err) { console.error('[manage-jobs] email error:', err.message); }
   }
@@ -181,8 +196,11 @@ async function advanceJobStatus(jobId) {
 
     let targetKey = null, job = null;
     for (const blob of blobs) {
-      const j = await store.get(blob.key, { type: 'json' }).catch(() => null);
-      if (j && j.id === jobId) { targetKey = blob.key; job = j; break; }
+      try {
+        const text = await store.get(blob.key);
+        const j = text ? JSON.parse(text) : null;
+        if (j && j.id === jobId) { targetKey = blob.key; job = j; break; }
+      } catch { /* skip corrupt blob */ }
     }
     if (!targetKey) return jsonResponse(404, { error: 'Job not found' });
     if (job.status === 'complete') return jsonResponse(400, { error: 'Already complete' });
@@ -191,9 +209,9 @@ async function advanceJobStatus(jobId) {
     if (!newStatus) return jsonResponse(400, { error: 'Cannot advance from: ' + job.status });
 
     job.status = newStatus;
-    await store.setJSON(targetKey, job);
+    await store.set(targetKey, JSON.stringify(job));
 
-    if (newStatus === 'ready' && job.customerEmail) {
+    if (newStatus === 'ready' && job.customerEmail && _Resend) {
       const invoiceUrl = `${SITE_URL}/invoice.html?job=${job.id}&token=${job.invoiceToken || ''}`;
       try { await sendStatusEmail(job, 'ready', invoiceUrl, null); }
       catch (err) { console.error('[manage-jobs] email error on advance:', err.message); }
@@ -208,7 +226,7 @@ async function advanceJobStatus(jobId) {
 
 // ── Email ─────────────────────────────────────────────────────────────────────
 async function sendStatusEmail(job, status, invoiceUrl, paymentUrl) {
-  const resend = new Resend(process.env.RESEND_API_KEY);
+  const resend = new _Resend(process.env.RESEND_API_KEY);
 
   const itemLines = (job.items || []).map(it =>
     `  • ${it.partName || 'Part'} ×${it.qty || 1}  ${it.material || ''}  ${it.color || ''}  $${parseFloat(it.lineTotal || 0).toFixed(2)}`
@@ -268,9 +286,9 @@ async function sendStatusEmail(job, status, invoiceUrl, paymentUrl) {
   }
 
   await resend.emails.send({
-    from:     'Superior 3D and Laser <sales@superiormetrology.com>',
-    reply_to: 'sales@superior3dandlaser.com',
-    to:       [job.customerEmail],
+    from:    'Superior 3D and Laser <sales@superiormetrology.com>',
+    replyTo: 'sales@superior3dandlaser.com',
+    to:      [job.customerEmail],
     subject,
     text: body,
   });

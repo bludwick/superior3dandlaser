@@ -36,7 +36,8 @@ async function listOrders() {
     const orders = await Promise.all(
       blobs.map(async (blob) => {
         try {
-          return await store.get(blob.key, { type: 'json' });
+          const text = await store.get(blob.key);
+          return text ? JSON.parse(text) : null;
         } catch {
           return null;
         }
@@ -71,14 +72,16 @@ async function updateStatus(orderId, body) {
     const { blobs } = await store.list();
     let targetKey = null;
     for (const blob of blobs) {
-      const order = await store.get(blob.key, { type: 'json' }).catch(() => null);
+      const t = await store.get(blob.key).catch(() => null);
+      const order = t ? JSON.parse(t) : null;
       if (order && order.id === orderId) { targetKey = blob.key; break; }
     }
     if (!targetKey) return jsonResponse(404, { error: 'Order not found' });
 
-    const order = await store.get(targetKey, { type: 'json' });
+    const raw = await store.get(targetKey);
+    const order = JSON.parse(raw);
     order.status = status;
-    await store.setJSON(targetKey, order);
+    await store.set(targetKey, JSON.stringify(order));
     return jsonResponse(200, { ok: true });
   } catch (err) {
     console.error('[list-orders] Update error:', err.message);
