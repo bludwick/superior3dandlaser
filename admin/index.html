@@ -289,11 +289,64 @@
   }
   .toast.show { transform: none; opacity: 1; }
 
+  /* ── MOBILE (≤ 768px) ── */
   @media (max-width: 768px) {
-    .sidebar { width: 60px; padding: 16px 8px; }
-    .sidebar-section, .nav-item span:not(.nav-icon):not(.nav-badge) { display: none; }
+    /* Sidebar collapses to icon strip */
+    .sidebar { width: 54px; padding: 12px 6px; }
+    .sidebar-section,
+    .nav-item span:not(.nav-icon):not(.nav-badge) { display: none; }
     .nav-item { justify-content: center; padding: 10px; }
-    .main { padding: 16px; }
+
+    /* Top nav */
+    .topnav { padding: 0 12px; gap: 8px; }
+    .topnav-brand { font-size: 13px; }
+    .admin-chip { display: none; }
+    .site-link { font-size: 11px; padding: 5px 7px; }
+    .logout-btn { font-size: 11px; padding: 5px 9px; }
+
+    /* Main content */
+    .main { padding: 14px 12px; }
+
+    /* Tables scroll horizontally instead of clipping */
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table { min-width: 540px; }
+
+    /* Table header stacks filter row above refresh button */
+    .table-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .filter-row { flex-wrap: wrap; }
+
+    /* Jobs page header — stack title above Create button */
+    #page-jobs .page-header > div { flex-direction: column; align-items: flex-start; }
+
+    /* Stat cards wrap to 2×2 grid */
+    .stat-row { display: grid; grid-template-columns: 1fr 1fr; }
+    .stat-card { min-width: 0; }
+
+    /* Job overlay — single column, no calculator iframe */
+    .job-overlay { overflow-y: auto; }
+    .overlay-topbar { padding: 0 12px; gap: 8px; flex-wrap: wrap; height: auto; min-height: 56px; padding-top: 8px; padding-bottom: 8px; }
+    .overlay-title { font-size: 13px; flex: 1 1 100%; order: -1; }
+    .overlay-topbar .btn-secondary,
+    .overlay-topbar .btn-primary { flex: 1; justify-content: center; font-size: 12px; padding: 8px 10px; }
+    .overlay-body { flex-direction: column; overflow: visible; }
+    .overlay-left { display: none !important; }
+    .overlay-right { flex: 1; padding: 16px; gap: 14px; overflow: visible; }
+    .form-row { grid-template-columns: 1fr; }
+    .form-field.full { grid-column: 1; }
+    .totals-row { flex-direction: column; gap: 4px; }
+    .overlay-footer { flex-wrap: wrap; }
+    .overlay-footer .btn-primary,
+    .overlay-footer .btn-secondary { flex: 1; justify-content: center; }
+
+    /* Expand rows on mobile — let inner content scroll if needed */
+    .expand-inner { overflow-x: auto; }
+  }
+
+  /* ── VERY SMALL (≤ 480px) ── */
+  @media (max-width: 480px) {
+    .topnav-brand { display: none; }
+    .stat-val { font-size: 22px; }
+    .stat-card { padding: 14px 16px; }
   }
 </style>
 </head>
