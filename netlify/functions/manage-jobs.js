@@ -7,6 +7,15 @@ try { _Resend = require('resend').Resend; } catch { _Resend = null; }
 const STATUS_NEXT  = { confirmed: 'printing', printing: 'ready', ready: 'complete' };
 const SITE_URL     = process.env.SITE_URL || 'https://superior3dandlaser.com';
 
+// Build store options — auto-context first, explicit env vars as fallback
+function blobStore(name) {
+  const opts = { name, consistency: 'strong' };
+  const siteID = process.env.NETLIFY_SITE_ID;
+  const token  = process.env.NETLIFY_AUTH_TOKEN || process.env.NETLIFY_TOKEN;
+  if (siteID && token) { opts.siteID = siteID; opts.token = token; }
+  return getStore(opts);
+}
+
 exports.handler = async function (event) {
   // ── Auth ────────────────────────────────────────────────────────────────────
   const cookieHeader = event.headers['cookie'] || event.headers['Cookie'] || '';
@@ -28,14 +37,14 @@ exports.handler = async function (event) {
 // ── List all jobs ─────────────────────────────────────────────────────────────
 async function listJobs() {
   try {
-    const store = getStore({ name: 'jobs', consistency: 'strong' });
-    const { blobs } = await store.list();
+    const bs = blobStore('jobs');
+    const { blobs } = await bs.list();
     console.log('[manage-jobs] listJobs: blob count =', blobs.length);
 
     const jobs = await Promise.all(
       blobs.map(async (b) => {
         try {
-          const text = await store.get(b.key);
+          const text = await bs.get(b.key);
           if (!text) return null;
           return JSON.parse(text);
         } catch (e) {
@@ -67,7 +76,7 @@ async function createJob(rawBody, isBase64) {
   let data;
   try { data = JSON.parse(bodyStr); }
   catch (e) {
-    console.error('[manage-jobs] JSON parse error:', e.message, 'body was:', bodyStr.slice(0, 200));
+    console.error('[manage-jobs] JSON parse error:', e.message, 'body:', bodyStr.slice(0, 200));
     return jsonResponse(400, { error: 'Invalid JSON body: ' + e.message });
   }
 
@@ -98,8 +107,8 @@ async function createJob(rawBody, isBase64) {
 
   // Save to jobs store
   try {
-    const store = getStore({ name: 'jobs', consistency: 'strong' });
-    await store.set(`job_${id}`, JSON.stringify(job));
+    const bs = blobStore('jobs');
+    await bs.set(`job_${id}`, JSON.stringify(job));
     console.log('[manage-jobs] job saved: job_' + id);
   } catch (err) {
     console.error('[manage-jobs] jobs store write error:', err.message);
@@ -108,8 +117,8 @@ async function createJob(rawBody, isBase64) {
 
   // Mirror as order with status 'quoted' (best-effort)
   try {
-    const ordersStore = getStore({ name: 'orders', consistency: 'strong' });
-    await ordersStore.set(`order_${id}`, JSON.stringify({
+    const obs = blobStore('orders');
+    await obs.set(`order_${id}`, JSON.stringify({
       id,
       customerName:  job.customerName,
       customerEmail: job.customerEmail,
@@ -191,13 +200,13 @@ async function createJob(rawBody, isBase64) {
 // ── Advance job status ────────────────────────────────────────────────────────
 async function advanceJobStatus(jobId) {
   try {
-    const store = getStore({ name: 'jobs', consistency: 'strong' });
-    const { blobs } = await store.list();
+    const bs = blobStore('jobs');
+    const { blobs } = await bs.list();
 
     let targetKey = null, job = null;
     for (const blob of blobs) {
       try {
-        const text = await store.get(blob.key);
+        const text = await bs.get(blob.key);
         const j = text ? JSON.parse(text) : null;
         if (j && j.id === jobId) { targetKey = blob.key; job = j; break; }
       } catch { /* skip corrupt blob */ }
@@ -209,7 +218,7 @@ async function advanceJobStatus(jobId) {
     if (!newStatus) return jsonResponse(400, { error: 'Cannot advance from: ' + job.status });
 
     job.status = newStatus;
-    await store.set(targetKey, JSON.stringify(job));
+    await bs.set(targetKey, JSON.stringify(job));
 
     if (newStatus === 'ready' && job.customerEmail && _Resend) {
       const invoiceUrl = `${SITE_URL}/invoice.html?job=${job.id}&token=${job.invoiceToken || ''}`;

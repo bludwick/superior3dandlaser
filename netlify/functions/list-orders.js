@@ -1,6 +1,14 @@
 const jwt       = require('jsonwebtoken');
 const { getStore } = require('@netlify/blobs');
 
+function blobStore(name) {
+  const opts = { name, consistency: 'strong' };
+  const siteID = process.env.NETLIFY_SITE_ID;
+  const token  = process.env.NETLIFY_AUTH_TOKEN || process.env.NETLIFY_TOKEN;
+  if (siteID && token) { opts.siteID = siteID; opts.token = token; }
+  return getStore(opts);
+}
+
 exports.handler = async function (event) {
   // Verify admin JWT from cookie
   const token = getCookie(event.headers['cookie'] || '', 'admin_token');
@@ -30,13 +38,13 @@ exports.handler = async function (event) {
 
 async function listOrders() {
   try {
-    const store = getStore({ name: 'orders', consistency: 'strong' });
-    const { blobs } = await store.list();
+    const bs = blobStore('orders');
+    const { blobs } = await bs.list();
 
     const orders = await Promise.all(
       blobs.map(async (blob) => {
         try {
-          const text = await store.get(blob.key);
+          const text = await bs.get(blob.key);
           return text ? JSON.parse(text) : null;
         } catch {
           return null;
@@ -67,21 +75,20 @@ async function updateStatus(orderId, body) {
   }
 
   try {
-    const store = getStore({ name: 'orders', consistency: 'strong' });
-    // Find the blob by orderId field
-    const { blobs } = await store.list();
+    const bs = blobStore('orders');
+    const { blobs } = await bs.list();
     let targetKey = null;
     for (const blob of blobs) {
-      const t = await store.get(blob.key).catch(() => null);
+      const t = await bs.get(blob.key).catch(() => null);
       const order = t ? JSON.parse(t) : null;
       if (order && order.id === orderId) { targetKey = blob.key; break; }
     }
     if (!targetKey) return jsonResponse(404, { error: 'Order not found' });
 
-    const raw = await store.get(targetKey);
+    const raw = await bs.get(targetKey);
     const order = JSON.parse(raw);
     order.status = status;
-    await store.set(targetKey, JSON.stringify(order));
+    await bs.set(targetKey, JSON.stringify(order));
     return jsonResponse(200, { ok: true });
   } catch (err) {
     console.error('[list-orders] Update error:', err.message);
