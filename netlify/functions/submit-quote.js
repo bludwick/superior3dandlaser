@@ -59,7 +59,7 @@ async function sendEmail(payload) {
 
 function buildContactEmail(fields) {
   return {
-    to:      ['ludwick.blake@gmail.com'],
+    to:      ['sales@superior3dandlaser.com'],
     subject: `New Contact Message — ${fields.firstName || ''} ${fields.lastName || ''}`.trim(),
     text: `
 New Contact Message — Superior 3D and Laser
@@ -80,7 +80,7 @@ ${fields.message || ''}
 
 function buildQuoteEmail(fields, fileName) {
   return {
-    to:      ['ludwick.blake@gmail.com'],
+    to:      ['sales@superior3dandlaser.com'],
     subject: `New Quote Request — ${fields.firstName || ''} ${fields.lastName || ''}`.trim(),
     text: `
 New Quote Request — Superior 3D and Laser
@@ -110,7 +110,7 @@ function buildCartOrderEmail(fields, stlFiles) {
     : '';
 
   return {
-    to:      ['ludwick.blake@gmail.com'],
+    to:      ['sales@superior3dandlaser.com'],
     subject: `New Order Request — ${fields.name || ''} — ${fields.orderTotal || ''}`.trim(),
     text: `
 New Cart Order Request — Superior 3D and Laser
