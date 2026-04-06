@@ -24,19 +24,23 @@ exports.handler = async function (event) {
   const jwtSecret = process.env.JWT_SECRET || '';
   try { jwt.verify(token, jwtSecret); } catch { return authError(); }
 
+  // Use rawUrl (original request URL) for path matching — event.path can
+  // resolve to the function path when accessed via a Netlify rewrite rule.
+  const reqPath = getReqPath(event);
+
   // ── Routes ──────────────────────────────────────────────────────────────────
   if (event.httpMethod === 'GET')    return listJobs();
   if (event.httpMethod === 'POST')   return createJob(event.body, event.isBase64Encoded);
   if (event.httpMethod === 'PATCH') {
-    const match = (event.path || '').match(/\/([^/]+)\/status$/);
+    const match = reqPath.match(/\/jobs\/([^/?]+)\/status/);
     if (match) return advanceJobStatus(match[1]);
   }
   if (event.httpMethod === 'PUT') {
-    const match = (event.path || '').match(/\/([^/]+)$/);
+    const match = reqPath.match(/\/jobs\/([^/?]+)(?:\/|$)/);
     if (match) return updateJob(match[1], event.body, event.isBase64Encoded);
   }
   if (event.httpMethod === 'DELETE') {
-    const match = (event.path || '').match(/\/([^/]+)$/);
+    const match = reqPath.match(/\/jobs\/([^/?]+)(?:\/|$)/);
     if (match) return deleteJob(match[1]);
   }
   return { statusCode: 405, body: 'Method Not Allowed' };
@@ -416,6 +420,18 @@ async function deleteJob(jobId) {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+// Extract the pathname from rawUrl (the original request URL before any
+// Netlify rewrite), falling back to event.path. Using rawUrl avoids the
+// common gotcha where event.path resolves to the function path after a
+// status=200 rewrite rule, causing path-based ID extraction to fail.
+function getReqPath(event) {
+  if (event.rawUrl) {
+    try { return new URL(event.rawUrl).pathname; } catch { /* fall through */ }
+  }
+  return event.path || '';
+}
+
 function getCookie(header, name) {
   const match = header.split(';').map(s => s.trim()).find(s => s.startsWith(name + '='));
   return match ? match.slice(name.length + 1) : null;
