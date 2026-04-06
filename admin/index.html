@@ -916,14 +916,18 @@ let _matLib = [];
 function loadMatLib() {
   try {
     const raw = localStorage.getItem('3dp_materials');
-    _matLib = raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(MAT_DEFAULT));
-  } catch { _matLib = JSON.parse(JSON.stringify(MAT_DEFAULT)); }
-  // Ensure every material has type and colors
-  _matLib = _matLib.map(m => ({
-    type: m.name && m.name.toLowerCase().includes('resin') ? 'SLA' : 'FDM',
-    colors: [],
-    ...m,
-  }));
+    const parsed = raw ? JSON.parse(raw) : null;
+    _matLib = Array.isArray(parsed) && parsed.length ? parsed : JSON.parse(JSON.stringify(MAT_DEFAULT));
+    // Ensure every material has type and colors
+    _matLib = _matLib.map(m => ({
+      type: m.name && m.name.toLowerCase().includes('resin') ? 'SLA' : 'FDM',
+      colors: [],
+      ...m,
+    }));
+  } catch(e) {
+    console.error('loadMatLib error:', e);
+    _matLib = JSON.parse(JSON.stringify(MAT_DEFAULT));
+  }
 }
 
 function saveMatLib() {
