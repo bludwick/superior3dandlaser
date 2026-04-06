@@ -798,7 +798,7 @@ function renderJobs(filter) {
       <td style="white-space:nowrap;">
         ${canAdv ? `<button class="advance-btn" onclick="advanceJobStatus('${esc(j.id)}', this)">Advance ›</button>` : ''}
         ${j.invoiceToken ? `<a class="invoice-btn" href="/invoice.html?job=${esc(j.id)}&token=${esc(j.invoiceToken)}" target="_blank">📄 Invoice</a>` : ''}
-        <button class="edit-job-btn" onclick="openEditJobOverlay(_jobs[${idx}])" title="Edit job">✏</button>
+        <button class="edit-job-btn" onclick="openEditJobOverlay(_jobs.find(x=>x.id==='${esc(j.id)}'))" title="Edit job">✏</button>
         <button class="expand-btn" onclick="toggleExpand('jrow-${idx}', this)">▾</button>
         <button class="delete-job-btn" onclick="deleteJob('${esc(j.id)}', this)" title="Delete job">🗑</button>
       </td>
@@ -915,7 +915,8 @@ function openJobOverlay(orderData) {
     importBtn.style.display = '';
     localStorage.removeItem('3dp_cart');
     const frame = document.getElementById('jobPricerFrame');
-    frame.src = '/3dprintingquotecalculator.html';
+    frame.src = '/3dprintingquotecalculator.html?admin=1';
+    _startCartListener();
   }
 
   overlay.classList.remove('hidden');
@@ -964,15 +965,37 @@ function openEditJobOverlay(job) {
     document.getElementById('jobTotals').style.display = 'none';
   }
 
-  // Show calculator so items can be changed
+  // Show calculator so items can be added/changed
   leftPane.classList.remove('hidden');
   importBtn.style.display = '';
-  localStorage.removeItem('3dp_cart');
+
+  // Pre-populate cart with existing items so new additions append rather than replace
+  const cartSeed = (job.items || []).map(it => ({
+    projectName: it.partName  || 'Part',
+    material:    it.material  || '',
+    color:       it.color     || '',
+    qty:         it.qty       || 1,
+    unitPrice:   it.unitPrice || 0,
+    lineTotal:   it.lineTotal || 0,
+  }));
+  localStorage.setItem('3dp_cart', JSON.stringify(cartSeed));
+
   const frame = document.getElementById('jobPricerFrame');
   frame.src = '/3dprintingquotecalculator.html?admin=1';
+  _startCartListener();
 
   overlay.classList.remove('hidden');
   document.body.style.overflow = 'hidden';
+}
+
+function _startCartListener() {
+  if (window._cartImportListener) window.removeEventListener('storage', window._cartImportListener);
+  window._cartImportListener = function (e) {
+    if (e.key !== '3dp_cart') return;
+    if (document.getElementById('jobOverlay').classList.contains('hidden')) return;
+    importFromCart(true); // silent auto-import
+  };
+  window.addEventListener('storage', window._cartImportListener);
 }
 
 function closeJobOverlay() {
@@ -981,14 +1004,18 @@ function closeJobOverlay() {
   document.getElementById('jobPricerFrame').src = '';
   _jobPrefill = null;
   _editJobId  = null;
+  if (window._cartImportListener) {
+    window.removeEventListener('storage', window._cartImportListener);
+    window._cartImportListener = null;
+  }
   // Reset button labels for next open
   document.querySelectorAll('#jobOverlay .btn-primary').forEach(b => { b.textContent = '✓ Create Job'; });
 }
 
-function importFromCart() {
+function importFromCart(silent) {
   let cart = [];
   try { cart = JSON.parse(localStorage.getItem('3dp_cart') || '[]'); } catch { cart = []; }
-  if (!cart.length) { showToast('Cart is empty — add items in the calculator first'); return; }
+  if (!cart.length) { if (!silent) showToast('Cart is empty — add items in the calculator first'); return; }
 
   const items = cart.map(it => ({
     partName:  it.fileName || it.projectName || 'Part',
@@ -1003,7 +1030,7 @@ function importFromCart() {
   const tax      = subtotal * 0.085;
   const total    = subtotal + tax;
   renderJobItems(items, subtotal, tax, total);
-  showToast('Cart imported — ' + items.length + ' item(s)');
+  if (!silent) showToast('Cart imported — ' + items.length + ' item(s)');
 }
 
 function renderJobItems(items, subtotal, tax, total) {
