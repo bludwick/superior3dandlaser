@@ -55,6 +55,16 @@
   status = 200
 
 [[redirects]]
+  from = "/api/admin/materials"
+  to = "/.netlify/functions/manage-materials"
+  status = 200
+
+[[redirects]]
+  from = "/api/materials"
+  to = "/.netlify/functions/manage-materials"
+  status = 200
+
+[[redirects]]
   from = "/api/invoice"
   to = "/.netlify/functions/get-invoice"
   status = 200

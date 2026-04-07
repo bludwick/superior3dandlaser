@@ -916,23 +916,28 @@ const MAT_DEFAULT = [
 
 let _matLib = [];
 
+function _normaliseMatLib(arr) {
+  return arr.map(m => ({
+    type: m.name && m.name.toLowerCase().includes('resin') ? 'SLA' : 'FDM',
+    colors: [],
+    ...m,
+  }));
+}
+
 function loadMatLib() {
   try {
     const raw = localStorage.getItem('3dp_materials');
     const parsed = raw ? JSON.parse(raw) : null;
-    _matLib = Array.isArray(parsed) && parsed.length ? parsed : JSON.parse(JSON.stringify(MAT_DEFAULT));
-    // Ensure every material has type and colors
-    _matLib = _matLib.map(m => ({
-      type: m.name && m.name.toLowerCase().includes('resin') ? 'SLA' : 'FDM',
-      colors: [],
-      ...m,
-    }));
+    _matLib = _normaliseMatLib(
+      Array.isArray(parsed) && parsed.length ? parsed : JSON.parse(JSON.stringify(MAT_DEFAULT))
+    );
   } catch(e) {
     console.error('loadMatLib error:', e);
     _matLib = JSON.parse(JSON.stringify(MAT_DEFAULT));
   }
 }
 
+let _matSaveTimer = null;
 function saveMatLib() {
   try { localStorage.setItem('3dp_materials', JSON.stringify(_matLib)); } catch(e) {}
   const note = document.getElementById('matLibSaveNote');
@@ -942,11 +947,40 @@ function saveMatLib() {
     clearTimeout(note._t);
     note._t = setTimeout(() => { note.textContent = 'Changes save automatically and sync with the calculator'; note.classList.remove('saved'); }, 1800);
   }
+  // Debounce the API save so rapid edits don't flood the server
+  clearTimeout(_matSaveTimer);
+  _matSaveTimer = setTimeout(_pushMaterialsToApi, 800);
+}
+
+async function _pushMaterialsToApi() {
+  try {
+    const res = await fetch('/api/admin/materials', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(_matLib),
+    });
+    if (!res.ok) console.warn('[materials] API save failed:', res.status);
+  } catch(e) {
+    console.warn('[materials] API save error:', e.message);
+  }
 }
 
 function loadMatLibrary() {
+  // Render immediately from localStorage / defaults so the UI isn't blank
   loadMatLib();
   renderMatLib();
+  // Then fetch latest from the server and re-render if different
+  fetch('/api/materials', { cache: 'no-store' })
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (!Array.isArray(data) || !data.length) return;
+      _matLib = _normaliseMatLib(data);
+      // Keep localStorage in sync with server copy
+      try { localStorage.setItem('3dp_materials', JSON.stringify(_matLib)); } catch(e) {}
+      renderMatLib();
+    })
+    .catch(() => { /* silently fall back to local copy */ });
 }
 
 function renderMatLib() {

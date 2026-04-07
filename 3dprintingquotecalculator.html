@@ -2583,6 +2583,22 @@ document.addEventListener('DOMContentLoaded', () => {
   // Restore saved print mode (defaults to 'fdm')
   const savedMode = (() => { try { return localStorage.getItem('3dp_print_mode') || 'fdm'; } catch(e) { return 'fdm'; } })();
   setPrintMode(savedMode);
+
+  // Fetch the admin-managed materials from the server and apply them
+  fetch('/api/materials', { cache: 'no-store' })
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (!Array.isArray(data) || !data.length) return;
+      materials = data.map(m => ({
+        type:   m.name && m.name.toLowerCase().includes('resin') ? 'SLA' : 'FDM',
+        colors: [],
+        ...m,
+      }));
+      try { localStorage.setItem('3dp_materials', JSON.stringify(materials)); } catch(e) {}
+      renderMaterials();
+      renderMatLibDropdown(true);
+    })
+    .catch(() => { /* silently fall back to local copy */ });
 });
 </script>
 
