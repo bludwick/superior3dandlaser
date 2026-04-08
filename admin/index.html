@@ -1287,7 +1287,7 @@ function openJobOverlay(orderData) {
       material:  it.material || '',
       color:     it.color    || '',
       qty:       it.qty      || 1,
-      unitPrice: it.unitPrice|| 0,
+      unitPrice: (parseFloat(it.unitPrice) || 0) + (parseFloat(it.printLabourFlat) || 0) / (it.qty || 1),
       lineTotal: it.lineTotal|| 0,
     }));
     renderJobItems(items, parseFloat(orderData.subtotal)||0, parseFloat(orderData.tax)||0, parseFloat(orderData.total)||0);
@@ -1409,7 +1409,7 @@ function importFromCart(silent) {
     material:  it.material || '',
     color:     it.color    || '',
     qty:       it.qty      || 1,
-    unitPrice: parseFloat(it.unitPrice) || 0,
+    unitPrice: (parseFloat(it.unitPrice) || 0) + (parseFloat(it.printLabourFlat) || 0) / (it.qty || 1),
     lineTotal: parseFloat(it.lineTotal) || 0,
   }));
 
