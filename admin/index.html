@@ -1282,6 +1282,8 @@ function openJobOverlay(orderData) {
     // Fill items from order
     const items = (orderData.items || []).map(it => ({
       partName:  it.fileName || it.projectName || 'Part',
+      fileName:  it.fileName || null,
+      thumbnail: it.thumbnail || null,
       material:  it.material || '',
       color:     it.color    || '',
       qty:       it.qty      || 1,
@@ -1331,6 +1333,8 @@ function openEditJobOverlay(job) {
   // Pre-fill items
   const items = (job.items || []).map(it => ({
     partName:  it.partName  || 'Part',
+    fileName:  it.fileName  || null,
+    thumbnail: it.thumbnail || null,
     material:  it.material  || '',
     color:     it.color     || '',
     qty:       it.qty       || 1,
@@ -1400,6 +1404,8 @@ function importFromCart(silent) {
 
   const items = cart.map(it => ({
     partName:  it.fileName || it.projectName || 'Part',
+    fileName:  it.fileName || null,
+    thumbnail: it.thumbnail || null,
     material:  it.material || '',
     color:     it.color    || '',
     qty:       it.qty      || 1,

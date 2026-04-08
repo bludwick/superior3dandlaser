@@ -43,6 +43,11 @@
     .inv-table tbody tr:last-child td { border-bottom: none; }
     .inv-table .r { text-align: right; }
     .inv-table .c { text-align: center; }
+    .inv-thumb { width: 56px; height: 56px; object-fit: cover; border-radius: 6px; border: 1px solid #e5e7eb; display: block; }
+    .inv-thumb-ph { width: 56px; height: 56px; border-radius: 6px; border: 1px solid #e5e7eb; background: #f9fafb; display: flex; align-items: center; justify-content: center; }
+    .inv-thumb-ph svg { width: 28px; height: 28px; opacity: .25; }
+    .inv-part-name { font-size: 12px; color: #6b7280; margin-top: 3px; }
+    @media print { .inv-thumb, .inv-thumb-ph { width: 36px; height: 36px; } }
 
     /* Totals */
     .inv-totals { width: 260px; margin-left: auto; }
@@ -122,15 +127,23 @@ window.addEventListener('DOMContentLoaded', async () => {
   const date   = job.createdAt ? new Date(job.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '—';
   const estEnd = job.estEndTime ? new Date(job.estEndTime).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : null;
 
-  const itemRows = (job.items || []).map(it => `
+  const itemRows = (job.items || []).map(it => {
+    const thumbHtml = it.thumbnail
+      ? `<img class="inv-thumb" src="${esc(it.thumbnail)}" alt="">`
+      : `<div class="inv-thumb-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>`;
+    const displayName = esc(it.partName || 'Part');
+    const fileName    = it.fileName && it.fileName !== it.partName ? `<div class="inv-part-name">${esc(it.fileName)}</div>` : '';
+    return `
     <tr>
-      <td><strong>${esc(it.partName || 'Part')}</strong></td>
+      <td style="vertical-align:middle;padding-right:4px;">${thumbHtml}</td>
+      <td><strong>${displayName}</strong>${fileName}</td>
       <td>${esc(it.material || '—')}</td>
       <td>${esc(it.color || '—')}</td>
       <td class="c">${it.qty || 1}</td>
       <td class="r">$${parseFloat(it.unitPrice || 0).toFixed(2)}</td>
       <td class="r" style="font-weight:600;">$${parseFloat(it.lineTotal || 0).toFixed(2)}</td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 
   root.innerHTML = `
     <div class="inv-header">
@@ -172,6 +185,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       <table class="inv-table">
         <thead>
           <tr>
+            <th style="width:64px;"></th>
             <th>Part / Description</th>
             <th>Material</th>
             <th>Color</th>
