@@ -35,45 +35,37 @@ function mimeFromExtension(filename) {
 exports.handler = async (event) => {
   // Admin-only: verify JWT cookie
   const token = getCookie(event.headers['cookie'] || '', 'admin_token');
-  if (!token) {
-    return { statusCode: 401, body: 'Unauthorized' };
-  }
+  if (!token) return new Response('Unauthorized', { status: 401 });
   try {
     jwt.verify(token, process.env.JWT_SECRET || '');
   } catch {
-    return { statusCode: 401, body: 'Unauthorized' };
+    return new Response('Unauthorized', { status: 401 });
   }
 
   const key = (event.queryStringParameters || {}).key;
-  if (!key) {
-    return { statusCode: 400, body: 'Missing ?key parameter' };
-  }
+  if (!key) return new Response('Missing ?key parameter', { status: 400 });
 
   try {
     const store  = blobStore('uploads');
-    // getWithMetadata returns { data, metadata, etag } | null
     const result = await store.getWithMetadata(key, { type: 'arrayBuffer' });
 
-    if (!result) {
-      return { statusCode: 404, body: 'File not found' };
-    }
+    if (!result) return new Response('File not found', { status: 404 });
 
     const { data: buffer, metadata } = result;
     const originalName = metadata?.originalName || key.replace(/^\d+-/, '');
     const contentType  = metadata?.contentType  || mimeFromExtension(originalName) || 'application/octet-stream';
 
-    return {
-      statusCode: 200,
-      isBase64Encoded: true,
+    return new Response(buffer, {
+      status: 200,
       headers: {
         'Content-Type':        contentType,
         'Content-Disposition': `attachment; filename="${originalName.replace(/"/g, '\\"')}"`,
+        'Content-Length':      String(buffer.byteLength),
         'Cache-Control':       'no-store',
       },
-      body: Buffer.from(buffer).toString('base64'),
-    };
+    });
   } catch (err) {
     console.error('[download-file] Error:', err.message);
-    return { statusCode: 500, body: 'Internal server error' };
+    return new Response('Internal server error', { status: 500 });
   }
 };
