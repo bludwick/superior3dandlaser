@@ -847,7 +847,7 @@ async function attachOrderFiles(orderId, input) {
   try {
     const fd = new FormData();
     files.forEach(f => fd.append('file', f, f.name));
-    const upRes = await fetch('/api/admin/upload', { method: 'POST', body: fd, credentials: 'include', cache: 'no-store' });
+    const upRes = await fetch('/.netlify/functions/upload-file', { method: 'POST', body: fd, credentials: 'include', cache: 'no-store' });
     if (!upRes.ok) throw new Error('Upload failed: HTTP ' + upRes.status);
     const { files: uploaded } = await upRes.json();
 
@@ -1586,7 +1586,7 @@ async function submitNewJob() {
       if (uploadStatus) uploadStatus.textContent = `Uploading ${allNewFiles.length} file(s)…`;
       const fd = new FormData();
       allNewFiles.forEach(f => fd.append('file', f, f.name));
-      const upRes = await fetch('/api/admin/upload', { method: 'POST', body: fd, credentials: 'include', cache: 'no-store' });
+      const upRes = await fetch('/.netlify/functions/upload-file', { method: 'POST', body: fd, credentials: 'include', cache: 'no-store' });
       if (!upRes.ok) {
         const upErr = await upRes.json().catch(() => ({}));
         throw new Error('File upload failed: ' + (upErr.error || 'HTTP ' + upRes.status));
