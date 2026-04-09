@@ -3136,6 +3136,10 @@ function addToCart() {
   cart.push(item);
   if (window._currentSTLFile) {
     window._cartSTLFiles[item.id] = window._currentSTLFile;
+    // Push file to parent window (admin overlay) if loaded inside an iframe
+    if (window.parent !== window) {
+      try { window.parent.postMessage({ type: 'cartSTLFile', itemId: item.id, file: window._currentSTLFile }, window.location.origin); } catch(e) {}
+    }
   }
   saveCart();
   updateCartBadge();
@@ -3276,6 +3280,9 @@ function updateCartItem() {
   // If the user re-uploaded an STL while editing, update the stored file
   if (window._currentSTLFile) {
     window._cartSTLFiles[id] = window._currentSTLFile;
+    if (window.parent !== window) {
+      try { window.parent.postMessage({ type: 'cartSTLFile', itemId: id, file: window._currentSTLFile }, window.location.origin); } catch(e) {}
+    }
   }
 
   const infillSel = document.getElementById('slicerInfill');

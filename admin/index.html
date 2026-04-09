@@ -1315,9 +1315,22 @@ async function deleteJob(jobId, btn) {
 
 // ── Job Overlay ───────────────────────────────────────────────────────────────
 let _jobPrefill      = null; // order data when promoting, null for manual
-let _editJobId       = null; // job id when editing, null for create
-let _currentStlFiles = [];   // existing stlFiles carried into create/edit
-let _pendingCartFiles = [];  // File objects grabbed from iframe _cartSTLFiles
+let _editJobId        = null; // job id when editing, null for create
+let _currentStlFiles  = [];   // existing stlFiles carried into create/edit
+let _pendingCartFiles = {};   // itemId → File, received via postMessage from iframe
+
+// Receive STL files pushed from the calculator iframe
+window.addEventListener('message', function(e) {
+  if (e.origin !== window.location.origin) return;
+  if (e.data?.type !== 'cartSTLFile') return;
+  if (e.data.file instanceof File) {
+    _pendingCartFiles[e.data.itemId] = e.data.file;
+    // Refresh the Customer Files preview if the overlay is open
+    if (!document.getElementById('jobOverlay').classList.contains('hidden')) {
+      renderExistingFiles(_currentStlFiles);
+    }
+  }
+});
 
 function renderExistingFiles(stlFiles) {
   const el = document.getElementById('jf-existing-files');
@@ -1328,7 +1341,7 @@ function renderExistingFiles(stlFiles) {
       ⬇ ${esc(f.fileName)}
      </a>`
   );
-  const pending = (_pendingCartFiles || []).map(f =>
+  const pending = Object.values(_pendingCartFiles || {}).map(f =>
     `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;background:#fffbeb;border:1px solid #fde68a;border-radius:4px;color:#92400e;font-size:11px;" title="Will be uploaded when job is saved">
       📄 ${esc(f.name)}
      </span>`
@@ -1355,7 +1368,7 @@ function openJobOverlay(orderData) {
   document.getElementById('jobTotals').style.display = 'none';
   // Reset file section
   _currentStlFiles  = _jobPrefill ? (_jobPrefill.stlFiles || []) : [];
-  _pendingCartFiles = [];
+  _pendingCartFiles = {};
   renderExistingFiles(_currentStlFiles);
   const _fi = document.getElementById('jf-files'); if (_fi) _fi.value = '';
   const _us = document.getElementById('jf-upload-status'); if (_us) _us.textContent = '';
@@ -1423,7 +1436,7 @@ function openEditJobOverlay(job) {
 
   // Pre-fill file section
   _currentStlFiles  = job.stlFiles || [];
-  _pendingCartFiles = [];
+  _pendingCartFiles = {};
   renderExistingFiles(_currentStlFiles);
   const _efi = document.getElementById('jf-files'); if (_efi) _efi.value = '';
   const _eus = document.getElementById('jf-upload-status'); if (_eus) _eus.textContent = '';
@@ -1511,15 +1524,8 @@ function importFromCart(silent) {
     lineTotal: parseFloat(it.lineTotal) || 0,
   }));
 
-  // Grab STL File objects from the iframe's memory (same-origin)
-  try {
-    const frame = document.getElementById('jobPricerFrame');
-    const iframeFiles = frame?.contentWindow?._cartSTLFiles || {};
-    _pendingCartFiles = cart
-      .map(it => iframeFiles[it.id])
-      .filter(f => f instanceof File);
-    renderExistingFiles(_currentStlFiles);
-  } catch (e) { /* cross-origin guard */ }
+  // _pendingCartFiles is populated via postMessage from the iframe as items are added
+  renderExistingFiles(_currentStlFiles);
 
   const subtotal = items.reduce((s, it) => s + it.lineTotal, 0);
   const tax      = subtotal * 0.085;
@@ -1570,10 +1576,10 @@ async function submitNewJob() {
     const tax      = parseFloat(wrap.dataset.tax      || 0);
     const total    = parseFloat(wrap.dataset.total    || 0);
 
-    // Upload files: STL files captured from calculator iframe + any manually picked files
+    // Upload files: STL files received from calculator iframe + any manually picked files
     const fileInput    = document.getElementById('jf-files');
     const manualFiles  = fileInput ? Array.from(fileInput.files) : [];
-    const allNewFiles  = [..._pendingCartFiles, ...manualFiles];
+    const allNewFiles  = [...Object.values(_pendingCartFiles), ...manualFiles];
     const uploadStatus = document.getElementById('jf-upload-status');
     let uploadedFiles  = [];
     if (allNewFiles.length) {
