@@ -148,6 +148,7 @@ async function createJob(rawBody, isBase64) {
       tax:          job.tax,
       total:        job.total,
       notes:        job.notes,
+      stlFiles:     job.stlFiles || [],
       status:       'quoted',
       source:       'manual',
       invoiceToken: job.invoiceToken,

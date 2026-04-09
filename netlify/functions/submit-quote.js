@@ -228,6 +228,37 @@ exports.handler = async (event) => {
           content:  primary.buffer.toString('base64'),
         }];
       }
+
+      // Save order record to Blobs so it appears in the admin dashboard
+      if (primary?.key) {
+        try {
+          const orderStore = blobStore('orders');
+          const orderId    = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          const orderKey   = `order_${orderId}`;
+          await orderStore.set(orderKey, JSON.stringify({
+            id:            orderId,
+            customerName:  `${fields.firstName || ''} ${fields.lastName || ''}`.trim(),
+            customerEmail: fields.email   || '',
+            phone:         fields.phone   || '',
+            notes:         fields.message || '',
+            items: [{
+              projectName: fileName || 'Quote Request',
+              material:    fields.material || '',
+              qty:         parseInt(fields.quantity) || 1,
+              lineTotal:   0,
+            }],
+            subtotal:  0,
+            tax:       0,
+            total:     0,
+            stlFiles:  [{ fileName: primary.fileName, blobKey: primary.key }],
+            status:    'pending',
+            source:    'quote',
+            createdAt: new Date().toISOString(),
+          }));
+        } catch (saveErr) {
+          console.error('[submit-quote] Quote order save error:', saveErr.message);
+        }
+      }
     }
 
     await sendEmail({
