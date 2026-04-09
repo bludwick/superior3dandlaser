@@ -1187,6 +1187,15 @@ function renderJobs(filter) {
                 <div class="item-price">$${parseFloat(it.lineTotal || 0).toFixed(2)}</div>
               </div>`).join('')}
           </div>
+          ${(j.stlFiles || []).length ? `
+          <div style="margin-top:8px;font-size:12px;">
+            <span style="color:var(--muted);">Uploaded files:</span>
+            ${(j.stlFiles || []).map(f => `
+              <a href="/api/admin/files?key=${encodeURIComponent(f.blobKey)}" download="${esc(f.fileName)}"
+                 style="display:inline-block;margin:3px 6px 0 0;padding:2px 8px;background:var(--bg-light);border:1px solid var(--border);border-radius:4px;color:var(--accent);text-decoration:none;font-size:11px;">
+                ⬇ ${esc(f.fileName)}
+              </a>`).join('')}
+          </div>` : ''}
           <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);display:flex;gap:24px;font-size:12px;color:var(--muted);">
             <span>Subtotal: <strong>$${parseFloat(j.subtotal || 0).toFixed(2)}</strong></span>
             <span>Tax: <strong>$${parseFloat(j.tax || 0).toFixed(2)}</strong></span>
@@ -1481,8 +1490,9 @@ async function submitNewJob() {
       estEndTime:document.getElementById('jf-end').value    || null,
       notes:     document.getElementById('jf-notes').value.trim(),
       ...(!isEdit ? {
-        source:  _jobPrefill ? 'order' : 'manual',
-        orderId: _jobPrefill ? (_jobPrefill.id || null) : null,
+        source:   _jobPrefill ? 'order' : 'manual',
+        orderId:  _jobPrefill ? (_jobPrefill.id || null) : null,
+        stlFiles: _jobPrefill ? (_jobPrefill.stlFiles || []) : [],
       } : {}),
     };
 

@@ -104,6 +104,7 @@ async function createJob(rawBody, isBase64) {
     customerEmail: data.customerEmail || '',
     customerPhone: data.customerPhone || '',
     items:         Array.isArray(data.items) ? data.items : [],
+    stlFiles:      Array.isArray(data.stlFiles) ? data.stlFiles : [],
     subtotal:      parseFloat(data.subtotal)  || 0,
     tax:           parseFloat(data.tax)       || 0,
     total:         parseFloat(data.total)     || 0,

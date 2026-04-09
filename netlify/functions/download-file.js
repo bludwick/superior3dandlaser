@@ -50,22 +50,17 @@ exports.handler = async (event) => {
   }
 
   try {
-    const store = blobStore('uploads');
-    const { data: stream, metadata } = await store.get(key, { type: 'stream' });
+    const store  = blobStore('uploads');
+    // getWithMetadata returns { data, metadata, etag } | null
+    const result = await store.getWithMetadata(key, { type: 'arrayBuffer' });
 
-    if (!stream) {
+    if (!result) {
       return { statusCode: 404, body: 'File not found' };
     }
 
+    const { data: buffer, metadata } = result;
     const originalName = metadata?.originalName || key.replace(/^\d+-/, '');
     const contentType  = metadata?.contentType  || mimeFromExtension(originalName) || 'application/octet-stream';
-
-    // Collect stream into buffer so we can base64-encode for the Lambda response
-    const chunks = [];
-    for await (const chunk of stream) {
-      chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
-    }
-    const body = Buffer.concat(chunks).toString('base64');
 
     return {
       statusCode: 200,
@@ -75,7 +70,7 @@ exports.handler = async (event) => {
         'Content-Disposition': `attachment; filename="${originalName.replace(/"/g, '\\"')}"`,
         'Cache-Control':       'no-store',
       },
-      body,
+      body: Buffer.from(buffer).toString('base64'),
     };
   } catch (err) {
     console.error('[download-file] Error:', err.message);
