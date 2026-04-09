@@ -845,11 +845,15 @@ async function attachOrderFiles(orderId, input) {
   input.disabled = true;
   showToast('Uploading…');
   try {
-    const newFiles = await Promise.all(files.map(readFileAsBase64));
+    // Upload each file individually, get back blob keys
+    const uploaded = [];
+    for (const f of files) {
+      uploaded.push(await uploadSingleFile(f));
+    }
     const patchRes = await fetch(`/api/admin/orders/${encodeURIComponent(orderId)}/files`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ newFiles }),
+      body: JSON.stringify({ stlFiles: uploaded }),
       credentials: 'include',
       cache: 'no-store',
     });
@@ -873,6 +877,23 @@ function readFileAsBase64(file) {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+// Upload a single File to the server (base64 JSON), returns { blobKey, fileName }
+async function uploadSingleFile(file) {
+  const encoded = await readFileAsBase64(file);
+  const res = await fetch('/api/admin/files', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(encoded),
+    credentials: 'include',
+    cache: 'no-store',
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error('File upload failed (' + file.name + '): ' + (err.error || 'HTTP ' + res.status));
+  }
+  return await res.json(); // { blobKey, fileName }
 }
 
 function esc(str) {
@@ -1584,17 +1605,22 @@ async function submitNewJob() {
     const tax      = parseFloat(wrap.dataset.tax      || 0);
     const total    = parseFloat(wrap.dataset.total    || 0);
 
-    // Encode files as base64: STL files received from calculator iframe + any manually picked files
+    // Upload files one-at-a-time: STL files from calculator iframe + manually picked files
     const fileInput    = document.getElementById('jf-files');
     const manualFiles  = fileInput ? Array.from(fileInput.files) : [];
     const allNewFiles  = [...Object.values(_pendingCartFiles), ...manualFiles];
     const uploadStatus = document.getElementById('jf-upload-status');
-    let encodedFiles   = [];
+    let uploadedFiles  = [];
     if (allNewFiles.length) {
-      if (uploadStatus) uploadStatus.textContent = `Preparing ${allNewFiles.length} file(s)…`;
-      encodedFiles = await Promise.all(allNewFiles.map(readFileAsBase64));
+      if (uploadStatus) uploadStatus.textContent = `Uploading ${allNewFiles.length} file(s)…`;
+      for (let i = 0; i < allNewFiles.length; i++) {
+        if (uploadStatus) uploadStatus.textContent = `Uploading file ${i + 1} of ${allNewFiles.length}…`;
+        const uploaded = await uploadSingleFile(allNewFiles[i]);
+        uploadedFiles.push(uploaded);
+      }
       if (uploadStatus) uploadStatus.textContent = '';
     }
+    const mergedStlFiles = [..._currentStlFiles, ...uploadedFiles];
 
     const payload = {
       customerName:  name,
@@ -1605,8 +1631,7 @@ async function submitNewJob() {
       startTime: document.getElementById('jf-start').value  || null,
       estEndTime:document.getElementById('jf-end').value    || null,
       notes:     document.getElementById('jf-notes').value.trim(),
-      stlFiles:  _currentStlFiles,
-      newFiles:  encodedFiles,
+      stlFiles:  mergedStlFiles,
       ...(!isEdit ? {
         source:  _jobPrefill ? 'order' : 'manual',
         orderId: _jobPrefill ? (_jobPrefill.id || null) : null,

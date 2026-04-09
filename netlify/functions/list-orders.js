@@ -103,35 +103,14 @@ async function updateStatus(orderId, body) {
 }
 
 async function attachFiles(orderId, rawBody) {
-  let newFiles;
+  let stlFiles;
   try {
-    ({ newFiles } = JSON.parse(rawBody || '{}'));
+    ({ stlFiles } = JSON.parse(rawBody || '{}'));
   } catch {
     return jsonResponse(400, { error: 'Invalid body' });
   }
-  if (!Array.isArray(newFiles) || !newFiles.length) {
-    return jsonResponse(400, { error: 'newFiles array required' });
-  }
-
-  // Save base64-encoded files to uploads store
-  const us = blobStore('uploads');
-  const savedFiles = [];
-  for (const f of newFiles) {
-    if (!f.name || !f.base64) continue;
-    try {
-      const key = `${Date.now()}-${f.name}`;
-      const buf = Buffer.from(f.base64, 'base64');
-      await us.set(key, buf, {
-        metadata: { contentType: f.type || 'application/octet-stream', originalName: f.name },
-      });
-      savedFiles.push({ blobKey: key, fileName: f.name });
-      console.log('[list-orders] saved upload key=%s name=%s size=%d', key, f.name, buf.length);
-    } catch (err) {
-      console.error('[list-orders] failed to save file ' + f.name + ':', err.message);
-    }
-  }
-  if (!savedFiles.length) {
-    return jsonResponse(400, { error: 'No files could be saved' });
+  if (!Array.isArray(stlFiles) || !stlFiles.length) {
+    return jsonResponse(400, { error: 'stlFiles array required' });
   }
 
   try {
@@ -145,7 +124,7 @@ async function attachFiles(orderId, rawBody) {
     }
     if (!targetKey) return jsonResponse(404, { error: 'Order not found' });
 
-    order.stlFiles = [...(order.stlFiles || []), ...savedFiles];
+    order.stlFiles = [...(order.stlFiles || []), ...stlFiles];
     await bs.set(targetKey, JSON.stringify(order));
 
     // Sync new files to the linked job if one exists
@@ -156,7 +135,7 @@ async function attachFiles(orderId, rawBody) {
         const jobText = await jbs.get(jobKey);
         if (jobText) {
           const job = JSON.parse(jobText);
-          job.stlFiles = [...(job.stlFiles || []), ...savedFiles];
+          job.stlFiles = [...(job.stlFiles || []), ...stlFiles];
           job.updatedAt = new Date().toISOString();
           await jbs.set(jobKey, JSON.stringify(job));
         }

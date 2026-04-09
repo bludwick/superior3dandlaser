@@ -42,6 +42,34 @@ exports.handler = async (event) => {
     return { statusCode: 401, body: 'Unauthorized' };
   }
 
+  // ── POST: upload a single file (base64 JSON) ──────────────────────────────
+  if (event.httpMethod === 'POST') {
+    let bodyStr = event.body || '{}';
+    if (event.isBase64Encoded) {
+      try { bodyStr = Buffer.from(event.body, 'base64').toString('utf8'); } catch { bodyStr = '{}'; }
+    }
+    let data;
+    try { data = JSON.parse(bodyStr); } catch { return jsonResp(400, { error: 'Invalid JSON' }); }
+
+    const { name, type, base64 } = data;
+    if (!name || !base64) return jsonResp(400, { error: 'name and base64 required' });
+
+    try {
+      const store = blobStore('uploads');
+      const key   = `${Date.now()}-${name}`;
+      const buf   = Buffer.from(base64, 'base64');
+      await store.set(key, buf, {
+        metadata: { contentType: type || mimeFromExtension(name), originalName: name },
+      });
+      console.log('[download-file] uploaded key=%s name=%s size=%d', key, name, buf.length);
+      return jsonResp(200, { blobKey: key, fileName: name });
+    } catch (err) {
+      console.error('[download-file] upload error:', err.message);
+      return jsonResp(500, { error: 'Upload failed: ' + err.message });
+    }
+  }
+
+  // ── GET: download a file by blob key ───────────────────────────────────────
   const key = (event.queryStringParameters || {}).key;
   if (!key) return { statusCode: 400, body: 'Missing ?key parameter' };
 
@@ -82,3 +110,7 @@ exports.handler = async (event) => {
     return { statusCode: 500, body: 'Internal server error' };
   }
 };
+
+function jsonResp(status, body) {
+  return { statusCode: status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }, body: JSON.stringify(body) };
+}
