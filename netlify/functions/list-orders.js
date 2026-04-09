@@ -33,6 +33,12 @@ exports.handler = async function (event) {
     if (match) return updateStatus(match[1], event.body);
   }
 
+  // ── Route: PATCH /api/admin/orders/{id}/files ────────────────────────────
+  if (event.httpMethod === 'PATCH') {
+    const match = (event.path || '').match(/\/([^/]+)\/files$/);
+    if (match) return attachFiles(match[1], event.body);
+  }
+
   return { statusCode: 405, body: 'Method Not Allowed' };
 };
 
@@ -93,6 +99,55 @@ async function updateStatus(orderId, body) {
   } catch (err) {
     console.error('[list-orders] Update error:', err.message);
     return jsonResponse(500, { error: 'Failed to update order' });
+  }
+}
+
+async function attachFiles(orderId, rawBody) {
+  let newFiles;
+  try {
+    ({ stlFiles: newFiles } = JSON.parse(rawBody || '{}'));
+  } catch {
+    return jsonResponse(400, { error: 'Invalid body' });
+  }
+  if (!Array.isArray(newFiles) || !newFiles.length) {
+    return jsonResponse(400, { error: 'stlFiles array required' });
+  }
+
+  try {
+    const bs = blobStore('orders');
+    const { blobs } = await bs.list();
+    let targetKey = null, order = null;
+    for (const blob of blobs) {
+      const t = await bs.get(blob.key).catch(() => null);
+      const o = t ? JSON.parse(t) : null;
+      if (o && o.id === orderId) { targetKey = blob.key; order = o; break; }
+    }
+    if (!targetKey) return jsonResponse(404, { error: 'Order not found' });
+
+    order.stlFiles = [...(order.stlFiles || []), ...newFiles];
+    await bs.set(targetKey, JSON.stringify(order));
+
+    // Sync new files to the linked job if one exists
+    if (order.jobId) {
+      try {
+        const jbs = blobStore('jobs');
+        const jobKey = `job_${order.jobId}`;
+        const jobText = await jbs.get(jobKey);
+        if (jobText) {
+          const job = JSON.parse(jobText);
+          job.stlFiles = [...(job.stlFiles || []), ...newFiles];
+          job.updatedAt = new Date().toISOString();
+          await jbs.set(jobKey, JSON.stringify(job));
+        }
+      } catch (err) {
+        console.error('[list-orders] job sync error:', err.message);
+      }
+    }
+
+    return jsonResponse(200, { ok: true, stlFiles: order.stlFiles });
+  } catch (err) {
+    console.error('[list-orders] attachFiles error:', err.message);
+    return jsonResponse(500, { error: 'Failed to attach files' });
   }
 }
 
