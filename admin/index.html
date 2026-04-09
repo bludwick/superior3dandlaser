@@ -845,16 +845,11 @@ async function attachOrderFiles(orderId, input) {
   input.disabled = true;
   showToast('Uploading…');
   try {
-    const fd = new FormData();
-    files.forEach(f => fd.append('file', f, f.name));
-    const upRes = await fetch('/.netlify/functions/upload-file', { method: 'POST', body: fd, credentials: 'include', cache: 'no-store' });
-    if (!upRes.ok) throw new Error('Upload failed: HTTP ' + upRes.status);
-    const { files: uploaded } = await upRes.json();
-
+    const newFiles = await Promise.all(files.map(readFileAsBase64));
     const patchRes = await fetch(`/api/admin/orders/${encodeURIComponent(orderId)}/files`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stlFiles: uploaded }),
+      body: JSON.stringify({ newFiles }),
       credentials: 'include',
       cache: 'no-store',
     });
@@ -865,6 +860,19 @@ async function attachOrderFiles(orderId, input) {
     showToast('Error: ' + err.message);
     input.disabled = false;
   }
+}
+
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve({
+      name: file.name,
+      type: file.type || 'application/octet-stream',
+      base64: reader.result.split(',')[1],
+    });
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 function esc(str) {
@@ -1576,26 +1584,17 @@ async function submitNewJob() {
     const tax      = parseFloat(wrap.dataset.tax      || 0);
     const total    = parseFloat(wrap.dataset.total    || 0);
 
-    // Upload files: STL files received from calculator iframe + any manually picked files
+    // Encode files as base64: STL files received from calculator iframe + any manually picked files
     const fileInput    = document.getElementById('jf-files');
     const manualFiles  = fileInput ? Array.from(fileInput.files) : [];
     const allNewFiles  = [...Object.values(_pendingCartFiles), ...manualFiles];
     const uploadStatus = document.getElementById('jf-upload-status');
-    let uploadedFiles  = [];
+    let encodedFiles   = [];
     if (allNewFiles.length) {
-      if (uploadStatus) uploadStatus.textContent = `Uploading ${allNewFiles.length} file(s)…`;
-      const fd = new FormData();
-      allNewFiles.forEach(f => fd.append('file', f, f.name));
-      const upRes = await fetch('/.netlify/functions/upload-file', { method: 'POST', body: fd, credentials: 'include', cache: 'no-store' });
-      if (!upRes.ok) {
-        const upErr = await upRes.json().catch(() => ({}));
-        throw new Error('File upload failed: ' + (upErr.error || 'HTTP ' + upRes.status));
-      }
-      const upData = await upRes.json();
-      uploadedFiles = upData.files || [];
+      if (uploadStatus) uploadStatus.textContent = `Preparing ${allNewFiles.length} file(s)…`;
+      encodedFiles = await Promise.all(allNewFiles.map(readFileAsBase64));
       if (uploadStatus) uploadStatus.textContent = '';
     }
-    const mergedStlFiles = [..._currentStlFiles, ...uploadedFiles];
 
     const payload = {
       customerName:  name,
@@ -1606,7 +1605,8 @@ async function submitNewJob() {
       startTime: document.getElementById('jf-start').value  || null,
       estEndTime:document.getElementById('jf-end').value    || null,
       notes:     document.getElementById('jf-notes').value.trim(),
-      stlFiles:  mergedStlFiles,
+      stlFiles:  _currentStlFiles,
+      newFiles:  encodedFiles,
       ...(!isEdit ? {
         source:  _jobPrefill ? 'order' : 'manual',
         orderId: _jobPrefill ? (_jobPrefill.id || null) : null,

@@ -95,6 +95,9 @@ async function createJob(rawBody, isBase64) {
   const id           = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const invoiceToken = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
 
+  // Save any new files sent as base64, merge with pre-existing stlFiles refs
+  const savedFiles = await saveBase64Files(data.newFiles);
+
   const job = {
     id,
     invoiceToken,
@@ -104,7 +107,7 @@ async function createJob(rawBody, isBase64) {
     customerEmail: data.customerEmail || '',
     customerPhone: data.customerPhone || '',
     items:         Array.isArray(data.items) ? data.items : [],
-    stlFiles:      Array.isArray(data.stlFiles) ? data.stlFiles : [],
+    stlFiles:      [...(Array.isArray(data.stlFiles) ? data.stlFiles : []), ...savedFiles],
     subtotal:      parseFloat(data.subtotal)  || 0,
     tax:           parseFloat(data.tax)       || 0,
     total:         parseFloat(data.total)     || 0,
@@ -334,12 +337,15 @@ async function updateJob(jobId, rawBody, isBase64) {
     if (!existing) return jsonResponse(404, { error: 'Job not found' });
     const job = JSON.parse(existing);
 
+    // Save any new files sent as base64
+    const savedFiles = await saveBase64Files(data.newFiles);
+
     // Update mutable fields; preserve identity/audit fields
     job.customerName  = data.customerName  ?? job.customerName;
     job.customerEmail = data.customerEmail ?? job.customerEmail;
     job.customerPhone = data.customerPhone ?? job.customerPhone;
     job.items         = Array.isArray(data.items)    ? data.items    : job.items;
-    job.stlFiles      = Array.isArray(data.stlFiles) ? data.stlFiles : (job.stlFiles || []);
+    job.stlFiles      = [...(Array.isArray(data.stlFiles) ? data.stlFiles : (job.stlFiles || [])), ...savedFiles];
     job.subtotal      = data.subtotal != null ? parseFloat(data.subtotal)  : job.subtotal;
     job.tax           = data.tax      != null ? parseFloat(data.tax)       : job.tax;
     job.total         = data.total    != null ? parseFloat(data.total)     : job.total;
@@ -421,6 +427,28 @@ async function deleteJob(jobId) {
     console.error('[manage-jobs] deleteJob error:', err.message);
     return jsonResponse(500, { error: 'Failed to delete job: ' + err.message });
   }
+}
+
+// ── Save base64-encoded files to uploads Blobs store ─────────────────────────
+async function saveBase64Files(newFiles) {
+  if (!Array.isArray(newFiles) || !newFiles.length) return [];
+  const us = blobStore('uploads');
+  const saved = [];
+  for (const f of newFiles) {
+    if (!f.name || !f.base64) continue;
+    try {
+      const key = `${Date.now()}-${f.name}`;
+      const buf = Buffer.from(f.base64, 'base64');
+      await us.set(key, buf, {
+        metadata: { contentType: f.type || 'application/octet-stream', originalName: f.name },
+      });
+      saved.push({ blobKey: key, fileName: f.name });
+      console.log('[manage-jobs] saved upload key=%s name=%s size=%d', key, f.name, buf.length);
+    } catch (err) {
+      console.error('[manage-jobs] failed to save file ' + f.name + ':', err.message);
+    }
+  }
+  return saved;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
