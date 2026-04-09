@@ -338,7 +338,8 @@ async function updateJob(jobId, rawBody, isBase64) {
     job.customerName  = data.customerName  ?? job.customerName;
     job.customerEmail = data.customerEmail ?? job.customerEmail;
     job.customerPhone = data.customerPhone ?? job.customerPhone;
-    job.items         = Array.isArray(data.items) ? data.items : job.items;
+    job.items         = Array.isArray(data.items)    ? data.items    : job.items;
+    job.stlFiles      = Array.isArray(data.stlFiles) ? data.stlFiles : (job.stlFiles || []);
     job.subtotal      = data.subtotal != null ? parseFloat(data.subtotal)  : job.subtotal;
     job.tax           = data.tax      != null ? parseFloat(data.tax)       : job.tax;
     job.total         = data.total    != null ? parseFloat(data.total)     : job.total;
@@ -370,6 +371,7 @@ async function updateJob(jobId, rawBody, isBase64) {
             unitPrice:   it.unitPrice || 0,
             lineTotal:   it.lineTotal || 0,
           }));
+          order.stlFiles  = job.stlFiles || [];
           order.subtotal  = job.subtotal;
           order.tax       = job.tax;
           order.total     = job.total;

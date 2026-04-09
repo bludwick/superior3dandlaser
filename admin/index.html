@@ -644,6 +644,15 @@
         </div>
       </div>
 
+      <!-- Customer Files -->
+      <div>
+        <div class="overlay-section-title">Customer Files</div>
+        <div id="jf-existing-files" style="margin-bottom:8px;min-height:18px;display:flex;flex-wrap:wrap;gap:4px;"></div>
+        <input type="file" id="jf-files" multiple accept=".step,.stp,.f3d,.sldprt,.stl,.pdf,.dxf,.svg,.ai"
+               style="font-size:12px;width:100%;padding:6px 0;">
+        <div id="jf-upload-status" style="font-size:11px;color:var(--muted);margin-top:2px;min-height:16px;"></div>
+      </div>
+
       <div class="overlay-footer">
         <button class="btn-primary" onclick="submitNewJob()">✓ Create Job</button>
         <button class="btn-secondary" onclick="closeJobOverlay()">Cancel</button>
@@ -1266,8 +1275,21 @@ async function deleteJob(jobId, btn) {
 }
 
 // ── Job Overlay ───────────────────────────────────────────────────────────────
-let _jobPrefill = null; // order data when promoting, null for manual
-let _editJobId  = null; // job id when editing, null for create
+let _jobPrefill      = null; // order data when promoting, null for manual
+let _editJobId       = null; // job id when editing, null for create
+let _currentStlFiles = [];   // existing stlFiles carried into create/edit
+
+function renderExistingFiles(stlFiles) {
+  const el = document.getElementById('jf-existing-files');
+  if (!el) return;
+  if (!stlFiles || !stlFiles.length) { el.innerHTML = ''; return; }
+  el.innerHTML = stlFiles.map(f =>
+    `<a href="/api/admin/files?key=${encodeURIComponent(f.blobKey)}" target="_blank"
+        style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;background:var(--bg-light);border:1px solid var(--border);border-radius:4px;color:var(--accent);text-decoration:none;font-size:11px;">
+      ⬇ ${esc(f.fileName)}
+     </a>`
+  ).join('');
+}
 
 function openJobOverlay(orderData) {
   _jobPrefill = orderData || null;
@@ -1286,6 +1308,11 @@ function openJobOverlay(orderData) {
   _resetWrap.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:10px 0;">No items imported yet.</div>';
   delete _resetWrap.dataset.items; delete _resetWrap.dataset.subtotal; delete _resetWrap.dataset.tax; delete _resetWrap.dataset.total;
   document.getElementById('jobTotals').style.display = 'none';
+  // Reset file section
+  _currentStlFiles = _jobPrefill ? (_jobPrefill.stlFiles || []) : [];
+  renderExistingFiles(_currentStlFiles);
+  const _fi = document.getElementById('jf-files'); if (_fi) _fi.value = '';
+  const _us = document.getElementById('jf-upload-status'); if (_us) _us.textContent = '';
 
   if (_jobPrefill) {
     // Promote from order — skip iframe, pre-fill customer + items
@@ -1347,6 +1374,12 @@ function openEditJobOverlay(job) {
   document.getElementById('jf-printer').value = job.printer || 'H2D-1';
   document.getElementById('jf-start').value   = job.startTime  ? job.startTime.slice(0, 16)  : '';
   document.getElementById('jf-end').value     = job.estEndTime ? job.estEndTime.slice(0, 16) : '';
+
+  // Pre-fill file section
+  _currentStlFiles = job.stlFiles || [];
+  renderExistingFiles(_currentStlFiles);
+  const _efi = document.getElementById('jf-files'); if (_efi) _efi.value = '';
+  const _eus = document.getElementById('jf-upload-status'); if (_eus) _eus.textContent = '';
 
   // Pre-fill items
   const items = (job.items || []).map(it => ({
@@ -1480,6 +1513,26 @@ async function submitNewJob() {
     const tax      = parseFloat(wrap.dataset.tax      || 0);
     const total    = parseFloat(wrap.dataset.total    || 0);
 
+    // Upload any newly selected files first
+    const fileInput   = document.getElementById('jf-files');
+    const newFiles    = fileInput ? Array.from(fileInput.files) : [];
+    const uploadStatus = document.getElementById('jf-upload-status');
+    let uploadedFiles = [];
+    if (newFiles.length) {
+      if (uploadStatus) uploadStatus.textContent = `Uploading ${newFiles.length} file(s)…`;
+      const fd = new FormData();
+      newFiles.forEach(f => fd.append('file', f, f.name));
+      const upRes = await fetch('/api/admin/upload', { method: 'POST', body: fd, credentials: 'include', cache: 'no-store' });
+      if (!upRes.ok) {
+        const upErr = await upRes.json().catch(() => ({}));
+        throw new Error('File upload failed: ' + (upErr.error || 'HTTP ' + upRes.status));
+      }
+      const upData = await upRes.json();
+      uploadedFiles = upData.files || [];
+      if (uploadStatus) uploadStatus.textContent = '';
+    }
+    const mergedStlFiles = [..._currentStlFiles, ...uploadedFiles];
+
     const payload = {
       customerName:  name,
       customerEmail: email,
@@ -1489,10 +1542,10 @@ async function submitNewJob() {
       startTime: document.getElementById('jf-start').value  || null,
       estEndTime:document.getElementById('jf-end').value    || null,
       notes:     document.getElementById('jf-notes').value.trim(),
+      stlFiles:  mergedStlFiles,
       ...(!isEdit ? {
-        source:   _jobPrefill ? 'order' : 'manual',
-        orderId:  _jobPrefill ? (_jobPrefill.id || null) : null,
-        stlFiles: _jobPrefill ? (_jobPrefill.stlFiles || []) : [],
+        source:  _jobPrefill ? 'order' : 'manual',
+        orderId: _jobPrefill ? (_jobPrefill.id || null) : null,
       } : {}),
     };
 

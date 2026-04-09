@@ -72,6 +72,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/admin/upload"
+  to = "/.netlify/functions/upload-file"
+  status = 200
+
+[[redirects]]
   from = "/api/calculate-tax"
   to = "/.netlify/functions/calculate-tax"
   status = 200
