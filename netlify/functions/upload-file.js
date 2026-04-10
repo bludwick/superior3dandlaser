@@ -1,13 +1,9 @@
-const jwt          = require('jsonwebtoken');
-const busboy       = require('busboy');
-const { getStore } = require('@netlify/blobs');
+const jwt              = require('jsonwebtoken');
+const busboy           = require('busboy');
+const { createClient } = require('@supabase/supabase-js');
 
-function blobStore(name) {
-  const opts = { name, consistency: 'strong' };
-  const siteID = process.env.NETLIFY_SITE_ID;
-  const token  = process.env.NETLIFY_AUTH_TOKEN || process.env.NETLIFY_TOKEN;
-  if (siteID && token) { opts.siteID = siteID; opts.token = token; }
-  return getStore(opts);
+function getSupabase() {
+  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
 function getCookie(cookieHeader, name) {
@@ -49,16 +45,17 @@ exports.handler = async (event) => {
       return { statusCode: 400, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'No files received' }) };
     }
 
-    const store   = blobStore('uploads');
-    const results = [];
+    const supabase = getSupabase();
+    const results  = [];
 
     for (const f of files) {
-      const key = `${Date.now()}-${f.fileName}`;
-      await store.set(key, f.buffer, {
-        metadata: { contentType: f.mimeType, originalName: f.fileName },
-      });
-      results.push({ blobKey: key, fileName: f.fileName });
-      console.log('[upload-file] saved key=%s name=%s size=%d', key, f.fileName, f.buffer.length);
+      const path = `${Date.now()}-${f.fileName}`;
+      const { error } = await supabase.storage
+        .from('Uploads')
+        .upload(path, f.buffer, { contentType: f.mimeType, upsert: false });
+      if (error) throw new Error(`Supabase upload failed: ${error.message}`);
+      results.push({ blobKey: path, fileName: f.fileName });
+      console.log('[upload-file] saved path=%s name=%s size=%d', path, f.fileName, f.buffer.length);
     }
 
     return {

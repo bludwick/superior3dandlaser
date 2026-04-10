@@ -882,6 +882,7 @@ function readFileAsBase64(file) {
 // Upload a single File to the server (base64 JSON), returns { blobKey, fileName }
 async function uploadSingleFile(file) {
   const encoded = await readFileAsBase64(file);
+  console.log('[upload] Starting upload for', file.name, '— base64 length:', encoded.base64.length);
   const res = await fetch('/api/admin/files', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -889,11 +890,22 @@ async function uploadSingleFile(file) {
     credentials: 'include',
     cache: 'no-store',
   });
+  const bodyText = await res.text();
+  console.log('[upload] Response for', file.name, '— status:', res.status, 'body:', bodyText.slice(0, 500));
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error('File upload failed (' + file.name + '): ' + (err.error || 'HTTP ' + res.status));
+    let errMsg = 'HTTP ' + res.status;
+    try { const j = JSON.parse(bodyText); errMsg = j.error || errMsg; } catch { errMsg = bodyText.slice(0, 200) || errMsg; }
+    throw new Error('File upload failed (' + file.name + '): ' + errMsg);
   }
-  return await res.json(); // { blobKey, fileName }
+  let result;
+  try { result = JSON.parse(bodyText); } catch (e) {
+    throw new Error('File upload failed (' + file.name + '): server returned non-JSON — ' + bodyText.slice(0, 200));
+  }
+  if (!result.blobKey) {
+    throw new Error('File upload failed (' + file.name + '): server response missing blobKey — ' + bodyText.slice(0, 200));
+  }
+  console.log('[upload] Success for', file.name, '— blobKey:', result.blobKey);
+  return result; // { blobKey, fileName }
 }
 
 function esc(str) {
@@ -1533,8 +1545,8 @@ function closeJobOverlay() {
     window.removeEventListener('storage', window._cartImportListener);
     window._cartImportListener = null;
   }
-  // Reset button labels for next open
-  document.querySelectorAll('#jobOverlay .btn-primary').forEach(b => { b.textContent = '✓ Create Job'; });
+  // Reset button labels and state for next open
+  document.querySelectorAll('#jobOverlay .btn-primary').forEach(b => { b.disabled = false; b.textContent = '✓ Create Job'; });
 }
 
 function importFromCart(silent) {
@@ -1609,6 +1621,7 @@ async function submitNewJob() {
     const fileInput    = document.getElementById('jf-files');
     const manualFiles  = fileInput ? Array.from(fileInput.files) : [];
     const allNewFiles  = [...Object.values(_pendingCartFiles), ...manualFiles];
+    console.log('[submitNewJob] pending cart files:', Object.keys(_pendingCartFiles).length, '| manual files:', manualFiles.length, '| total:', allNewFiles.length, allNewFiles.map(f => f.name));
     const uploadStatus = document.getElementById('jf-upload-status');
     let uploadedFiles  = [];
     if (allNewFiles.length) {
