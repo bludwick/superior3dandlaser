@@ -272,15 +272,16 @@
       body: data
     })
     .then(async (res) => {
-      if (!res.ok) throw new Error('Server error');
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.detail || json.error || `HTTP ${res.status}`);
       form.style.display = 'none';
       successEl.style.display = 'block';
       successEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     })
-    .catch(() => {
+    .catch((err) => {
       btn.textContent = 'Send Quote Request';
       btn.disabled = false;
-      alert('Something went wrong. Please email us directly at sales@superior3dandlaser.com');
+      alert('Something went wrong: ' + err.message + '\n\nPlease email us directly at sales@superior3dandlaser.com');
     });
   });
 
