@@ -87,8 +87,8 @@ exports.handler = async (event) => {
       }
 
       const { url } = JSON.parse(signText);
-      // url is the bucket/path?token=... portion; prefix with base storage URL
-      const signedUrl = `${process.env.SUPABASE_URL}/storage/v1/object/upload/sign/${url}`;
+      // url is already the full path e.g. /object/upload/sign/Uploads/...?token=...
+      const signedUrl = `${process.env.SUPABASE_URL}/storage/v1${url}`;
       console.log('[download-file] signed upload URL created for path=%s', path);
       return jsonResp(200, { signedUrl, path });
     } catch (err) {
