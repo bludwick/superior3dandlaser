@@ -1,5 +1,4 @@
-const jwt              = require('jsonwebtoken');
-const { createClient } = require('@supabase/supabase-js');
+const jwt = require('jsonwebtoken');
 
 // Extension → MIME type fallback map
 const MIME_MAP = {
@@ -14,10 +13,6 @@ const MIME_MAP = {
   ai:     'application/postscript',
 };
 
-function getSupabase() {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-}
-
 function getCookie(cookieHeader, name) {
   const match = (cookieHeader || '').split(';').map(s => s.trim()).find(s => s.startsWith(name + '='));
   return match ? match.slice(name.length + 1) : null;
@@ -27,6 +22,38 @@ function mimeFromExtension(filename) {
   const ext = (filename || '').split('.').pop().toLowerCase();
   return MIME_MAP[ext] || 'application/octet-stream';
 }
+
+// ── Supabase Storage via direct HTTP (no SDK) ─────────────────────────────────
+
+function storagePath(key) {
+  return `${process.env.SUPABASE_URL}/storage/v1/object/Uploads/${encodeURIComponent(key)}`;
+}
+
+async function supabaseUpload(key, buffer, contentType) {
+  const res = await fetch(storagePath(key), {
+    method:  'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+      'Content-Type':  contentType,
+      'x-upsert':      'false',
+    },
+    body: buffer,
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Supabase upload failed (${res.status}): ${text.slice(0, 300)}`);
+  }
+}
+
+async function supabaseDownload(key) {
+  const res = await fetch(storagePath(key), {
+    headers: { 'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` },
+  });
+  if (!res.ok) return null;
+  return Buffer.from(await res.arrayBuffer());
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 exports.handler = async (event) => {
   // Admin-only: verify JWT cookie
@@ -51,15 +78,11 @@ exports.handler = async (event) => {
     if (!name || !base64) return jsonResp(400, { error: 'name and base64 required' });
 
     try {
-      const supabase = getSupabase();
-      const path     = `${Date.now()}-${name}`;
-      const buf      = Buffer.from(base64, 'base64');
-      const { error } = await supabase.storage
-        .from('Uploads')
-        .upload(path, buf, { contentType: type || mimeFromExtension(name), upsert: false });
-      if (error) throw new Error(error.message);
-      console.log('[download-file] uploaded path=%s name=%s size=%d', path, name, buf.length);
-      return jsonResp(200, { blobKey: path, fileName: name });
+      const key = `${Date.now()}-${name}`;
+      const buf = Buffer.from(base64, 'base64');
+      await supabaseUpload(key, buf, type || mimeFromExtension(name));
+      console.log('[download-file] uploaded key=%s name=%s size=%d', key, name, buf.length);
+      return jsonResp(200, { blobKey: key, fileName: name });
     } catch (err) {
       console.error('[download-file] upload error:', err.message);
       return jsonResp(500, { error: 'Upload failed: ' + err.message });
@@ -71,15 +94,13 @@ exports.handler = async (event) => {
   if (!key) return { statusCode: 400, body: 'Missing ?key parameter' };
 
   try {
-    const supabase = getSupabase();
-    const { data: blob, error } = await supabase.storage.from('Uploads').download(key);
+    const buffer = await supabaseDownload(key);
 
-    if (error || !blob) {
-      console.error('[download-file] Key not found:', key, error?.message);
+    if (!buffer) {
+      console.error('[download-file] Key not found:', key);
       return { statusCode: 404, body: 'File not found' };
     }
 
-    const buffer       = Buffer.from(await blob.arrayBuffer());
     const originalName = key.replace(/^\d+-/, '');
     const contentType  = mimeFromExtension(originalName) || 'application/octet-stream';
 

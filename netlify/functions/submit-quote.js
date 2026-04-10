@@ -1,11 +1,6 @@
-const busboy           = require('busboy');
-const { getStore }     = require('@netlify/blobs');
-const { Resend }       = require('resend');
-const { createClient } = require('@supabase/supabase-js');
-
-function getSupabase() {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-}
+const busboy       = require('busboy');
+const { getStore } = require('@netlify/blobs');
+const { Resend }   = require('resend');
 
 function blobStore(name) {
   const opts = { name };
@@ -13,6 +8,23 @@ function blobStore(name) {
   const token  = process.env.NETLIFY_AUTH_TOKEN || process.env.NETLIFY_TOKEN;
   if (siteID && token) { opts.siteID = siteID; opts.token = token; }
   return getStore(opts);
+}
+
+async function supabaseUpload(key, buffer, contentType) {
+  const url = `${process.env.SUPABASE_URL}/storage/v1/object/Uploads/${encodeURIComponent(key)}`;
+  const res = await fetch(url, {
+    method:  'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+      'Content-Type':  contentType,
+      'x-upsert':      'false',
+    },
+    body: buffer,
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Supabase upload failed (${res.status}): ${text.slice(0, 300)}`);
+  }
 }
 
 // Parse multipart form data — returns all files as an array
@@ -52,13 +64,9 @@ function parseForm(event) {
 
 // Save a file buffer to the Supabase 'Uploads' storage bucket
 async function saveBlobFile(buffer, fileName, fileMime) {
-  const supabase = getSupabase();
-  const path     = `${Date.now()}-${fileName}`;
-  const { error } = await supabase.storage
-    .from('Uploads')
-    .upload(path, buffer, { contentType: fileMime, upsert: false });
-  if (error) throw new Error(`Supabase upload failed: ${error.message}`);
-  return { key: path };
+  const key = `${Date.now()}-${fileName}`;
+  await supabaseUpload(key, buffer, fileMime);
+  return { key };
 }
 
 // ── Resend email sender ───────────────────────────────────────────────────────
