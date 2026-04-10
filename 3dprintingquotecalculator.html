@@ -806,7 +806,7 @@
       <li><a href="services.html">Services</a></li>
       <li><a href="contact-us.html">Contact</a></li>
       <li><a href="3dprintingquotecalculator.html" class="snav-cta snav-active">Instant Quote</a></li>
-      <li><a href="contact.html" class="snav-cta">Custom Quote</a></li>
+      <li><a href="customquote.html" class="snav-cta">Custom Quote</a></li>
       <li><a href="/admin/login.html" class="snav-login">Log In</a></li>
       <li><button class="snav-cart-mobile" onclick="closeNav();openCart()">🛒 Cart <span class="cart-badge" id="cartBadgeMobile" style="display:none;">0</span></button></li>
     </ul>
@@ -900,7 +900,7 @@
               Your part's bounding box (<span id="stlOversizeDims"></span>) does not fit within the
               Bambu Lab H2D's maximum print volume of 350 × 320 × 325 mm in any orientation.
               Please split or cut the model into smaller pieces, or use our
-              <a href="contact.html" style="color:#b91c1c;font-weight:700;">Custom Quote form</a>
+              <a href="customquote.html" style="color:#b91c1c;font-weight:700;">Custom Quote form</a>
               and we'll work out the best approach for you.
             </div>
           </div>
@@ -956,7 +956,7 @@
                 <div class="color-preview-meta" id="colorPreviewMeta"></div>
               </div>
             </div>
-            <span class="hint" style="margin-top:5px;display:block;">Don't see your color? <a href="contact.html" style="color:var(--accent);font-weight:600;text-decoration:none;">Contact us</a> — we may be able to source it.</span>
+            <span class="hint" style="margin-top:5px;display:block;">Don't see your color? <a href="customquote.html" style="color:var(--accent);font-weight:600;text-decoration:none;">Contact us</a> — we may be able to source it.</span>
             <!-- hidden printColor for pricing/viewer/cart integration -->
             <select id="printColor" style="display:none;" onchange="calc()">
               <option value="black" selected>Black</option>
@@ -1020,7 +1020,7 @@
           <div class="slicer-ok-note">✓ Volume-based estimate — actual values may vary ±20%</div>
         </div>
         <div id="slicerError" style="display:none;" class="slicer-err-box">
-          We couldn't estimate this file automatically. Please <a href="contact.html">submit it for a manual quote</a>.
+          We couldn't estimate this file automatically. Please <a href="customquote.html">submit it for a manual quote</a>.
         </div>
 
         <!-- Print Time & admin inputs -->
@@ -1649,7 +1649,7 @@ function renderColorOptions() {
   }
   const colors = getMatColors(_libMatId);
   if (!colors.length) {
-    grid.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:4px 2px;">No colors configured — <a href="contact.html" style="color:var(--accent);font-weight:600;text-decoration:none;">contact us</a>.</div>';
+    grid.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:4px 2px;">No colors configured — <a href="customquote.html" style="color:var(--accent);font-weight:600;text-decoration:none;">contact us</a>.</div>';
     return;
   }
   const showOOS = document.getElementById('showOOS') ? document.getElementById('showOOS').checked : false;
