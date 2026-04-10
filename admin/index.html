@@ -866,34 +866,51 @@ async function attachOrderFiles(orderId, input) {
   }
 }
 
-// Upload a single File to the server (multipart), returns { blobKey, fileName }
+// Upload a single File — gets a signed URL from the server, then uploads
+// the file directly from the browser to Supabase (bypasses Netlify body limit).
+// Returns { blobKey, fileName }.
 async function uploadSingleFile(file) {
-  console.log('[upload] Starting upload for', file.name, '— size:', file.size, 'bytes');
-  const form = new FormData();
-  form.append('file', file, file.name);
-  const res = await fetch('/api/admin/upload', {
-    method: 'POST',
-    body: form,
+  console.log('[upload] Requesting signed URL for', file.name, '— size:', file.size, 'bytes');
+
+  // Step 1: ask the server for a signed upload URL + the storage path
+  const signRes  = await fetch('/api/admin/files', {
+    method:      'POST',
+    headers:     { 'Content-Type': 'application/json' },
+    body:        JSON.stringify({ fileName: file.name, contentType: file.type || 'application/octet-stream' }),
     credentials: 'include',
-    cache: 'no-store',
+    cache:       'no-store',
   });
-  const bodyText = await res.text();
-  console.log('[upload] Response for', file.name, '— status:', res.status, 'body:', bodyText.slice(0, 500));
-  if (!res.ok) {
-    let errMsg = 'HTTP ' + res.status;
-    try { const j = JSON.parse(bodyText); errMsg = j.error || errMsg; } catch { errMsg = bodyText.slice(0, 200) || errMsg; }
-    throw new Error('File upload failed (' + file.name + '): ' + errMsg);
+  const signText = await signRes.text();
+  console.log('[upload] Sign response for', file.name, '— status:', signRes.status, 'body:', signText.slice(0, 300));
+  if (!signRes.ok) {
+    let errMsg = 'HTTP ' + signRes.status;
+    try { const j = JSON.parse(signText); errMsg = j.error || errMsg; } catch { errMsg = signText.slice(0, 200) || errMsg; }
+    throw new Error('Failed to get upload URL (' + file.name + '): ' + errMsg);
   }
-  let result;
-  try { result = JSON.parse(bodyText); } catch (e) {
-    throw new Error('File upload failed (' + file.name + '): server returned non-JSON — ' + bodyText.slice(0, 200));
+  let signData;
+  try { signData = JSON.parse(signText); } catch {
+    throw new Error('Failed to get upload URL (' + file.name + '): invalid JSON — ' + signText.slice(0, 200));
   }
-  const uploaded = result.files && result.files[0];
-  if (!uploaded || !uploaded.blobKey) {
-    throw new Error('File upload failed (' + file.name + '): server response missing blobKey — ' + bodyText.slice(0, 200));
+  const { signedUrl, path } = signData;
+  if (!signedUrl || !path) {
+    throw new Error('Failed to get upload URL (' + file.name + '): missing signedUrl/path — ' + signText.slice(0, 200));
   }
-  console.log('[upload] Success for', file.name, '— blobKey:', uploaded.blobKey);
-  return uploaded; // { blobKey, fileName }
+
+  // Step 2: upload file directly to Supabase — never touches Netlify
+  console.log('[upload] Direct upload for', file.name, 'to Supabase path:', path);
+  const uploadRes  = await fetch(signedUrl, {
+    method:  'PUT',
+    headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    body:    file,
+  });
+  const uploadText = await uploadRes.text();
+  console.log('[upload] Supabase response for', file.name, '— status:', uploadRes.status, 'body:', uploadText.slice(0, 300));
+  if (!uploadRes.ok) {
+    throw new Error('File upload failed (' + file.name + '): HTTP ' + uploadRes.status + ' — ' + uploadText.slice(0, 200));
+  }
+
+  console.log('[upload] Success for', file.name, '— blobKey:', path);
+  return { blobKey: path, fileName: file.name };
 }
 
 function esc(str) {
