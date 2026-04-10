@@ -48,24 +48,45 @@ exports.handler = async (event) => {
     if (!fileName) return jsonResp(400, { error: 'fileName required' });
 
     try {
-      const path = `${Date.now()}-${fileName}`;
-      const signRes = await fetch(
-        `${process.env.SUPABASE_URL}/storage/v1/object/upload/sign/Uploads/${encodeURIComponent(path)}`,
-        {
-          method:  'POST',
-          headers: {
-            'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-            'Content-Type':  'application/json',
-          },
-          body: '{}',
-        }
+      // ── Diagnostic: list buckets so we can verify the bucket name ────────
+      const bucketsRes = await fetch(
+        `${process.env.SUPABASE_URL}/storage/v1/bucket`,
+        { headers: { 'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` } }
       );
+      const bucketsText = await bucketsRes.text();
+      let availableBuckets = [];
+      try { availableBuckets = JSON.parse(bucketsText).map(b => b.name); } catch { availableBuckets = [`(parse error) ${bucketsText.slice(0, 100)}`]; }
+      console.log('[download-file] available buckets:', JSON.stringify(availableBuckets));
+
+      // Use whichever bucket name casing Supabase actually has, defaulting to 'Uploads'
+      const bucket = availableBuckets.find(n => n.toLowerCase() === 'uploads') || 'Uploads';
+
+      const path = `${Date.now()}-${fileName}`;
+      const signUrl = `${process.env.SUPABASE_URL}/storage/v1/object/upload/sign/${bucket}/${path}`;
+      console.log('[download-file] signing URL:', signUrl);
+
+      const signRes = await fetch(signUrl, {
+        method:  'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+          'Content-Type':  'application/json',
+        },
+        body: '{}',
+      });
+      const signText = await signRes.text();
+      console.log('[download-file] sign response:', signRes.status, signText.slice(0, 300));
+
       if (!signRes.ok) {
-        const errText = await signRes.text().catch(() => '');
-        console.error('[download-file] sign upload error:', signRes.status, errText);
-        return jsonResp(500, { error: `Failed to create upload URL (${signRes.status}): ${errText.slice(0, 200)}` });
+        return jsonResp(500, {
+          error:            'Failed to create upload URL',
+          supabaseStatus:   signRes.status,
+          supabaseResponse: signText.slice(0, 200),
+          availableBuckets,
+          bucketUsed:       bucket,
+        });
       }
-      const { url } = await signRes.json();
+
+      const { url } = JSON.parse(signText);
       // url is the bucket/path?token=... portion; prefix with base storage URL
       const signedUrl = `${process.env.SUPABASE_URL}/storage/v1/object/upload/sign/${url}`;
       console.log('[download-file] signed upload URL created for path=%s', path);
