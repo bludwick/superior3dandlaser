@@ -50,14 +50,14 @@ exports.handler = async (event) => {
     try {
       const path = `${Date.now()}-${fileName}`;
       const signRes = await fetch(
-        `${process.env.SUPABASE_URL}/storage/v1/object/sign/upload/Uploads/${encodeURIComponent(path)}`,
+        `${process.env.SUPABASE_URL}/storage/v1/object/upload/sign/Uploads/${encodeURIComponent(path)}`,
         {
           method:  'POST',
           headers: {
             'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
             'Content-Type':  'application/json',
           },
-          body: JSON.stringify({ expiresIn: 300 }),
+          body: '{}',
         }
       );
       if (!signRes.ok) {
@@ -66,7 +66,8 @@ exports.handler = async (event) => {
         return jsonResp(500, { error: `Failed to create upload URL (${signRes.status}): ${errText.slice(0, 200)}` });
       }
       const { url } = await signRes.json();
-      const signedUrl = `${process.env.SUPABASE_URL}${url}`;
+      // url is the bucket/path?token=... portion; prefix with base storage URL
+      const signedUrl = `${process.env.SUPABASE_URL}/storage/v1/object/upload/sign/${url}`;
       console.log('[download-file] signed upload URL created for path=%s', path);
       return jsonResp(200, { signedUrl, path });
     } catch (err) {
