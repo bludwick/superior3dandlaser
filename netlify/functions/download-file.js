@@ -57,7 +57,7 @@ exports.handler = async (event) => {
             'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
             'Content-Type':  'application/json',
           },
-          body: '{}',
+          body: JSON.stringify({ expiresIn: 300 }),
         }
       );
       if (!signRes.ok) {
