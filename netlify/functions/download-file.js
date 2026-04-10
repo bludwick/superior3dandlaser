@@ -23,38 +23,6 @@ function mimeFromExtension(filename) {
   return MIME_MAP[ext] || 'application/octet-stream';
 }
 
-// ── Supabase Storage via direct HTTP (no SDK) ─────────────────────────────────
-
-function storagePath(key) {
-  return `${process.env.SUPABASE_URL}/storage/v1/object/Uploads/${encodeURIComponent(key)}`;
-}
-
-async function supabaseUpload(key, buffer, contentType) {
-  const res = await fetch(storagePath(key), {
-    method:  'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-      'Content-Type':  contentType,
-      'x-upsert':      'false',
-    },
-    body: buffer,
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`Supabase upload failed (${res.status}): ${text.slice(0, 300)}`);
-  }
-}
-
-async function supabaseDownload(key) {
-  const res = await fetch(storagePath(key), {
-    headers: { 'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` },
-  });
-  if (!res.ok) return null;
-  return Buffer.from(await res.arrayBuffer());
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-
 exports.handler = async (event) => {
   // Admin-only: verify JWT cookie
   const token = getCookie(event.headers['cookie'] || '', 'admin_token');
@@ -65,7 +33,9 @@ exports.handler = async (event) => {
     return { statusCode: 401, body: 'Unauthorized' };
   }
 
-  // ── POST: upload a single file (base64 JSON) ──────────────────────────────
+  // ── POST: generate a signed upload URL for direct browser→Supabase upload ──
+  // Body: { fileName, contentType }
+  // Returns: { signedUrl, path }  (browser PUTs file to signedUrl, stores path as blobKey)
   if (event.httpMethod === 'POST') {
     let bodyStr = event.body || '{}';
     if (event.isBase64Encoded) {
@@ -74,49 +44,70 @@ exports.handler = async (event) => {
     let data;
     try { data = JSON.parse(bodyStr); } catch { return jsonResp(400, { error: 'Invalid JSON' }); }
 
-    const { name, type, base64 } = data;
-    if (!name || !base64) return jsonResp(400, { error: 'name and base64 required' });
+    const { fileName, contentType } = data;
+    if (!fileName) return jsonResp(400, { error: 'fileName required' });
 
     try {
-      const key = `${Date.now()}-${name}`;
-      const buf = Buffer.from(base64, 'base64');
-      await supabaseUpload(key, buf, type || mimeFromExtension(name));
-      console.log('[download-file] uploaded key=%s name=%s size=%d', key, name, buf.length);
-      return jsonResp(200, { blobKey: key, fileName: name });
+      const path = `${Date.now()}-${fileName}`;
+      const signRes = await fetch(
+        `${process.env.SUPABASE_URL}/storage/v1/object/sign/upload/Uploads/${encodeURIComponent(path)}`,
+        {
+          method:  'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+            'Content-Type':  'application/json',
+          },
+          body: '{}',
+        }
+      );
+      if (!signRes.ok) {
+        const errText = await signRes.text().catch(() => '');
+        console.error('[download-file] sign upload error:', signRes.status, errText);
+        return jsonResp(500, { error: `Failed to create upload URL (${signRes.status}): ${errText.slice(0, 200)}` });
+      }
+      const { url } = await signRes.json();
+      const signedUrl = `${process.env.SUPABASE_URL}${url}`;
+      console.log('[download-file] signed upload URL created for path=%s', path);
+      return jsonResp(200, { signedUrl, path });
     } catch (err) {
-      console.error('[download-file] upload error:', err.message);
-      return jsonResp(500, { error: 'Upload failed: ' + err.message });
+      console.error('[download-file] sign upload error:', err.message);
+      return jsonResp(500, { error: 'Failed to create upload URL: ' + err.message });
     }
   }
 
-  // ── GET: download a file by blob key ───────────────────────────────────────
+  // ── GET: generate a short-lived signed download URL and redirect ────────────
+  // This avoids streaming the entire file through the Netlify function
   const key = (event.queryStringParameters || {}).key;
   if (!key) return { statusCode: 400, body: 'Missing ?key parameter' };
 
   try {
-    const buffer = await supabaseDownload(key);
+    const originalName = key.replace(/^\d+-/, '');
+    const signRes = await fetch(
+      `${process.env.SUPABASE_URL}/storage/v1/object/sign/Uploads/${encodeURIComponent(key)}`,
+      {
+        method:  'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+          'Content-Type':  'application/json',
+        },
+        body: JSON.stringify({ expiresIn: 300 }),  // 5-minute window
+      }
+    );
 
-    if (!buffer) {
-      console.error('[download-file] Key not found:', key);
+    if (!signRes.ok) {
+      console.error('[download-file] sign download error:', key, signRes.status);
       return { statusCode: 404, body: 'File not found' };
     }
 
-    const originalName = key.replace(/^\d+-/, '');
-    const contentType  = mimeFromExtension(originalName) || 'application/octet-stream';
+    const { signedURL } = await signRes.json();
+    // Add &download= so Supabase sets Content-Disposition: attachment
+    const redirectUrl = `${process.env.SUPABASE_URL}${signedURL}&download=${encodeURIComponent(originalName)}`;
 
-    console.log('[download-file] serving key=%s name=%s type=%s size=%d',
-      key, originalName, contentType, buffer.length);
-
+    console.log('[download-file] redirecting to signed URL for key=%s', key);
     return {
-      statusCode:      200,
-      isBase64Encoded: true,
-      headers: {
-        'Content-Type':        contentType,
-        'Content-Disposition': `attachment; filename="${originalName.replace(/"/g, '\\"')}"`,
-        'Content-Length':      String(buffer.length),
-        'Cache-Control':       'no-store',
-      },
-      body: buffer.toString('base64'),
+      statusCode: 302,
+      headers: { 'Location': redirectUrl, 'Cache-Control': 'no-store' },
+      body: '',
     };
   } catch (err) {
     console.error('[download-file] Error:', err.message, err.stack);
