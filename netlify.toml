@@ -80,3 +80,8 @@
   from = "/api/calculate-tax"
   to = "/.netlify/functions/calculate-tax"
   status = 200
+
+[[redirects]]
+  from = "/contact"
+  to = "/customquote"
+  status = 301
