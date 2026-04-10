@@ -1360,10 +1360,16 @@ async function deleteJob(jobId, btn) {
 }
 
 // ── Job Overlay ───────────────────────────────────────────────────────────────
-let _jobPrefill      = null; // order data when promoting, null for manual
+let _jobPrefill       = null; // order data when promoting, null for manual
 let _editJobId        = null; // job id when editing, null for create
 let _currentStlFiles  = [];   // existing stlFiles carried into create/edit
 let _pendingCartFiles = {};   // itemId → File, received via postMessage from iframe
+let _selectedManualFiles = []; // files picked via jf-files input (captured on change)
+
+// Capture file selections immediately — don't rely on input.files at submit time
+document.getElementById('jf-files').addEventListener('change', function() {
+  _selectedManualFiles = Array.from(this.files);
+});
 
 // Receive STL files pushed from the calculator iframe
 window.addEventListener('message', function(e) {
@@ -1417,6 +1423,7 @@ function openJobOverlay(orderData) {
   _pendingCartFiles = {};
   renderExistingFiles(_currentStlFiles);
   const _fi = document.getElementById('jf-files'); if (_fi) _fi.value = '';
+  _selectedManualFiles = [];
   const _us = document.getElementById('jf-upload-status'); if (_us) _us.textContent = '';
 
   if (_jobPrefill) {
@@ -1485,6 +1492,7 @@ function openEditJobOverlay(job) {
   _pendingCartFiles = {};
   renderExistingFiles(_currentStlFiles);
   const _efi = document.getElementById('jf-files'); if (_efi) _efi.value = '';
+  _selectedManualFiles = [];
   const _eus = document.getElementById('jf-upload-status'); if (_eus) _eus.textContent = '';
 
   // Pre-fill items
@@ -1623,10 +1631,8 @@ async function submitNewJob() {
     const total    = parseFloat(wrap.dataset.total    || 0);
 
     // Upload files one-at-a-time: STL files from calculator iframe + manually picked files
-    const fileInput    = document.getElementById('jf-files');
-    const manualFiles  = fileInput ? Array.from(fileInput.files) : [];
-    const allNewFiles  = [...Object.values(_pendingCartFiles), ...manualFiles];
-    console.log('[submitNewJob] pending cart files:', Object.keys(_pendingCartFiles).length, '| manual files:', manualFiles.length, '| total:', allNewFiles.length, allNewFiles.map(f => f.name));
+    const allNewFiles  = [...Object.values(_pendingCartFiles), ..._selectedManualFiles];
+    console.log('[submitNewJob] pending cart files:', Object.keys(_pendingCartFiles).length, '| manual files:', _selectedManualFiles.length, '| total:', allNewFiles.length, allNewFiles.map(f => f.name));
     const uploadStatus = document.getElementById('jf-upload-status');
     let uploadedFiles  = [];
     if (allNewFiles.length) {
