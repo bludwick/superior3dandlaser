@@ -1,10 +1,5 @@
-const jwt              = require('jsonwebtoken');
-const busboy           = require('busboy');
-const { createClient } = require('@supabase/supabase-js');
-
-function getSupabase() {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-}
+const jwt    = require('jsonwebtoken');
+const busboy = require('busboy');
 
 function getCookie(cookieHeader, name) {
   const match = (cookieHeader || '').split(';').map(s => s.trim()).find(s => s.startsWith(name + '='));
@@ -31,6 +26,23 @@ function parseMultipart(event) {
   });
 }
 
+async function supabaseUpload(key, buffer, contentType) {
+  const url = `${process.env.SUPABASE_URL}/storage/v1/object/Uploads/${encodeURIComponent(key)}`;
+  const res = await fetch(url, {
+    method:  'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+      'Content-Type':  contentType,
+      'x-upsert':      'false',
+    },
+    body: buffer,
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Supabase upload failed (${res.status}): ${text.slice(0, 300)}`);
+  }
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' };
 
@@ -45,17 +57,12 @@ exports.handler = async (event) => {
       return { statusCode: 400, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'No files received' }) };
     }
 
-    const supabase = getSupabase();
-    const results  = [];
-
+    const results = [];
     for (const f of files) {
-      const path = `${Date.now()}-${f.fileName}`;
-      const { error } = await supabase.storage
-        .from('Uploads')
-        .upload(path, f.buffer, { contentType: f.mimeType, upsert: false });
-      if (error) throw new Error(`Supabase upload failed: ${error.message}`);
-      results.push({ blobKey: path, fileName: f.fileName });
-      console.log('[upload-file] saved path=%s name=%s size=%d', path, f.fileName, f.buffer.length);
+      const key = `${Date.now()}-${f.fileName}`;
+      await supabaseUpload(key, f.buffer, f.mimeType);
+      results.push({ blobKey: key, fileName: f.fileName });
+      console.log('[upload-file] saved key=%s name=%s size=%d', key, f.fileName, f.buffer.length);
     }
 
     return {
