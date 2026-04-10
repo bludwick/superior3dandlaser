@@ -1,5 +1,5 @@
-const jwt          = require('jsonwebtoken');
-const { getStore } = require('@netlify/blobs');
+const jwt              = require('jsonwebtoken');
+const { createClient } = require('@supabase/supabase-js');
 
 // Extension → MIME type fallback map
 const MIME_MAP = {
@@ -14,12 +14,8 @@ const MIME_MAP = {
   ai:     'application/postscript',
 };
 
-function blobStore(name) {
-  const opts = { name, consistency: 'strong' };
-  const siteID = process.env.NETLIFY_SITE_ID;
-  const token  = process.env.NETLIFY_AUTH_TOKEN || process.env.NETLIFY_TOKEN;
-  if (siteID && token) { opts.siteID = siteID; opts.token = token; }
-  return getStore(opts);
+function getSupabase() {
+  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 }
 
 function getCookie(cookieHeader, name) {
@@ -55,14 +51,15 @@ exports.handler = async (event) => {
     if (!name || !base64) return jsonResp(400, { error: 'name and base64 required' });
 
     try {
-      const store = blobStore('uploads');
-      const key   = `${Date.now()}-${name}`;
-      const buf   = Buffer.from(base64, 'base64');
-      await store.set(key, buf, {
-        metadata: { contentType: type || mimeFromExtension(name), originalName: name },
-      });
-      console.log('[download-file] uploaded key=%s name=%s size=%d', key, name, buf.length);
-      return jsonResp(200, { blobKey: key, fileName: name });
+      const supabase = getSupabase();
+      const path     = `${Date.now()}-${name}`;
+      const buf      = Buffer.from(base64, 'base64');
+      const { error } = await supabase.storage
+        .from('Uploads')
+        .upload(path, buf, { contentType: type || mimeFromExtension(name), upsert: false });
+      if (error) throw new Error(error.message);
+      console.log('[download-file] uploaded path=%s name=%s size=%d', path, name, buf.length);
+      return jsonResp(200, { blobKey: path, fileName: name });
     } catch (err) {
       console.error('[download-file] upload error:', err.message);
       return jsonResp(500, { error: 'Upload failed: ' + err.message });
@@ -74,25 +71,20 @@ exports.handler = async (event) => {
   if (!key) return { statusCode: 400, body: 'Missing ?key parameter' };
 
   try {
-    const store  = blobStore('uploads');
-    const result = await store.getWithMetadata(key, { type: 'arrayBuffer' });
+    const supabase = getSupabase();
+    const { data: blob, error } = await supabase.storage.from('Uploads').download(key);
 
-    if (!result) {
-      console.error('[download-file] Key not found in uploads store:', key);
+    if (error || !blob) {
+      console.error('[download-file] Key not found:', key, error?.message);
       return { statusCode: 404, body: 'File not found' };
     }
 
-    const { data: buffer, metadata } = result;
-
-    // Blobs API may normalise metadata keys to lowercase in some versions
-    const originalName = metadata?.originalName || metadata?.originalname
-      || key.replace(/^\d+-/, '');
-    const contentType  = metadata?.contentType  || metadata?.contenttype
-      || mimeFromExtension(originalName)
-      || 'application/octet-stream';
+    const buffer       = Buffer.from(await blob.arrayBuffer());
+    const originalName = key.replace(/^\d+-/, '');
+    const contentType  = mimeFromExtension(originalName) || 'application/octet-stream';
 
     console.log('[download-file] serving key=%s name=%s type=%s size=%d',
-      key, originalName, contentType, buffer.byteLength);
+      key, originalName, contentType, buffer.length);
 
     return {
       statusCode:      200,
@@ -100,10 +92,10 @@ exports.handler = async (event) => {
       headers: {
         'Content-Type':        contentType,
         'Content-Disposition': `attachment; filename="${originalName.replace(/"/g, '\\"')}"`,
-        'Content-Length':      String(buffer.byteLength),
+        'Content-Length':      String(buffer.length),
         'Cache-Control':       'no-store',
       },
-      body: Buffer.from(buffer).toString('base64'),
+      body: buffer.toString('base64'),
     };
   } catch (err) {
     console.error('[download-file] Error:', err.message, err.stack);

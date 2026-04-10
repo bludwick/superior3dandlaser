@@ -1,6 +1,11 @@
-const busboy        = require('busboy');
-const { getStore }  = require('@netlify/blobs');
-const { Resend }    = require('resend');
+const busboy           = require('busboy');
+const { getStore }     = require('@netlify/blobs');
+const { Resend }       = require('resend');
+const { createClient } = require('@supabase/supabase-js');
+
+function getSupabase() {
+  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+}
 
 function blobStore(name) {
   const opts = { name };
@@ -45,14 +50,15 @@ function parseForm(event) {
   });
 }
 
-// Save a file buffer to the 'uploads' Netlify Blobs store
+// Save a file buffer to the Supabase 'Uploads' storage bucket
 async function saveBlobFile(buffer, fileName, fileMime) {
-  const store         = blobStore('uploads');
-  const savedFileName = `${Date.now()}-${fileName}`;
-  await store.set(savedFileName, buffer, {
-    metadata: { contentType: fileMime, originalName: fileName },
-  });
-  return { key: savedFileName };
+  const supabase = getSupabase();
+  const path     = `${Date.now()}-${fileName}`;
+  const { error } = await supabase.storage
+    .from('Uploads')
+    .upload(path, buffer, { contentType: fileMime, upsert: false });
+  if (error) throw new Error(`Supabase upload failed: ${error.message}`);
+  return { key: path };
 }
 
 // ── Resend email sender ───────────────────────────────────────────────────────

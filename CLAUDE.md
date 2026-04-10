@@ -99,6 +99,8 @@ Set in Netlify's dashboard — never committed to the repo. `.env` is gitignored
 | `RESEND_API_KEY` | Yes | Resend API key for email delivery |
 | `STRIPE_SECRET_KEY` | Optional | Enables Stripe checkout session creation |
 | `SITE_URL` | Yes | `https://superior3dandlaser.com` — used to build invoice and blob download URLs |
+| `SUPABASE_URL` | Yes | Supabase project URL — used for file storage |
+| `SUPABASE_ANON_KEY` | Yes | Supabase anon/public API key — used for file storage |
 
 To generate a bcrypt password hash: `node scripts/gen-password-hash.js`
 
