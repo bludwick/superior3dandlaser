@@ -1533,8 +1533,8 @@ function closeJobOverlay() {
     window.removeEventListener('storage', window._cartImportListener);
     window._cartImportListener = null;
   }
-  // Reset button labels for next open
-  document.querySelectorAll('#jobOverlay .btn-primary').forEach(b => { b.textContent = '✓ Create Job'; });
+  // Reset button labels and state for next open
+  document.querySelectorAll('#jobOverlay .btn-primary').forEach(b => { b.disabled = false; b.textContent = '✓ Create Job'; });
 }
 
 function importFromCart(silent) {
