@@ -24,7 +24,7 @@ All public-facing pages share `styles.css`. No framework, no bundler — edit HT
 |------|---------|-----------------|
 | `index.html` | Homepage with services overview, materials band, stats | — |
 | `services.html` | Full service details + process steps | — |
-| `contact.html` | "Get a Quote" — full form with file upload | `/.netlify/functions/submit-quote` |
+| `customquote.html` | "Get a Quote" — full form with file upload | `/.netlify/functions/submit-quote` |
 | `contact-us.html` | General contact — simplified form, no file upload | `/.netlify/functions/submit-quote` |
 | `3dprintingquotecalculator.html` | Interactive pricing calculator (estimate only, no form submit) | — |
 
@@ -71,14 +71,14 @@ Jobs and orders are mirrored: creating/updating/deleting a job also updates the 
 
 ### Email
 
-Email is sent via the **Resend API** (`resend` npm package). The `nodemailer` dependency remains in `package.json` but is no longer used — do not re-introduce SMTP logic.
+Email is sent via **nodemailer** over SMTP (Microsoft 365 / GoDaddy). Resend has been removed — do not re-introduce it.
 
 Three email template types exist in `submit-quote.js`:
 - **contact** — simple message from `contact-us.html`
-- **quote** — quote request with project details and optional file link
+- **quote** — quote request with project details and optional file attachment
 - **cart** — cart order summary with items, totals, and payment status
 
-Outbound address: `sales@superior3dandlaser.com`
+Each template sends both plain-text and HTML variants. Outbound address: `sales@superior3dandlaser.com`
 
 ### Payment
 
@@ -96,7 +96,12 @@ Set in Netlify's dashboard — never committed to the repo. `.env` is gitignored
 | `ADMIN_PASSWORD_HASH` | Preferred | bcrypt hash of admin password (cost factor 12) |
 | `ADMIN_PASSWORD` | Fallback | Plain-text admin password (use only if hash not set) |
 | `JWT_SECRET` | Yes | Secret for signing/verifying admin JWT tokens |
-| `RESEND_API_KEY` | Yes | Resend API key for email delivery |
+| `SMTP_HOST` | Yes | SMTP server hostname — `smtp.office365.com` (Microsoft 365 / GoDaddy) |
+| `SMTP_PORT` | Yes | SMTP port — `587` (STARTTLS) |
+| `SMTP_USER` | Yes | SMTP login — `sales@superior3dandlaser.com` |
+| `SMTP_PASS` | Yes | SMTP password for the above account |
+| `EMAIL_FROM` | Optional | Sender display name/address — defaults to `Superior 3D and Laser <sales@superior3dandlaser.com>` |
+| `EMAIL_TO` | Optional | Recipient for all form submissions — defaults to `sales@superior3dandlaser.com` |
 | `STRIPE_SECRET_KEY` | Optional | Enables Stripe checkout session creation |
 | `SITE_URL` | Yes | `https://superior3dandlaser.com` — used to build invoice and blob download URLs |
 | `SUPABASE_URL` | Yes | Supabase project URL — used for file storage |
@@ -108,7 +113,7 @@ To generate a bcrypt password hash: `node scripts/gen-password-hash.js`
 
 ## Navigation Convention
 
-Active services (FDM 3D Printing, Design Assistance) link to `contact.html`. Coming Soon services (Resin, Laser Cutting, Laser Engraving) link to `contact-us.html` with a "Notify Me When Available" CTA.
+Active services (FDM 3D Printing, Design Assistance) link to `customquote.html`. Coming Soon services (Resin, Laser Cutting, Laser Engraving) link to `contact-us.html` with a "Notify Me When Available" CTA.
 
 Coming Soon sections use `style="opacity:.65"` on their `<section>` element.
 
@@ -167,9 +172,9 @@ When status advances to `ready`, an email is sent to the customer. Stripe checko
 ## Key Conventions
 
 - **No framework, no bundler** for the public site. Vanilla HTML/CSS/JS only.
-- **Inline JS** for form validation and submission in `contact.html` and `contact-us.html` — keep it inline, not in separate script files.
+- **Inline JS** for form validation and submission in `customquote.html` and `contact-us.html` — keep it inline, not in separate script files.
 - **Admin dashboard JS/CSS is inline** in `admin/index.html` — same rule applies.
 - **Do not add `styles.css` imports** to `3dprintingquotecalculator.html` or `admin/` pages; they are intentionally self-contained.
 - **bcryptjs not bcrypt** — `bcryptjs` is the pure-JS implementation used here (no native addon required on Netlify).
 - **Blobs not a database** — Netlify Blobs is used for all persistence. There is no SQL database.
-- **Resend not SMTP** — do not re-introduce `nodemailer` SMTP logic.
+- **nodemailer SMTP** — email is sent via `nodemailer` using Microsoft 365 / GoDaddy SMTP. Do not re-introduce Resend or any other third-party email API.
