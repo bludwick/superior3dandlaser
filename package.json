@@ -9,7 +9,6 @@
     "busboy": "^1.6.0",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^6.9.14",
-    "resend": "^4.0.0",
     "stripe": "^17.0.0"
   }
 }

@@ -1,7 +1,8 @@
 const busboy       = require('busboy');
 const { getStore } = require('@netlify/blobs');
-const { Resend }   = require('resend');
+const nodemailer   = require('nodemailer');
 
+// ── Blob store helper ─────────────────────────────────────────────────────────
 function blobStore(name) {
   const opts = { name };
   const siteID = process.env.NETLIFY_SITE_ID;
@@ -10,6 +11,7 @@ function blobStore(name) {
   return getStore(opts);
 }
 
+// ── Supabase file upload ──────────────────────────────────────────────────────
 async function supabaseUpload(key, buffer, contentType) {
   const url = `${process.env.SUPABASE_URL}/storage/v1/object/Uploads/${encodeURIComponent(key)}`;
   const res = await fetch(url, {
@@ -27,11 +29,11 @@ async function supabaseUpload(key, buffer, contentType) {
   }
 }
 
-// Parse multipart form data — returns all files as an array
+// ── Multipart parser ──────────────────────────────────────────────────────────
 function parseForm(event) {
   return new Promise((resolve, reject) => {
     const fields = {};
-    const files  = []; // [{ fieldName, buffer, fileName, fileMime }]
+    const files  = [];
 
     const bb = busboy({ headers: event.headers });
 
@@ -43,12 +45,7 @@ function parseForm(event) {
       stream.on('data', chunk => chunks.push(chunk));
       stream.on('end', () => {
         if (chunks.length > 0) {
-          files.push({
-            fieldName,
-            buffer:   Buffer.concat(chunks),
-            fileName: filename,
-            fileMime: mimeType,
-          });
+          files.push({ fieldName, buffer: Buffer.concat(chunks), fileName: filename, fileMime: mimeType });
         }
       });
     });
@@ -62,53 +59,91 @@ function parseForm(event) {
   });
 }
 
-// Save a file buffer to the Supabase 'Uploads' storage bucket
+// ── File save ─────────────────────────────────────────────────────────────────
 async function saveBlobFile(buffer, fileName, fileMime) {
   const key = `${Date.now()}-${fileName}`;
   await supabaseUpload(key, buffer, fileMime);
   return { key };
 }
 
-// ── Resend email sender ───────────────────────────────────────────────────────
+// ── SMTP transport ────────────────────────────────────────────────────────────
+function createTransport() {
+  const host = process.env.SMTP_HOST;
+  const port = parseInt(process.env.SMTP_PORT || '587', 10);
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+
+  if (!host || !user || !pass) {
+    throw new Error(
+      'SMTP not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASS in Netlify environment variables.'
+    );
+  }
+
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,   // true for SSL (465), false for STARTTLS (587)
+    auth: { user, pass },
+  });
+}
+
 async function sendEmail(payload) {
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  const { data, error } = await resend.emails.send(payload);
-  if (error) throw new Error(`Resend: ${error.message} (${error.name})`);
-  return data;
+  const transporter = createTransport();
+  const info = await transporter.sendMail(payload);
+  return info;
+}
+
+// ── HTML escape helper ────────────────────────────────────────────────────────
+function esc(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 // ── Email builders ────────────────────────────────────────────────────────────
+const TO   = process.env.EMAIL_TO   || 'sales@superior3dandlaser.com';
+const FROM = process.env.EMAIL_FROM || 'Superior 3D and Laser <sales@superior3dandlaser.com>';
 
 function buildContactEmail(fields) {
+  const name = `${fields.firstName || ''} ${fields.lastName || ''}`.trim();
   return {
-    to:      ['sales@superior3dandlaser.com'],
-    subject: `New Contact Message — ${fields.firstName || ''} ${fields.lastName || ''}`.trim(),
+    subject: `New Contact Message — ${name}`,
     text: `
 New Contact Message — Superior 3D and Laser
 ============================================
-
-Name:     ${fields.firstName || ''} ${fields.lastName || ''}
+Name:     ${name}
 Email:    ${fields.email    || ''}
 Phone:    ${fields.phone    || 'Not provided'}
 Service:  ${fields.service  || 'Not specified'}
 
 Message:
 ${fields.message || ''}
-
 ============================================
+    `.trim(),
+    html: `
+<h2 style="color:#b91c1c">New Contact Message</h2>
+<table cellpadding="6" style="border-collapse:collapse">
+  <tr><td><strong>Name</strong></td><td>${esc(name)}</td></tr>
+  <tr><td><strong>Email</strong></td><td>${esc(fields.email || '')}</td></tr>
+  <tr><td><strong>Phone</strong></td><td>${esc(fields.phone || 'Not provided')}</td></tr>
+  <tr><td><strong>Service</strong></td><td>${esc(fields.service || 'Not specified')}</td></tr>
+</table>
+<h3>Message</h3>
+<p style="white-space:pre-wrap">${esc(fields.message || '')}</p>
     `.trim(),
   };
 }
 
 function buildQuoteEmail(fields, fileName) {
+  const name = `${fields.firstName || ''} ${fields.lastName || ''}`.trim();
   return {
-    to:      ['sales@superior3dandlaser.com'],
-    subject: `New Quote Request — ${fields.firstName || ''} ${fields.lastName || ''}`.trim(),
+    subject: `New Quote Request — ${name}`,
     text: `
 New Quote Request — Superior 3D and Laser
 ==========================================
-
-Name:        ${fields.firstName || ''} ${fields.lastName || ''}
+Name:        ${name}
 Email:       ${fields.email    || ''}
 Phone:       ${fields.phone    || 'Not provided'}
 Service:     ${fields.service  || ''}
@@ -122,22 +157,34 @@ ${fields.message || ''}
 ${fileName ? `Uploaded File: ${fileName} (attached)` : 'No file attached.'}
 ==========================================
     `.trim(),
+    html: `
+<h2 style="color:#b91c1c">New Quote Request</h2>
+<table cellpadding="6" style="border-collapse:collapse">
+  <tr><td><strong>Name</strong></td><td>${esc(name)}</td></tr>
+  <tr><td><strong>Email</strong></td><td>${esc(fields.email || '')}</td></tr>
+  <tr><td><strong>Phone</strong></td><td>${esc(fields.phone || 'Not provided')}</td></tr>
+  <tr><td><strong>Service</strong></td><td>${esc(fields.service || '')}</td></tr>
+  <tr><td><strong>Quantity</strong></td><td>${esc(fields.quantity || 'Not provided')}</td></tr>
+  <tr><td><strong>Timeline</strong></td><td>${esc(fields.timeline || 'Not provided')}</td></tr>
+  <tr><td><strong>Material</strong></td><td>${esc(fields.material || 'Not provided')}</td></tr>
+</table>
+<h3>Project Description</h3>
+<p style="white-space:pre-wrap">${esc(fields.message || '')}</p>
+${fileName ? `<p><strong>Attached:</strong> ${esc(fileName)}</p>` : '<p>No file attached.</p>'}
+    `.trim(),
   };
 }
 
 function buildCartOrderEmail(fields, stlFiles) {
-  const filesSection = stlFiles && stlFiles.length > 0
-    ? `\n--- Attached STL Files (${stlFiles.length}) ---\n` +
-      stlFiles.map(f => f.fileName).join('\n')
+  const filesText = stlFiles.length
+    ? `\n--- Attached STL Files (${stlFiles.length}) ---\n${stlFiles.map(f => f.fileName).join('\n')}`
     : '';
 
   return {
-    to:      ['sales@superior3dandlaser.com'],
     subject: `New Order Request — ${fields.name || ''} — ${fields.orderTotal || ''}`.trim(),
     text: `
 New Cart Order Request — Superior 3D and Laser
 ===============================================
-
 Customer:  ${fields.name    || ''}
 Email:     ${fields.email   || ''}
 Phone:     ${fields.phone   || 'Not provided'}
@@ -147,22 +194,40 @@ Ship To:   ${fields.address || ''}
 ${fields.orderItems || ''}
 
 --- Totals ---
-Subtotal:    ${fields.subtotal    || ''}
-Tax (8.5%):  ${fields.tax         || ''}
-ORDER TOTAL: ${fields.orderTotal  || ''}
+Subtotal:    ${fields.subtotal   || ''}
+Tax (8.5%):  ${fields.tax        || ''}
+ORDER TOTAL: ${fields.orderTotal || ''}
 
 --- Notes ---
 ${fields.orderNotes || 'None'}
-${filesSection}
+${filesText}
 Payment Status: ${fields.paymentStatus || 'Pending'}
 ${fields.paymentId ? `Payment ID: ${fields.paymentId}` : ''}
 ===============================================
+    `.trim(),
+    html: `
+<h2 style="color:#b91c1c">New Cart Order</h2>
+<table cellpadding="6" style="border-collapse:collapse">
+  <tr><td><strong>Customer</strong></td><td>${esc(fields.name || '')}</td></tr>
+  <tr><td><strong>Email</strong></td><td>${esc(fields.email || '')}</td></tr>
+  <tr><td><strong>Phone</strong></td><td>${esc(fields.phone || 'Not provided')}</td></tr>
+  <tr><td><strong>Ship To</strong></td><td>${esc(fields.address || '')}</td></tr>
+</table>
+<h3>Order Items</h3>
+<pre style="background:#f8f8f8;padding:12px">${esc(fields.orderItems || '')}</pre>
+<h3>Totals</h3>
+<table cellpadding="6" style="border-collapse:collapse">
+  <tr><td>Subtotal</td><td>${esc(fields.subtotal || '')}</td></tr>
+  <tr><td>Tax (8.5%)</td><td>${esc(fields.tax || '')}</td></tr>
+  <tr><td><strong>ORDER TOTAL</strong></td><td><strong>${esc(fields.orderTotal || '')}</strong></td></tr>
+</table>
+<p><strong>Payment Status:</strong> ${esc(fields.paymentStatus || 'Pending')}</p>
+${fields.paymentId ? `<p><strong>Payment ID:</strong> ${esc(fields.paymentId)}</p>` : ''}
     `.trim(),
   };
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
-
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
@@ -171,45 +236,37 @@ exports.handler = async (event) => {
   try {
     const { fields, files } = await parseForm(event);
 
-    // Save all uploaded files to Netlify Blobs
+    // Save all uploaded files to Supabase
     const savedFiles = [];
     for (const f of files) {
       try {
         const { key } = await saveBlobFile(f.buffer, f.fileName, f.fileMime);
         savedFiles.push({ fieldName: f.fieldName, fileName: f.fileName, key, buffer: f.buffer, fileMime: f.fileMime });
       } catch (blobErr) {
-        console.error('[submit-quote] Blob save error for', f.fileName, ':', blobErr.message, blobErr.stack);
+        console.error('[submit-quote] File save error for', f.fileName, ':', blobErr.message);
       }
     }
 
     // Route to the correct email template
     const formType = fields.formType || (fields.orderType === 'cart-order' ? 'cart' : 'quote');
-    let mailOptions;
+    let mailBody;
+    let attachments = [];
 
     if (formType === 'contact') {
-      mailOptions = buildContactEmail(fields);
+      mailBody = buildContactEmail(fields);
 
     } else if (formType === 'cart' || fields.orderType === 'cart-order') {
-      // STL files for cart orders are appended as stlFile_<itemId>
       const stlFiles = savedFiles.filter(f => f.fieldName.startsWith('stlFile'));
-      mailOptions = buildCartOrderEmail(fields, stlFiles);
+      mailBody = buildCartOrderEmail(fields, stlFiles);
 
-      // Attach STL files directly to the email
-      if (stlFiles.length) {
-        mailOptions.attachments = stlFiles.map(f => ({
-          filename: f.fileName,
-          content:  f.buffer.toString('base64'),
-        }));
-      }
+      attachments = stlFiles.map(f => ({ filename: f.fileName, content: f.buffer }));
 
-      // Save order to Netlify Blobs for admin dashboard
       try {
         const orderStore = blobStore('orders');
         const orderId    = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-        const orderKey   = `order_${orderId}`;
         let parsedItems  = [];
         try { parsedItems = JSON.parse(fields.itemsJson || '[]'); } catch { /* best-effort */ }
-        await orderStore.set(orderKey, JSON.stringify({
+        await orderStore.set(`order_${orderId}`, JSON.stringify({
           id:            orderId,
           customerName:  fields.name    || '',
           customerEmail: fields.email   || '',
@@ -230,26 +287,19 @@ exports.handler = async (event) => {
       }
 
     } else {
-      // Quote form — primary file is the one named 'file'
       const primary  = savedFiles.find(f => f.fieldName === 'file') || savedFiles[0];
       const fileName = primary?.fileName || null;
-      mailOptions = buildQuoteEmail(fields, fileName);
+      mailBody = buildQuoteEmail(fields, fileName);
 
-      // Attach file directly to the email
       if (primary?.buffer) {
-        mailOptions.attachments = [{
-          filename: primary.fileName,
-          content:  primary.buffer.toString('base64'),
-        }];
+        attachments = [{ filename: primary.fileName, content: primary.buffer }];
       }
 
-      // Save order record to Blobs so it appears in the admin dashboard
       if (primary?.key) {
         try {
           const orderStore = blobStore('orders');
           const orderId    = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-          const orderKey   = `order_${orderId}`;
-          await orderStore.set(orderKey, JSON.stringify({
+          await orderStore.set(`order_${orderId}`, JSON.stringify({
             id:            orderId,
             customerName:  `${fields.firstName || ''} ${fields.lastName || ''}`.trim(),
             customerEmail: fields.email   || '',
@@ -276,9 +326,11 @@ exports.handler = async (event) => {
     }
 
     await sendEmail({
-      from:     'Superior 3D and Laser <sales@superior3dandlaser.com>',
-      reply_to: 'sales@superior3dandlaser.com',
-      ...mailOptions,
+      from:     FROM,
+      to:       TO,
+      replyTo:  fields.email || undefined,
+      ...mailBody,
+      ...(attachments.length ? { attachments } : {}),
     });
 
     return { statusCode: 200, body: JSON.stringify({ success: true }) };
