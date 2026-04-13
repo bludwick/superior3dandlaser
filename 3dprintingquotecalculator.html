@@ -2162,8 +2162,7 @@ function calcSLA() {
   const total = unitPrice * qty + printLabourFlat + washCureFlat;
 
   const hasData = resinMl > 0 && slaHrs > 0;
-  const displayUnit = unitPrice + (printLabourFlat + washCureFlat) / qty;
-  document.getElementById('t-unit').textContent  = hasData ? fmt(displayUnit) : '$0.00';
+  document.getElementById('t-unit').textContent  = hasData ? fmt(total / qty) : '$0.00';
   document.getElementById('t-qty').textContent   = qty;
   document.getElementById('t-total').textContent = hasData ? fmt(total)       : '$0.00';
 
@@ -2291,20 +2290,20 @@ function onMaterialChange() {
 }
 
 function getQtyDiscount(qty) {
-  if (qty >= 50) return 0.25;
-  if (qty >= 25) return 0.20;
-  if (qty >= 10) return 0.15;
-  if (qty >= 5)  return 0.10;
-  if (qty >= 2)  return 0.05;
+  if (qty >= 50) return 0.15;
+  if (qty >= 25) return 0.12;
+  if (qty >= 10) return 0.08;
+  if (qty >= 5)  return 0.05;
+  if (qty >= 2)  return 0.02;
   return 0;
 }
 
 function tierLabel(qty) {
-  if (qty >= 50) return '25% volume discount (qty 50+)';
-  if (qty >= 25) return '20% volume discount (qty 25–49)';
-  if (qty >= 10) return '15% volume discount (qty 10–24)';
-  if (qty >= 5)  return '10% volume discount (qty 5–9)';
-  if (qty >= 2)  return '5% volume discount (qty 2–4)';
+  if (qty >= 50) return '15% volume discount (qty 50+)';
+  if (qty >= 25) return '12% volume discount (qty 25–49)';
+  if (qty >= 10) return '8% volume discount (qty 10–24)';
+  if (qty >= 5)  return '5% volume discount (qty 5–9)';
+  if (qty >= 2)  return '2% volume discount (qty 2–4)';
   return '';
 }
 
@@ -2348,7 +2347,7 @@ function calc() {
 
   const hasSTL = parseFloat(document.getElementById('materialGrams').value) > 0
                  && parseFloat(document.getElementById('printHours').value) > 0;
-  document.getElementById('t-unit').textContent  = hasSTL ? fmt(unitPrice) : '$0.00';
+  document.getElementById('t-unit').textContent  = hasSTL ? fmt(total / qty) : '$0.00';
   document.getElementById('t-qty').textContent   = qty;
   document.getElementById('t-total').textContent = hasSTL ? fmt(total)     : '$0.00';
 
