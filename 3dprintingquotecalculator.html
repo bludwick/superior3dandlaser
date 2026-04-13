@@ -2291,11 +2291,7 @@ function onMaterialChange() {
 }
 
 function getQtyDiscount(qty) {
-  if (qty >= 100) return 0.25;
-  if (qty >= 50)  return 0.15;
-  if (qty >= 10)  return 0.10;
-  if (qty >= 5)   return 0.05;
-  return 0;
+  return Math.min((qty - 1) * 0.05, 0.50);
 }
 
 function calc() {
