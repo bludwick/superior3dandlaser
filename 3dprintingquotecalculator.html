@@ -2149,48 +2149,36 @@ function calcSLA() {
   const washCureLabour = SLA_WASH_CURE_HRS * g('labourRate');
   const washCureFlat   = washCureLabour * (1 + g('overheadRate')) * (1 + g('profitMargin'));
 
-  const directCost    = matCost + printCost + addonCost;
-  const overhead      = directCost * g('overheadRate');
-  const firstUnitPrice = (directCost + overhead) * (1 + g('profitMargin'));
-
-  // Floor = bare material + machine cost only (no add-ons, no labour)
-  const floorDirect = matCost + printCost;
-  const floorPrice  = floorDirect * (1 + g('overheadRate')) * (1 + g('profitMargin'));
-
-  // Geometric ramp: each unit is 33% less than the previous, clamped to floorPrice
-  let unitPricesSum = 0;
-  let price = firstUnitPrice;
-  for (let i = 0; i < qty; i++) {
-    price = Math.max(price, floorPrice);
-    unitPricesSum += price;
-    price *= (1 - 0.33);
-  }
+  const directCost  = matCost + printCost + addonCost;
+  const overhead    = directCost * g('overheadRate');
+  const basePrice   = (directCost + overhead) * (1 + g('profitMargin'));
+  const discount    = getQtyDiscount(qty);
+  const unitPrice   = basePrice * (1 - discount);
 
   const printLabourCost = g('printLabourHrs') * g('labourRate');
   const printLabourFlat = printLabourCost * (1 + g('overheadRate')) * (1 + g('profitMargin'));
 
-  // Print labour and wash/cure: flat per-order fees (not ramped)
-  const total = unitPricesSum + printLabourFlat + washCureFlat;
+  // Print labour and wash/cure: flat per-order fees — not discounted
+  const total = unitPrice * qty + printLabourFlat + washCureFlat;
 
   const hasData = resinMl > 0 && slaHrs > 0;
-  const avgUnitPrice   = unitPricesSum / qty;
-  const displayUnit    = avgUnitPrice + (printLabourFlat + washCureFlat) / qty;
+  const displayUnit = unitPrice + (printLabourFlat + washCureFlat) / qty;
   document.getElementById('t-unit').textContent  = hasData ? fmt(displayUnit) : '$0.00';
   document.getElementById('t-qty').textContent   = qty;
   document.getElementById('t-total').textContent = hasData ? fmt(total)       : '$0.00';
 
   const discBadge = document.getElementById('discount-badge');
   if (discBadge) {
-    if (qty > 1 && hasData) {
-      const avgDiscount = (1 - avgUnitPrice / firstUnitPrice) * 100;
-      discBadge.textContent = `Graduated pricing — avg ${avgDiscount.toFixed(0)}% off`;
+    const label = tierLabel(qty);
+    if (label && hasData) {
+      discBadge.textContent = label;
       discBadge.style.display = '';
     } else {
       discBadge.style.display = 'none';
     }
   }
 
-  window._lastCalc = { matCost, printCost, printLabourCost, printLabourFlat, addonCost, overhead, unitPrice: avgUnitPrice, qty, colorSurcharge: 0, washCureFlat, total };
+  window._lastCalc = { matCost, printCost, printLabourCost, printLabourFlat, addonCost, overhead, unitPrice, qty, colorSurcharge: 0, washCureFlat, total };
 
   // Show/hide cart button (suppressed when part exceeds print volume)
   const _acBtn = document.getElementById('addToCartBtn');
@@ -2302,6 +2290,24 @@ function onMaterialChange() {
   calc();
 }
 
+function getQtyDiscount(qty) {
+  if (qty >= 50) return 0.25;
+  if (qty >= 25) return 0.20;
+  if (qty >= 10) return 0.15;
+  if (qty >= 5)  return 0.10;
+  if (qty >= 2)  return 0.05;
+  return 0;
+}
+
+function tierLabel(qty) {
+  if (qty >= 50) return '25% volume discount (qty 50+)';
+  if (qty >= 25) return '20% volume discount (qty 25–49)';
+  if (qty >= 10) return '15% volume discount (qty 10–24)';
+  if (qty >= 5)  return '10% volume discount (qty 5–9)';
+  if (qty >= 2)  return '5% volume discount (qty 2–4)';
+  return '';
+}
+
 function calc() {
   if (window._printMode === 'sla') { calcSLA(); return; }
   const matCost        = (g('matCostKg') / 1000) * g('materialGrams') * g('wasteFactor');
@@ -2329,49 +2335,34 @@ function calc() {
   if (window.setSTLViewerColor) window.setSTLViewerColor(printColorVal);
   const addonCost  = postCost + insertCost + asmCost;
 
-  // First unit price — full cost including add-ons, overhead, profit
-  const directCost     = matCost + printCost + addonCost;
-  const overhead       = directCost * g('overheadRate');
-  const firstUnitPrice = (directCost + overhead) * (1 + g('profitMargin'));
+  const directCost  = matCost + printCost + addonCost;
+  const overhead    = directCost * g('overheadRate');
+  const basePrice   = (directCost + overhead) * (1 + g('profitMargin'));
+  const qty         = Math.max(1, g('qty'));
+  const discount    = getQtyDiscount(qty);
+  const unitPrice   = basePrice * (1 - discount);
 
-  // Floor = bare material + machine cost only (no add-ons, no labour)
-  const floorDirect = matCost + printCost;
-  const floorPrice  = floorDirect * (1 + g('overheadRate')) * (1 + g('profitMargin'));
-
-  const qty = Math.max(1, g('qty'));
-
-  // Geometric ramp: each unit is 33% less than the previous, clamped to floorPrice
-  let unitPricesSum = 0;
-  let price = firstUnitPrice;
-  for (let i = 0; i < qty; i++) {
-    price = Math.max(price, floorPrice);
-    unitPricesSum += price;
-    price *= (1 - 0.33);
-  }
-
-  // Print labour: flat per-order fee (not ramped)
+  // Print labour: flat per-order fee — not discounted
   const printLabourFlat = printLabourCost * (1 + g('overheadRate')) * (1 + g('profitMargin'));
-  const total = unitPricesSum + printLabourFlat + colorSurcharge;
+  const total = unitPrice * qty + printLabourFlat + colorSurcharge;
 
   const hasSTL = parseFloat(document.getElementById('materialGrams').value) > 0
                  && parseFloat(document.getElementById('printHours').value) > 0;
-  const avgUnitPrice    = unitPricesSum / qty;
-  const displayUnitPrice = avgUnitPrice + printLabourFlat / qty;
-  document.getElementById('t-unit').textContent  = hasSTL ? fmt(displayUnitPrice) : '$0.00';
+  document.getElementById('t-unit').textContent  = hasSTL ? fmt(unitPrice) : '$0.00';
   document.getElementById('t-qty').textContent   = qty;
-  document.getElementById('t-total').textContent = hasSTL ? fmt(total)            : '$0.00';
+  document.getElementById('t-total').textContent = hasSTL ? fmt(total)     : '$0.00';
 
   const discBadge = document.getElementById('discount-badge');
   if (discBadge) {
-    if (qty > 1 && hasSTL) {
-      const avgDiscount = (1 - avgUnitPrice / firstUnitPrice) * 100;
-      discBadge.textContent = `Graduated pricing — avg ${avgDiscount.toFixed(0)}% off`;
+    const label = tierLabel(qty);
+    if (label && hasSTL) {
+      discBadge.textContent = label;
       discBadge.style.display = '';
     } else {
       discBadge.style.display = 'none';
     }
   }
-  window._lastCalc = { matCost, printCost, printLabourCost, printLabourFlat, addonCost, overhead, unitPrice: avgUnitPrice, qty, colorSurcharge, total };
+  window._lastCalc = { matCost, printCost, printLabourCost, printLabourFlat, addonCost, overhead, unitPrice, qty, colorSurcharge, total };
 
   // Show Add to Cart / Update Cart button based on mode (suppressed when part exceeds print volume)
   const _acBtn = document.getElementById('addToCartBtn');
