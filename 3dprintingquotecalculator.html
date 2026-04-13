@@ -2152,19 +2152,22 @@ function calcSLA() {
   const directCost    = matCost + printCost + addonCost;
   const overhead      = directCost * g('overheadRate');
   const unitPrice     = (directCost + overhead) * (1 + g('profitMargin'));
-  const discount      = getQtyDiscount(qty);
-  const discountedUnitPrice = unitPrice * (1 - discount);
 
   const printLabourCost = g('printLabourHrs') * g('labourRate');
   const printLabourFlat = printLabourCost * (1 + g('overheadRate')) * (1 + g('profitMargin'));
 
-  const total = discountedUnitPrice * qty + printLabourFlat + washCureFlat;
+  // "First quantity price" = effective unit price at qty=1 (includes print labour + wash/cure)
+  // Discount applies to this whole amount so the displayed unit price scales cleanly
+  const singleUnitPrice  = unitPrice + printLabourFlat + washCureFlat;
+  const discount         = getQtyDiscount(qty);
+  const discountedUnitPrice = singleUnitPrice * (1 - discount);
+
+  const total = discountedUnitPrice * qty;
 
   const hasData = resinMl > 0 && slaHrs > 0;
-  const displayUnit = discountedUnitPrice + (qty > 0 ? (printLabourFlat + washCureFlat) / qty : 0);
-  document.getElementById('t-unit').textContent  = hasData ? fmt(displayUnit) : '$0.00';
+  document.getElementById('t-unit').textContent  = hasData ? fmt(discountedUnitPrice) : '$0.00';
   document.getElementById('t-qty').textContent   = qty;
-  document.getElementById('t-total').textContent = hasData ? fmt(total)       : '$0.00';
+  document.getElementById('t-total').textContent = hasData ? fmt(total)               : '$0.00';
   const discBadge = document.getElementById('discount-badge');
   if (discBadge) {
     if (discount > 0 && hasData) {
@@ -2175,7 +2178,8 @@ function calcSLA() {
     }
   }
 
-  window._lastCalc = { matCost, printCost, printLabourCost, printLabourFlat, addonCost, overhead, unitPrice: discountedUnitPrice, qty, colorSurcharge: 0, washCureFlat, total };
+  // printLabourFlat and washCureFlat are folded into unitPrice above; store 0 so cart recalc stays correct
+  window._lastCalc = { matCost, printCost, printLabourCost, printLabourFlat: 0, addonCost, overhead, unitPrice: discountedUnitPrice, qty, colorSurcharge: 0, washCureFlat: 0, total };
 
   // Show/hide cart button (suppressed when part exceeds print volume)
   const _acBtn = document.getElementById('addToCartBtn');
@@ -2326,18 +2330,20 @@ function calc() {
   const overhead   = directCost * g('overheadRate');
   const unitPrice  = (directCost + overhead) * (1 + g('profitMargin'));
   const qty        = Math.max(1, g('qty'));
-  const discount   = getQtyDiscount(qty);
-  const discountedUnitPrice = unitPrice * (1 - discount);
-  // Print labour: flat per line item (not × qty), with overhead + margin applied
+  // Print labour: flat per line item, with overhead + margin applied
   const printLabourFlat = printLabourCost * (1 + g('overheadRate')) * (1 + g('profitMargin'));
-  const total      = discountedUnitPrice * qty + printLabourFlat + colorSurcharge;
+  // "First quantity price" = effective unit price at qty=1 (unitPrice + full print labour)
+  // Discount applies to this whole amount so the displayed unit price scales cleanly
+  const singleUnitPrice  = unitPrice + printLabourFlat;
+  const discount         = getQtyDiscount(qty);
+  const discountedUnitPrice = singleUnitPrice * (1 - discount);
+  const total      = discountedUnitPrice * qty + colorSurcharge;
 
   const hasSTL = parseFloat(document.getElementById('materialGrams').value) > 0
                  && parseFloat(document.getElementById('printHours').value) > 0;
-  const displayUnitPrice = discountedUnitPrice + (qty > 0 ? printLabourFlat / qty : 0);
-  document.getElementById('t-unit').textContent  = hasSTL ? fmt(displayUnitPrice) : '$0.00';
+  document.getElementById('t-unit').textContent  = hasSTL ? fmt(discountedUnitPrice) : '$0.00';
   document.getElementById('t-qty').textContent   = qty;
-  document.getElementById('t-total').textContent = hasSTL ? fmt(total)            : '$0.00';
+  document.getElementById('t-total').textContent = hasSTL ? fmt(total)               : '$0.00';
   const discBadge = document.getElementById('discount-badge');
   if (discBadge) {
     if (discount > 0 && hasSTL) {
@@ -2347,7 +2353,8 @@ function calc() {
       discBadge.style.display = 'none';
     }
   }
-  window._lastCalc = { matCost, printCost, printLabourCost, printLabourFlat, addonCost, overhead, unitPrice: discountedUnitPrice, qty, colorSurcharge, total };
+  // printLabourFlat is folded into unitPrice above; store 0 so cart recalc stays correct
+  window._lastCalc = { matCost, printCost, printLabourCost, printLabourFlat: 0, addonCost, overhead, unitPrice: discountedUnitPrice, qty, colorSurcharge, total };
 
   // Show Add to Cart / Update Cart button based on mode (suppressed when part exceeds print volume)
   const _acBtn = document.getElementById('addToCartBtn');
