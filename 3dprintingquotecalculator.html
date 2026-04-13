@@ -2162,8 +2162,7 @@ function calcSLA() {
   const total = unitPrice * qty + printLabourFlat + washCureFlat;
 
   const hasData = resinMl > 0 && slaHrs > 0;
-  const displayUnit = unitPrice + (printLabourFlat + washCureFlat) / qty;
-  document.getElementById('t-unit').textContent  = hasData ? fmt(displayUnit) : '$0.00';
+  document.getElementById('t-unit').textContent  = hasData ? fmt(total / qty) : '$0.00';
   document.getElementById('t-qty').textContent   = qty;
   document.getElementById('t-total').textContent = hasData ? fmt(total)       : '$0.00';
 
@@ -2348,7 +2347,7 @@ function calc() {
 
   const hasSTL = parseFloat(document.getElementById('materialGrams').value) > 0
                  && parseFloat(document.getElementById('printHours').value) > 0;
-  document.getElementById('t-unit').textContent  = hasSTL ? fmt(unitPrice) : '$0.00';
+  document.getElementById('t-unit').textContent  = hasSTL ? fmt(total / qty) : '$0.00';
   document.getElementById('t-qty').textContent   = qty;
   document.getElementById('t-total').textContent = hasSTL ? fmt(total)     : '$0.00';
 
