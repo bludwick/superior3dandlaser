@@ -2156,11 +2156,10 @@ function calcSLA() {
   const printLabourCost = g('printLabourHrs') * g('labourRate');
   const printLabourFlat = printLabourCost * (1 + g('overheadRate')) * (1 + g('profitMargin'));
 
-  // "First quantity price" = effective unit price at qty=1 (includes print labour + wash/cure)
-  // Discount applies to this whole amount so the displayed unit price scales cleanly
-  const singleUnitPrice  = unitPrice + printLabourFlat + washCureFlat;
-  const discount         = getQtyDiscount(qty);
-  const discountedUnitPrice = singleUnitPrice * (1 - discount);
+  // Print labour + wash/cure amortized across qty (cheaper per part at higher volumes)
+  const perUnitPrice    = unitPrice + (printLabourFlat + washCureFlat) / qty;
+  const discount        = getQtyDiscount(qty);
+  const discountedUnitPrice = perUnitPrice * (1 - discount);
 
   const total = discountedUnitPrice * qty;
 
@@ -2330,13 +2329,11 @@ function calc() {
   const overhead   = directCost * g('overheadRate');
   const unitPrice  = (directCost + overhead) * (1 + g('profitMargin'));
   const qty        = Math.max(1, g('qty'));
-  // Print labour: flat per line item, with overhead + margin applied
+  // Print labour: flat per line item, amortized across qty (cheaper per part at higher volumes)
   const printLabourFlat = printLabourCost * (1 + g('overheadRate')) * (1 + g('profitMargin'));
-  // "First quantity price" = effective unit price at qty=1 (unitPrice + full print labour)
-  // Discount applies to this whole amount so the displayed unit price scales cleanly
-  const singleUnitPrice  = unitPrice + printLabourFlat;
-  const discount         = getQtyDiscount(qty);
-  const discountedUnitPrice = singleUnitPrice * (1 - discount);
+  const perUnitPrice    = unitPrice + printLabourFlat / qty;
+  const discount        = getQtyDiscount(qty);
+  const discountedUnitPrice = perUnitPrice * (1 - discount);
   const total      = discountedUnitPrice * qty + colorSurcharge;
 
   const hasSTL = parseFloat(document.getElementById('materialGrams').value) > 0
