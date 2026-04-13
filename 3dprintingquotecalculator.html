@@ -2060,22 +2060,35 @@ function setPrintMode(mode) {
   // Filter material dropdown to show only relevant materials
   if (typeof renderMatLibDropdown === 'function') renderMatLibDropdown(true);
 
-  // Clear cached STL data so next upload uses the right formula
-  if (typeof window.clearSTLCache === 'function') window.clearSTLCache();
-  document.getElementById('slaResinMl').value   = '0';
-  document.getElementById('slaPrintHours').value = '0';
-  document.getElementById('materialGrams').value = '0';
-  document.getElementById('printHours').value    = '0';
+  // If an STL is already loaded, re-run the estimate under the new mode's
+  // formula instead of wiping everything — that's what broke time & filament
+  // when switching Resin → FDM with a file already uploaded.
+  const hasMesh = typeof window.getSTLMeshVol === 'function' && window.getSTLMeshVol() !== null;
 
-  // Reset slicer display
-  const slicerResults = document.getElementById('slicerResults');
-  if (slicerResults) slicerResults.style.display = 'none';
-  const slaVolumeRow = document.getElementById('slaVolumeRow');
-  if (slaVolumeRow) slaVolumeRow.style.display = 'none';
-  const resSlicer = document.getElementById('res-slicer');
-  if (resSlicer) {
-    resSlicer.textContent = 'Upload an STL to auto-estimate material & time';
-    resSlicer.style.color = 'var(--muted)';
+  if (hasMesh) {
+    // reestimate() → applyEstimate() handles zeroing the opposite-mode fields
+    // and populating the correct ones, then calls calc() internally.
+    window.reestimate();
+    // SLA volume chip only makes sense in SLA mode
+    const slaVolumeRow = document.getElementById('slaVolumeRow');
+    if (slaVolumeRow) slaVolumeRow.style.display = mode === 'sla' ? '' : 'none';
+  } else {
+    // No file loaded yet — wipe fields and show the upload prompt
+    if (typeof window.clearSTLCache === 'function') window.clearSTLCache();
+    document.getElementById('slaResinMl').value    = '0';
+    document.getElementById('slaPrintHours').value = '0';
+    document.getElementById('materialGrams').value = '0';
+    document.getElementById('printHours').value    = '0';
+
+    const slicerResults = document.getElementById('slicerResults');
+    if (slicerResults) slicerResults.style.display = 'none';
+    const slaVolumeRow = document.getElementById('slaVolumeRow');
+    if (slaVolumeRow) slaVolumeRow.style.display = 'none';
+    const resSlicer = document.getElementById('res-slicer');
+    if (resSlicer) {
+      resSlicer.textContent = 'Upload an STL to auto-estimate material & time';
+      resSlicer.style.color = 'var(--muted)';
+    }
   }
 
   calc();
