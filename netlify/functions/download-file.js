@@ -1,5 +1,32 @@
 const jwt = require('jsonwebtoken');
 
+// ── Shared bucket resolver ─────────────────────────────────────────────────────
+// The POST (sign-upload) handler already detects the real bucket name because
+// Supabase bucket names are case-sensitive and the bucket may be "uploads" or
+// "Uploads". Cache the result so we only list buckets once per function instance.
+let _resolvedBucket = null;
+
+async function resolveUploadsBucket() {
+  if (_resolvedBucket) return _resolvedBucket;
+  try {
+    const res = await fetch(
+      `${process.env.SUPABASE_URL}/storage/v1/bucket`,
+      { headers: { 'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` } }
+    );
+    if (res.ok) {
+      const buckets = await res.json();
+      const match   = buckets.map(b => b.name).find(n => n.toLowerCase() === 'uploads');
+      _resolvedBucket = match || 'Uploads';
+    } else {
+      _resolvedBucket = 'Uploads';
+    }
+  } catch {
+    _resolvedBucket = 'Uploads';
+  }
+  console.log('[download-file] resolved bucket:', _resolvedBucket);
+  return _resolvedBucket;
+}
+
 // Extension → MIME type fallback map
 const MIME_MAP = {
   stl:    'model/stl',
@@ -48,20 +75,8 @@ exports.handler = async (event) => {
     if (!fileName) return jsonResp(400, { error: 'fileName required' });
 
     try {
-      // ── Diagnostic: list buckets so we can verify the bucket name ────────
-      const bucketsRes = await fetch(
-        `${process.env.SUPABASE_URL}/storage/v1/bucket`,
-        { headers: { 'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` } }
-      );
-      const bucketsText = await bucketsRes.text();
-      let availableBuckets = [];
-      try { availableBuckets = JSON.parse(bucketsText).map(b => b.name); } catch { availableBuckets = [`(parse error) ${bucketsText.slice(0, 100)}`]; }
-      console.log('[download-file] available buckets:', JSON.stringify(availableBuckets));
-
-      // Use whichever bucket name casing Supabase actually has, defaulting to 'Uploads'
-      const bucket = availableBuckets.find(n => n.toLowerCase() === 'uploads') || 'Uploads';
-
-      const path = `${Date.now()}-${fileName}`;
+      const bucket = await resolveUploadsBucket();
+      const path   = `${Date.now()}-${fileName}`;
       const signUrl = `${process.env.SUPABASE_URL}/storage/v1/object/upload/sign/${bucket}/${path}`;
       console.log('[download-file] signing URL:', signUrl);
 
@@ -81,7 +96,6 @@ exports.handler = async (event) => {
           error:            'Failed to create upload URL',
           supabaseStatus:   signRes.status,
           supabaseResponse: signText.slice(0, 200),
-          availableBuckets,
           bucketUsed:       bucket,
         });
       }
@@ -103,9 +117,10 @@ exports.handler = async (event) => {
   if (!key) return { statusCode: 400, body: 'Missing ?key parameter' };
 
   try {
+    const bucket       = await resolveUploadsBucket();
     const originalName = key.replace(/^\d+-/, '');
     const signRes = await fetch(
-      `${process.env.SUPABASE_URL}/storage/v1/object/sign/Uploads/${encodeURIComponent(key)}`,
+      `${process.env.SUPABASE_URL}/storage/v1/object/sign/${bucket}/${encodeURIComponent(key)}`,
       {
         method:  'POST',
         headers: {
@@ -117,8 +132,10 @@ exports.handler = async (event) => {
     );
 
     if (!signRes.ok) {
-      console.error('[download-file] sign download error:', key, signRes.status);
-      return { statusCode: 404, body: 'File not found' };
+      const errText = await signRes.text().catch(() => '');
+      console.error('[download-file] sign download error — key:', key, 'bucket:', bucket,
+        'status:', signRes.status, 'body:', errText.slice(0, 200));
+      return { statusCode: 404, body: 'File not found', headers: { 'Content-Type': 'text/plain' } };
     }
 
     const { signedURL } = await signRes.json();
