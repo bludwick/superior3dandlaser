@@ -836,10 +836,10 @@ function renderOrders(orders) {
             <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;">
               ${(o.stlFiles || []).length
                 ? (o.stlFiles || []).map(f => `
-                    <a href="/api/admin/files?key=${encodeURIComponent(f.blobKey)}" download="${esc(f.fileName)}"
-                       style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:#fff;border:1px solid var(--accent);border-radius:5px;color:var(--accent);text-decoration:none;font-size:12px;font-weight:600;">
+                    <button onclick="openAdminFile('${esc(f.blobKey)}','${esc(f.fileName)}')"
+                       style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:#fff;border:1px solid var(--accent);border-radius:5px;color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;">
                       ⬇ ${esc(f.fileName)}
-                    </a>`).join('')
+                    </button>`).join('')
                 : `<span style="font-size:11px;color:var(--muted);">No files attached</span>`}
               <label style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:#fff;border:1px solid var(--border);border-radius:5px;color:var(--muted);font-size:12px;font-weight:600;">
                 📎 Upload File
@@ -970,6 +970,18 @@ async function toggleStatus(orderId, currentStatus, badgeEl) {
     loadOrders();
   } catch {
     showToast('Failed to update status');
+  }
+}
+
+// ── File download via Supabase signed URL (bypasses 6 MB Lambda limit) ──────
+async function openAdminFile(key, fileName) {
+  try {
+    const res = await fetch(`/api/admin/files?key=${encodeURIComponent(key)}`);
+    if (!res.ok) { showToast('File not found'); return; }
+    const { url } = await res.json();
+    window.open(url, '_blank');
+  } catch (err) {
+    showToast('Download error: ' + err.message);
   }
 }
 
@@ -1417,10 +1429,10 @@ function renderJobs(filter) {
             <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;">
               ${(j.stlFiles || []).length
                 ? (j.stlFiles || []).map(f => `
-                    <a href="/api/admin/files?key=${encodeURIComponent(f.blobKey)}" download="${esc(f.fileName)}"
-                       style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:#fff;border:1px solid var(--accent);border-radius:5px;color:var(--accent);text-decoration:none;font-size:12px;font-weight:600;">
+                    <button onclick="openAdminFile('${esc(f.blobKey)}','${esc(f.fileName)}')"
+                       style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:#fff;border:1px solid var(--accent);border-radius:5px;color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;">
                       ⬇ ${esc(f.fileName)}
-                    </a>`).join('')
+                    </button>`).join('')
                 : `<span style="font-size:11px;color:var(--muted);">No files attached</span>`}
             </div>
           </div>
@@ -1522,10 +1534,10 @@ function renderExistingFiles(stlFiles) {
   const el = document.getElementById('jf-existing-files');
   if (!el) return;
   const uploaded = (stlFiles || []).map(f =>
-    `<a href="/api/admin/files?key=${encodeURIComponent(f.blobKey)}" target="_blank"
-        style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;background:var(--bg-light);border:1px solid var(--border);border-radius:4px;color:var(--accent);text-decoration:none;font-size:11px;">
+    `<button onclick="openAdminFile('${esc(f.blobKey)}','${esc(f.fileName)}')"
+        style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;background:var(--bg-light);border:1px solid var(--border);border-radius:4px;color:var(--accent);font-size:11px;cursor:pointer;">
       ⬇ ${esc(f.fileName)}
-     </a>`
+     </button>`
   );
   const pending = Object.values(_pendingCartFiles || {}).map(f =>
     `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;background:#fffbeb;border:1px solid #fde68a;border-radius:4px;color:#92400e;font-size:11px;" title="Will be uploaded when job is saved">
