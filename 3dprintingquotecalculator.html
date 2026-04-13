@@ -2173,24 +2173,21 @@ function calcSLA() {
   const total = unitPricesSum + printLabourFlat + washCureFlat;
 
   const hasData = resinMl > 0 && slaHrs > 0;
-  const avgUnitPrice   = unitPricesSum / qty;
-  const displayUnit    = avgUnitPrice + (printLabourFlat + washCureFlat) / qty;
-  document.getElementById('t-unit').textContent  = hasData ? fmt(displayUnit) : '$0.00';
+  document.getElementById('t-unit').textContent  = hasData ? fmt(firstUnitPrice) : '$0.00';
   document.getElementById('t-qty').textContent   = qty;
-  document.getElementById('t-total').textContent = hasData ? fmt(total)       : '$0.00';
+  document.getElementById('t-total').textContent = hasData ? fmt(total)          : '$0.00';
 
   const discBadge = document.getElementById('discount-badge');
   if (discBadge) {
     if (qty > 1 && hasData) {
-      const avgDiscount = (1 - avgUnitPrice / firstUnitPrice) * 100;
-      discBadge.textContent = `Graduated pricing — avg ${avgDiscount.toFixed(0)}% off`;
+      discBadge.textContent = 'Graduated pricing — 33% per additional unit';
       discBadge.style.display = '';
     } else {
       discBadge.style.display = 'none';
     }
   }
 
-  window._lastCalc = { matCost, printCost, printLabourCost, printLabourFlat, addonCost, overhead, unitPrice: avgUnitPrice, qty, colorSurcharge: 0, washCureFlat, total };
+  window._lastCalc = { matCost, printCost, printLabourCost, printLabourFlat, addonCost, overhead, unitPrice: firstUnitPrice, qty, colorSurcharge: 0, washCureFlat, total };
 
   // Show/hide cart button (suppressed when part exceeds print volume)
   const _acBtn = document.getElementById('addToCartBtn');
@@ -2355,23 +2352,20 @@ function calc() {
 
   const hasSTL = parseFloat(document.getElementById('materialGrams').value) > 0
                  && parseFloat(document.getElementById('printHours').value) > 0;
-  const avgUnitPrice    = unitPricesSum / qty;
-  const displayUnitPrice = avgUnitPrice + printLabourFlat / qty;
-  document.getElementById('t-unit').textContent  = hasSTL ? fmt(displayUnitPrice) : '$0.00';
+  document.getElementById('t-unit').textContent  = hasSTL ? fmt(firstUnitPrice) : '$0.00';
   document.getElementById('t-qty').textContent   = qty;
-  document.getElementById('t-total').textContent = hasSTL ? fmt(total)            : '$0.00';
+  document.getElementById('t-total').textContent = hasSTL ? fmt(total)          : '$0.00';
 
   const discBadge = document.getElementById('discount-badge');
   if (discBadge) {
     if (qty > 1 && hasSTL) {
-      const avgDiscount = (1 - avgUnitPrice / firstUnitPrice) * 100;
-      discBadge.textContent = `Graduated pricing — avg ${avgDiscount.toFixed(0)}% off`;
+      discBadge.textContent = 'Graduated pricing — 33% per additional unit';
       discBadge.style.display = '';
     } else {
       discBadge.style.display = 'none';
     }
   }
-  window._lastCalc = { matCost, printCost, printLabourCost, printLabourFlat, addonCost, overhead, unitPrice: avgUnitPrice, qty, colorSurcharge, total };
+  window._lastCalc = { matCost, printCost, printLabourCost, printLabourFlat, addonCost, overhead, unitPrice: firstUnitPrice, qty, colorSurcharge, total };
 
   // Show Add to Cart / Update Cart button based on mode (suppressed when part exceeds print volume)
   const _acBtn = document.getElementById('addToCartBtn');
