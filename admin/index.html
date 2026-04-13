@@ -133,6 +133,41 @@
   .status-badge:hover { opacity: .75; }
   .expand-btn { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 12px; padding: 2px 6px; border-radius: 4px; transition: all .15s; }
   .expand-btn:hover { background: var(--bg-light); }
+
+  /* ── ORDER CHECKBOXES & BULK BAR ── */
+  .order-cb { width: 36px; padding: 10px 6px 10px 14px !important; }
+  .order-cb input[type="checkbox"] { width: 14px; height: 14px; accent-color: var(--accent); cursor: pointer; vertical-align: middle; }
+  tr.order-row.selected > td { background: rgba(185,28,28,.04); }
+  #orderBulkBar {
+    display: none; align-items: center; gap: 10px;
+    background: #1a1a1a; color: #fff;
+    padding: 9px 14px; border-radius: 8px; margin-bottom: 10px; flex-wrap: wrap;
+  }
+  #orderBulkBar.visible { display: flex; }
+  #orderBulkBar .bulk-count { font-size: 13px; font-weight: 700; flex: 1; white-space: nowrap; }
+  #orderBulkBar select {
+    font-family: var(--font); font-size: 12px; font-weight: 600;
+    padding: 6px 10px; border-radius: 6px; border: 1.5px solid #444;
+    background: #2a2a2a; color: #fff; cursor: pointer;
+  }
+  .bulk-apply-btn {
+    font-family: var(--font); font-size: 12px; font-weight: 700;
+    padding: 7px 14px; border-radius: 6px; border: none;
+    background: var(--accent); color: #fff; cursor: pointer; transition: background .15s;
+  }
+  .bulk-apply-btn:hover { background: #991b1b; }
+  .bulk-delete-btn {
+    font-family: var(--font); font-size: 12px; font-weight: 700;
+    padding: 6px 13px; border-radius: 6px; cursor: pointer; transition: all .15s;
+    background: transparent; color: #f87171; border: 1.5px solid #f87171;
+  }
+  .bulk-delete-btn:hover { background: #f87171; color: #fff; }
+  .bulk-desel-btn {
+    font-family: var(--font); font-size: 12px; font-weight: 600;
+    padding: 6px 11px; border-radius: 6px; cursor: pointer; transition: all .15s;
+    background: transparent; color: #aaa; border: 1.5px solid #555;
+  }
+  .bulk-desel-btn:hover { color: #fff; border-color: #888; }
   .expand-row { display: none; }
   .expand-row.open { display: table-row; }
   .expand-row td { padding: 0; border-bottom: 1px solid var(--border); }
@@ -473,6 +508,18 @@
           <span class="table-title">Order History</span>
           <button class="refresh-btn" onclick="loadOrders()">↺ Refresh</button>
         </div>
+        <!-- Bulk action bar — visible only when orders are checked -->
+        <div id="orderBulkBar">
+          <span class="bulk-count" id="orderBulkCount">0 selected</span>
+          <select id="orderBulkStatus">
+            <option value="pending">⏳ Pending</option>
+            <option value="confirmed">✓ Confirmed</option>
+          </select>
+          <button class="bulk-apply-btn" onclick="bulkOrderStatus()">Update Status</button>
+          <button class="bulk-delete-btn" onclick="bulkOrderDelete()">🗑 Delete</button>
+          <button class="bulk-desel-btn" onclick="deselectAllOrders()">✕ Deselect</button>
+        </div>
+
         <div id="ordersContainer">
           <div class="empty-state"><div class="empty-icon">⏳</div><div>Loading orders…</div></div>
         </div>
@@ -746,7 +793,7 @@ function renderOrders(orders) {
     return;
   }
 
-  let html = '<table><thead><tr><th>Date</th><th>Customer</th><th>Email</th><th>Lead Time</th><th>Items</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>';
+  let html = '<table><thead><tr><th class="order-cb"><input type="checkbox" id="orderSelectAll" title="Select all" onchange="orderSelectAll(this)"></th><th>Date</th><th>Customer</th><th>Email</th><th>Lead Time</th><th>Items</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>';
   orders.forEach((o, idx) => {
     const date    = o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
     const isQuoted = o.status === 'quoted';
@@ -756,7 +803,8 @@ function renderOrders(orders) {
     const itemCount = (o.items || []).length;
     const invoiceHref = o.invoiceToken ? `/invoice.html?job=${esc(o.id)}&token=${esc(o.invoiceToken)}` : null;
 
-    html += `<tr>
+    html += `<tr class="order-row" data-id="${esc(o.id)}">
+      <td class="order-cb"><input type="checkbox" class="order-row-cb" data-id="${esc(o.id)}" onchange="onOrderCbChange()"></td>
       <td style="white-space:nowrap;color:var(--muted);">${date}</td>
       <td style="font-weight:600;">${esc(o.customerName || '—')}</td>
       <td style="color:var(--muted);">${esc(o.customerEmail || '—')}</td>
@@ -772,7 +820,7 @@ function renderOrders(orders) {
       </td>
     </tr>
     <tr class="expand-row" id="row-${idx}">
-      <td colspan="8">
+      <td colspan="9">
         <div class="expand-inner">
           ${o.address ? `<div style="margin-bottom:6px;color:var(--muted);font-size:12px;">📦 Ship to: <strong style="color:var(--text);">${esc(o.address)}</strong></div>` : ''}
           ${o.notes && o.notes !== '—' ? `<div style="margin-bottom:6px;color:var(--muted);font-size:12px;">📝 Notes: ${esc(o.notes)}</div>` : ''}
@@ -811,12 +859,98 @@ function renderOrders(orders) {
   });
   html += '</tbody></table>';
   container.innerHTML = html;
+  // Reset bulk bar — new checkboxes are all unchecked after re-render
+  updateOrderBulkBar();
 }
 
 function toggleExpand(rowId, btn) {
   const row = document.getElementById(rowId);
   const open = row.classList.toggle('open');
   btn.textContent = open ? '▴' : '▾';
+}
+
+// ── Order checkbox & bulk actions ─────────────────────────────────────────────
+
+function orderSelectAll(cb) {
+  document.querySelectorAll('.order-row-cb').forEach(c => {
+    c.checked = cb.checked;
+    c.closest('tr').classList.toggle('selected', cb.checked);
+  });
+  updateOrderBulkBar();
+}
+
+function onOrderCbChange() {
+  const all     = document.querySelectorAll('.order-row-cb');
+  const checked = document.querySelectorAll('.order-row-cb:checked');
+  all.forEach(c => c.closest('tr').classList.toggle('selected', c.checked));
+  const sa = document.getElementById('orderSelectAll');
+  if (sa) {
+    sa.indeterminate = checked.length > 0 && checked.length < all.length;
+    sa.checked       = all.length > 0 && checked.length === all.length;
+  }
+  updateOrderBulkBar();
+}
+
+function getSelectedOrderIds() {
+  return [...document.querySelectorAll('.order-row-cb:checked')].map(c => c.dataset.id);
+}
+
+function updateOrderBulkBar() {
+  const ids = getSelectedOrderIds();
+  const bar = document.getElementById('orderBulkBar');
+  const cnt = document.getElementById('orderBulkCount');
+  if (bar) bar.classList.toggle('visible', ids.length > 0);
+  if (cnt) cnt.textContent = `${ids.length} order${ids.length !== 1 ? 's' : ''} selected`;
+}
+
+function deselectAllOrders() {
+  document.querySelectorAll('.order-row-cb').forEach(c => {
+    c.checked = false;
+    c.closest('tr').classList.remove('selected');
+  });
+  const sa = document.getElementById('orderSelectAll');
+  if (sa) { sa.checked = false; sa.indeterminate = false; }
+  updateOrderBulkBar();
+}
+
+async function bulkOrderStatus() {
+  const ids = getSelectedOrderIds();
+  if (!ids.length) return;
+  const status = document.getElementById('orderBulkStatus').value;
+  try {
+    await Promise.all(ids.map(id =>
+      fetch(`/api/admin/orders/${encodeURIComponent(id)}/status`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ status }),
+      }).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); })
+    ));
+    showToast(`✓ ${ids.length} order${ids.length !== 1 ? 's' : ''} marked as ${status}`);
+    loadOrders();
+  } catch (err) {
+    showToast('Failed to update: ' + err.message);
+  }
+}
+
+async function bulkOrderDelete() {
+  const ids = getSelectedOrderIds();
+  if (!ids.length) return;
+  const confirmed = await showConfirm(
+    `Delete ${ids.length} order${ids.length !== 1 ? 's' : ''}? This cannot be undone.`
+  );
+  if (!confirmed) return;
+  try {
+    const res = await fetch('/api/admin/orders', {
+      method:  'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ ids }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    showToast(`🗑 ${ids.length} order${ids.length !== 1 ? 's' : ''} deleted`);
+    loadOrders();
+  } catch (err) {
+    showToast('Failed to delete: ' + err.message);
+  }
 }
 
 async function toggleStatus(orderId, currentStatus, badgeEl) {

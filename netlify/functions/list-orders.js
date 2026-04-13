@@ -39,6 +39,11 @@ exports.handler = async function (event) {
     if (match) return attachFiles(match[1], event.body);
   }
 
+  // ── Route: DELETE /api/admin/orders  (bulk delete) ───────────────────────
+  if (event.httpMethod === 'DELETE') {
+    return bulkDelete(event.body);
+  }
+
   return { statusCode: 405, body: 'Method Not Allowed' };
 };
 
@@ -148,6 +153,45 @@ async function attachFiles(orderId, rawBody) {
   } catch (err) {
     console.error('[list-orders] attachFiles error:', err.message);
     return jsonResponse(500, { error: 'Failed to attach files' });
+  }
+}
+
+async function bulkDelete(rawBody) {
+  let ids;
+  try {
+    ({ ids } = JSON.parse(rawBody || '{}'));
+  } catch {
+    return jsonResponse(400, { error: 'Invalid body' });
+  }
+  if (!Array.isArray(ids) || !ids.length) {
+    return jsonResponse(400, { error: '"ids" array required' });
+  }
+
+  try {
+    const bs = blobStore('orders');
+    const { blobs } = await bs.list();
+
+    // Build a map of orderId → blobKey for fast lookup
+    const keyMap = {};
+    await Promise.all(blobs.map(async (blob) => {
+      const t = await bs.get(blob.key).catch(() => null);
+      const o = t ? JSON.parse(t) : null;
+      if (o && o.id) keyMap[o.id] = blob.key;
+    }));
+
+    const found    = ids.filter(id => keyMap[id]);
+    const notFound = ids.filter(id => !keyMap[id]);
+
+    await Promise.all(found.map(id => bs.delete(keyMap[id]).catch(() => null)));
+
+    if (notFound.length) {
+      console.warn('[list-orders] bulkDelete: IDs not found:', notFound);
+    }
+
+    return jsonResponse(200, { ok: true, deleted: found.length });
+  } catch (err) {
+    console.error('[list-orders] bulkDelete error:', err.message);
+    return jsonResponse(500, { error: 'Failed to delete orders' });
   }
 }
 
