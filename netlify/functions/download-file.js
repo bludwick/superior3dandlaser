@@ -111,46 +111,53 @@ exports.handler = async (event) => {
     }
   }
 
-  // ── GET: generate a short-lived signed download URL and redirect ────────────
-  // This avoids streaming the entire file through the Netlify function
+  // ── GET: proxy the file directly through this function ──────────────────────
+  // Using a signed-URL redirect had too many silent failure modes:
+  //   • browser cross-origin restrictions on the `download` attribute
+  //   • SUPABASE_URL + relative signedURL path concatenation edge cases
+  //   • no visibility into whether the redirect itself worked
+  // Proxying with the service-role key is simpler, same-origin, and reliable.
   const key = (event.queryStringParameters || {}).key;
-  if (!key) return { statusCode: 400, body: 'Missing ?key parameter' };
+  if (!key) return { statusCode: 400, body: 'Missing ?key parameter', headers: { 'Content-Type': 'text/plain' } };
 
   try {
     const bucket       = await resolveUploadsBucket();
     const originalName = key.replace(/^\d+-/, '');
-    const signRes = await fetch(
-      `${process.env.SUPABASE_URL}/storage/v1/object/sign/${bucket}/${encodeURIComponent(key)}`,
-      {
-        method:  'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-          'Content-Type':  'application/json',
-        },
-        body: JSON.stringify({ expiresIn: 300 }),  // 5-minute window
-      }
+    const mime         = mimeFromExtension(originalName);
+
+    const fileRes = await fetch(
+      `${process.env.SUPABASE_URL}/storage/v1/object/${bucket}/${encodeURIComponent(key)}`,
+      { headers: { 'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` } }
     );
 
-    if (!signRes.ok) {
-      const errText = await signRes.text().catch(() => '');
-      console.error('[download-file] sign download error — key:', key, 'bucket:', bucket,
-        'status:', signRes.status, 'body:', errText.slice(0, 200));
-      return { statusCode: 404, body: 'File not found', headers: { 'Content-Type': 'text/plain' } };
+    if (!fileRes.ok) {
+      const errText = await fileRes.text().catch(() => '');
+      console.error('[download-file] fetch error — key:', key, 'bucket:', bucket,
+        'status:', fileRes.status, 'body:', errText.slice(0, 200));
+      return {
+        statusCode: fileRes.status === 404 ? 404 : 502,
+        body: fileRes.status === 404 ? 'File not found' : 'Storage error',
+        headers: { 'Content-Type': 'text/plain' },
+      };
     }
 
-    const { signedURL } = await signRes.json();
-    // Add &download= so Supabase sets Content-Disposition: attachment
-    const redirectUrl = `${process.env.SUPABASE_URL}${signedURL}&download=${encodeURIComponent(originalName)}`;
+    const buffer = Buffer.from(await fileRes.arrayBuffer());
+    console.log('[download-file] serving key=%s bucket=%s size=%d bytes', key, bucket, buffer.length);
 
-    console.log('[download-file] redirecting to signed URL for key=%s', key);
     return {
-      statusCode: 302,
-      headers: { 'Location': redirectUrl, 'Cache-Control': 'no-store' },
-      body: '',
+      statusCode: 200,
+      headers: {
+        'Content-Type':        mime,
+        'Content-Disposition': `attachment; filename="${originalName}"`,
+        'Content-Length':      String(buffer.length),
+        'Cache-Control':       'no-store',
+      },
+      body:            buffer.toString('base64'),
+      isBase64Encoded: true,
     };
   } catch (err) {
     console.error('[download-file] Error:', err.message, err.stack);
-    return { statusCode: 500, body: 'Internal server error' };
+    return { statusCode: 500, body: 'Internal server error', headers: { 'Content-Type': 'text/plain' } };
   }
 };
 
