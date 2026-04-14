@@ -1067,27 +1067,50 @@ function esc(str) {
 const PRICING_KEYS = ['printerCost','labourRate','matCostKg','printLabourHrs','wasteFactor','failureRate','overheadRate','profitMargin','expediteSurcharge','rushSurcharge'];
 const PRICING_DEFAULTS = { printerCost:0.15, labourRate:25, matCostKg:75, printLabourHrs:0.25, wasteFactor:1.10, failureRate:0.05, overheadRate:0.50, profitMargin:0.25, expediteSurcharge:50, rushSurcharge:25 };
 
-function loadPricingSettings() {
-  let s = {};
+async function loadPricingSettings() {
+  let s = { ...PRICING_DEFAULTS };
   try {
-    const raw = localStorage.getItem('3dp_settings');
-    if (raw) s = { ...PRICING_DEFAULTS, ...JSON.parse(raw) };
-    else s = { ...PRICING_DEFAULTS };
-  } catch { s = { ...PRICING_DEFAULTS }; }
+    const r = await fetch('/api/admin/settings', { cache: 'no-store' });
+    if (r.ok) {
+      const data = await r.json();
+      s = { ...PRICING_DEFAULTS, ...data };
+      localStorage.setItem('3dp_settings', JSON.stringify({ _v: 6, ...data }));
+    } else {
+      throw new Error('not ok');
+    }
+  } catch {
+    try {
+      const raw = localStorage.getItem('3dp_settings');
+      if (raw) s = { ...PRICING_DEFAULTS, ...JSON.parse(raw) };
+    } catch {}
+  }
   PRICING_KEYS.forEach(k => {
     const el = document.getElementById('ap-' + k);
     if (el) el.value = s[k] ?? PRICING_DEFAULTS[k] ?? '';
   });
 }
 
-function savePricingSettings() {
+async function savePricingSettings() {
   const s = { _v: 6 };
   PRICING_KEYS.forEach(k => {
     const el = document.getElementById('ap-' + k);
     if (el) s[k] = parseFloat(el.value);
   });
   localStorage.setItem('3dp_settings', JSON.stringify(s));
-  showToast('Pricing settings saved — open the calculator to apply');
+  try {
+    const r = await fetch('/api/admin/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(s),
+    });
+    if (r.ok) {
+      showToast('Pricing settings saved');
+    } else {
+      showToast('Saved locally — server save failed (' + r.status + ')');
+    }
+  } catch {
+    showToast('Saved locally — server unreachable');
+  }
 }
 
 // ── Materials Library (full CRUD) ─────────────────────────────────────────────
