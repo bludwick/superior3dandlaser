@@ -271,9 +271,9 @@
     btn.textContent = 'Sending…';
     btn.disabled = true;
 
-    const data = new FormData(form);
     const fileInput = document.getElementById('fileUpload');
     const file = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+    const data = new FormData(form);
     dbg('A', 'customquote.html:submit', 'submit start', {
       hasFile: !!file,
       fileName: file ? file.name : null,
@@ -281,10 +281,43 @@
       fileType: file ? file.type : null,
     });
 
-    fetch('/.netlify/functions/submit-quote', {
-      method: 'POST',
-      body: data
-    })
+    (async () => {
+      // If there's a file, upload it directly to Supabase via signed URL to bypass Netlify request-size limits.
+      if (file) {
+        dbg('D', 'customquote.html:submit', 'request signed upload url', { fileName: file.name, fileSize: file.size });
+        const signRes = await fetch('/.netlify/functions/sign-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileName: file.name, contentType: file.type || 'application/octet-stream' }),
+        });
+        const signJson = await signRes.json().catch(() => ({}));
+        if (!signRes.ok || !signJson.signedUrl || !signJson.path) {
+          throw new Error(signJson.error || `Failed to prepare upload (HTTP ${signRes.status})`);
+        }
+
+        dbg('D', 'customquote.html:submit', 'signed upload url received', { bucket: signJson.bucket || null, path: signJson.path });
+        const putRes = await fetch(signJson.signedUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': file.type || 'application/octet-stream' },
+          body: file,
+        });
+        if (!putRes.ok) {
+          const t = await putRes.text().catch(() => '');
+          throw new Error(`Upload failed (HTTP ${putRes.status}): ${t.slice(0, 120)}`);
+        }
+
+        // Remove the file from the form submit; send only the key so submit-quote can include a download link.
+        data.delete('file');
+        data.append('uploadedFileKey', signJson.path);
+        data.append('uploadedFileName', file.name);
+        dbg('D', 'customquote.html:submit', 'uploaded to supabase', { uploadedFileKey: signJson.path });
+      }
+
+      return fetch('/.netlify/functions/submit-quote', {
+        method: 'POST',
+        body: data
+      });
+    })()
     .then(async (res) => {
       const text = await res.text().catch(() => '');
       let json = {};

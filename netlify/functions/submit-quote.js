@@ -2,6 +2,50 @@ const busboy       = require('busboy');
 const { getStore } = require('@netlify/blobs');
 const nodemailer   = require('nodemailer');
 
+let _resolvedBucket = null;
+async function resolveUploadsBucket() {
+  if (_resolvedBucket) return _resolvedBucket;
+  try {
+    const res = await fetch(
+      `${process.env.SUPABASE_URL}/storage/v1/bucket`,
+      { headers: { 'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` } }
+    );
+    if (res.ok) {
+      const buckets = await res.json();
+      const match = buckets.map(b => b.name).find(n => n.toLowerCase() === 'uploads');
+      _resolvedBucket = match || 'Uploads';
+    } else {
+      _resolvedBucket = 'Uploads';
+    }
+  } catch {
+    _resolvedBucket = 'Uploads';
+  }
+  return _resolvedBucket;
+}
+
+async function signDownloadUrl(key, originalName) {
+  const bucket = await resolveUploadsBucket();
+  const signRes = await fetch(
+    `${process.env.SUPABASE_URL}/storage/v1/object/sign/${bucket}/${encodeURIComponent(key)}`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ expiresIn: 60 * 60 * 24 * 7 }), // 7 days
+    }
+  );
+  if (!signRes.ok) {
+    const t = await signRes.text().catch(() => '');
+    throw new Error(`Failed to sign download URL (${signRes.status}): ${t.slice(0, 200)}`);
+  }
+  const { signedURL } = await signRes.json();
+  const supabaseBase = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
+  const url = `${supabaseBase}${signedURL}&download=${encodeURIComponent(originalName || key.replace(/^\d+-[a-z0-9]+-/, ''))}`;
+  return url;
+}
+
 function maskEmail(email) {
   const s = String(email || '');
   const at = s.indexOf('@');
@@ -188,6 +232,7 @@ ${fields.message || ''}
 
 function buildQuoteEmail(fields, fileName) {
   const name = `${fields.firstName || ''} ${fields.lastName || ''}`.trim();
+  const fileUrl = fields.uploadedFileUrl || '';
   return {
     subject: `New Quote Request — ${name}`,
     text: `
@@ -204,7 +249,7 @@ Material:    ${fields.material || 'Not provided'}
 Project Description:
 ${fields.message || ''}
 
-${fileName ? `Uploaded File: ${fileName} (attached)` : 'No file attached.'}
+${fileUrl ? `Uploaded File: ${fileName || 'file'}\nDownload: ${fileUrl}` : (fileName ? `Uploaded File: ${fileName} (attached)` : 'No file attached.')}
 ==========================================
     `.trim(),
     html: `
@@ -220,7 +265,7 @@ ${fileName ? `Uploaded File: ${fileName} (attached)` : 'No file attached.'}
 </table>
 <h3>Project Description</h3>
 <p style="white-space:pre-wrap">${esc(fields.message || '')}</p>
-${fileName ? `<p><strong>Attached:</strong> ${esc(fileName)}</p>` : '<p>No file attached.</p>'}
+${fileUrl ? `<p><strong>File:</strong> <a href="${esc(fileUrl)}" target="_blank" rel="noreferrer noopener">${esc(fileName || 'Download file')}</a></p>` : (fileName ? `<p><strong>Attached:</strong> ${esc(fileName)}</p>` : '<p>No file attached.</p>')}
     `.trim(),
   };
 }
@@ -319,6 +364,20 @@ exports.handler = async (event) => {
       maxFileBytes: maxFileBytes || null,
     };
 
+    // If the browser uploaded directly to Supabase, we won't receive multipart file bytes here.
+    // We only receive uploadedFileKey + uploadedFileName; generate a signed download URL to include in the email.
+    if (fields.uploadedFileKey) {
+      try {
+        stage = 'signUploadedFile';
+        const key = String(fields.uploadedFileKey);
+        const originalName = String(fields.uploadedFileName || key.replace(/^\d+-[a-z0-9]+-/, ''));
+        const url = await signDownloadUrl(key, originalName);
+        fields.uploadedFileUrl = url;
+      } catch (e) {
+        console.error('[submit-quote] failed to sign uploaded file URL:', e?.message || String(e));
+      }
+    }
+
     // Save all uploaded files to Supabase
     const savedFiles = [];
     stage = 'saveFiles';
@@ -377,7 +436,7 @@ exports.handler = async (event) => {
     } else {
       const primary  = savedFiles.find(f => f.fieldName === 'file') || savedFiles[0];
       const fileName = primary?.fileName || null;
-      mailBody = buildQuoteEmail(fields, fileName);
+      mailBody = buildQuoteEmail(fields, fileName || fields.uploadedFileName || null);
 
       if (primary?.buffer) {
         attachments = [{ filename: primary.fileName, content: primary.buffer }];
