@@ -57,6 +57,16 @@
   status = 200
 
 [[redirects]]
+  from = "/api/admin/settings"
+  to = "/.netlify/functions/manage-settings"
+  status = 200
+
+[[redirects]]
+  from = "/api/settings"
+  to = "/.netlify/functions/manage-settings"
+  status = 200
+
+[[redirects]]
   from = "/api/invoice"
   to = "/.netlify/functions/get-invoice"
   status = 200

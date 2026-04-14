@@ -2207,13 +2207,20 @@ function saveSettings() {
 
 const SETTINGS_VERSION = 6; // bump when defaults change in a breaking way
 
+function applySettings(s) {
+  Object.keys(s).forEach(k => {
+    const el = document.getElementById(k);
+    if (el) el.value = s[k];
+  });
+}
+
 function loadSettings() {
-  let s = PRICING_DEFAULTS;
+  // Apply localStorage / defaults immediately (synchronous, no flash)
+  let s = { ...PRICING_DEFAULTS };
   try {
     const raw = localStorage.getItem('3dp_settings');
     if (raw) {
       const parsed = JSON.parse(raw);
-      // If version doesn't match, discard stale cache and use fresh defaults
       if ((parsed._v || 1) < SETTINGS_VERSION) {
         localStorage.removeItem('3dp_settings');
       } else {
@@ -2221,10 +2228,19 @@ function loadSettings() {
       }
     }
   } catch(e) {}
-  Object.keys(s).forEach(k => {
-    const el = document.getElementById(k);
-    if (el) el.value = s[k];
-  });
+  applySettings(s);
+
+  // Then fetch the server-persisted settings and update if available
+  fetch('/api/settings', { cache: 'no-store' })
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (!data || typeof data !== 'object') return;
+      const merged = { ...PRICING_DEFAULTS, ...data };
+      localStorage.setItem('3dp_settings', JSON.stringify({ _v: SETTINGS_VERSION, ...data }));
+      applySettings(merged);
+      calc();
+    })
+    .catch(() => { /* server unavailable — already using local/defaults */ });
 }
 
 function resetPricingDefaults() {
