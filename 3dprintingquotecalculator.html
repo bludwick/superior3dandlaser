@@ -871,8 +871,8 @@
       </div>
       <div class="section-body">
 
-        <!-- STL Upload + 3D Viewer (merged) -->
-        <input type="file" id="stlInput" accept=".stl" style="display:none" onchange="handleSTLUpload(this.files[0])">
+        <!-- STL / STEP Upload + 3D Viewer (merged) -->
+        <input type="file" id="stlInput" accept=".stl,.step,.stp" style="display:none" onchange="handleSTLUpload(this.files[0])">
         <div class="stl-viewer-center" style="margin-bottom:16px;">
           <div id="stlViewerPlaceholder" class="stl-viewer-ph" onclick="document.getElementById('stlInput').click()">
             <div class="ph-icon">
@@ -882,7 +882,7 @@
                 <line x1="12" y1="3" x2="12" y2="15"/>
               </svg>
             </div>
-            <div style="font-size:13px;font-weight:600;margin-top:10px;">Click to upload STL file</div>
+            <div style="font-size:13px;font-weight:600;margin-top:10px;">Click to upload STL or STEP file</div>
             <div style="font-size:11px;color:var(--muted);margin-top:4px;">Auto-fills material &amp; print time estimate</div>
           </div>
           <div id="stlEditPreview" style="display:none;margin-top:12px;">
@@ -904,7 +904,7 @@
               and we'll work out the best approach for you.
             </div>
           </div>
-          <span class="hint" id="res-slicer" style="color:var(--muted);font-weight:600;display:block;margin-top:6px;">Upload an STL to auto-estimate material &amp; time</span>
+          <span class="hint" id="res-slicer" style="color:var(--muted);font-weight:600;display:block;margin-top:6px;">Upload an STL or STEP to auto-estimate material &amp; time</span>
         </div>
 
         <div class="fields">
@@ -2096,7 +2096,7 @@ function setPrintMode(mode) {
     if (slaVolumeRow) slaVolumeRow.style.display = 'none';
     const resSlicer = document.getElementById('res-slicer');
     if (resSlicer) {
-      resSlicer.textContent = 'Upload an STL to auto-estimate material & time';
+      resSlicer.textContent = 'Upload an STL or STEP to auto-estimate material & time';
       resSlicer.style.color = 'var(--muted)';
     }
   }
@@ -2693,6 +2693,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // resolves to the current domain rather than grid.space — unfixable cross-origin
 // limitation. We parse the STL directly instead: instant, no network, no CORS.
 (function () {
+  // ── STEP → STL conversion service ────────────────────────────────────────
+  // URL of the step2stl microservice (see step2stl/ in this repo).
+  // Set to your VPS address, e.g. "https://step2stl.yourdomain.com"
+  // Leave as empty string to show a friendly error when a STEP file is dropped.
+  const STEP2STL_URL = '';
+
   // Multiplier to correct for Bambu printer being slower than the theoretical
   // deposition-only estimate. Increase if estimates are still too low.
   const PRINT_TIME_CALIBRATION = 3.0;
@@ -2867,29 +2873,81 @@ document.addEventListener('DOMContentLoaded', () => {
   window.getSTLMeshVol  = function ()  { return _cachedMeshMM3; };
   window.setSTLMeshVol  = function (v) { _cachedMeshMM3 = v; };
 
+  // Convert a STEP/STP file to an STL ArrayBuffer via the step2stl microservice.
+  // Returns the STL ArrayBuffer, or throws with a user-facing .userMessage.
+  async function convertSTEPtoSTL(file) {
+    if (!STEP2STL_URL) {
+      const err = new Error('step2stl service not configured');
+      err.userMessage = 'STEP conversion is not configured. Set STEP2STL_URL in the calculator source, or upload an STL file instead.';
+      throw err;
+    }
+    const form = new FormData();
+    form.append('file', file);
+    let res;
+    try {
+      res = await fetch(STEP2STL_URL + '/convert', { method: 'POST', body: form });
+    } catch (netErr) {
+      const err = new Error('network error: ' + netErr.message);
+      err.userMessage = 'Could not reach the STEP conversion service. Check that it is running and accessible.';
+      throw err;
+    }
+    if (!res.ok) {
+      let detail = '';
+      try { const j = await res.json(); detail = (j.detail && j.detail.message) || j.detail || ''; } catch (_) {}
+      const statusMap = {
+        413: 'STEP file is too large for the conversion service.',
+        415: 'File does not appear to be a valid STEP file.',
+        422: detail || 'STEP file could not be converted (invalid or empty geometry).',
+        503: 'STEP conversion service is unavailable.',
+        504: 'STEP conversion timed out. Try a simpler or smaller file.',
+      };
+      const err = new Error('convert HTTP ' + res.status);
+      err.userMessage = statusMap[res.status] || ('STEP conversion failed (HTTP ' + res.status + ').');
+      throw err;
+    }
+    return res.arrayBuffer();
+  }
+
   window.handleSTLUpload = async function (file) {
     if (!file) return;
     window._currentSTLFile = file;
     window._stlOversized = false; // reset until viewer confirms otherwise
     var errElReset = document.getElementById('stlOversizeError');
     if (errElReset) errElReset.style.display = 'none';
+
+    const isSTEP = /\.(step|stp)$/i.test(file.name);
+    const displayName = isSTEP ? file.name.replace(/\.(step|stp)$/i, '.stl') : file.name;
+
     document.getElementById('stlFileName').textContent = file.name;
-    document.getElementById('partName').value = file.name.replace(/\.stl$/i, '');
+    document.getElementById('partName').value = file.name.replace(/\.(stl|step|stp)$/i, '');
     slicerState('slicing');
-    document.getElementById('res-slicer').textContent = 'Estimating…';
-    document.getElementById('res-slicer').style.color = 'var(--muted)';
+
+    const resSlicer = document.getElementById('res-slicer');
+    resSlicer.style.color = 'var(--muted)';
 
     const infill      = parseFloat(document.getElementById('slicerInfill').value);
     const supportType = document.getElementById('slicerSupport').value;
     const material    = document.getElementById('materialType').value;
 
     try {
-      console.log('[STL Estimator] Reading:', file.name, file.size, 'bytes');
-      const buffer = await file.arrayBuffer();
+      let buffer;
+
+      if (isSTEP) {
+        resSlicer.textContent = 'Converting STEP…';
+        console.log('[STL Estimator] STEP file detected, converting:', file.name, file.size, 'bytes');
+        buffer = await convertSTEPtoSTL(file);
+        console.log('[STL Estimator] STEP→STL conversion complete, STL size:', buffer.byteLength, 'bytes');
+      } else {
+        resSlicer.textContent = 'Estimating…';
+        console.log('[STL Estimator] Reading:', file.name, file.size, 'bytes');
+        buffer = await file.arrayBuffer();
+      }
 
       // Render 3D preview (non-blocking — viewer errors won't abort the estimate)
-      try { window.initSTLViewer(buffer, file.name, file.size); }
+      try { window.initSTLViewer(buffer, displayName, buffer.byteLength); }
       catch (ve) { console.warn('[STL Viewer]', ve.message); }
+
+      resSlicer.textContent = 'Estimating…';
 
       let meshMM3;
       try {
@@ -2922,8 +2980,8 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       console.error('[STL Estimator] Error:', err.message, err);
       slicerState('error');
-      document.getElementById('res-slicer').textContent = 'Estimation failed';
-      document.getElementById('res-slicer').style.color = '#dc2626';
+      resSlicer.textContent = err.userMessage || 'Estimation failed';
+      resSlicer.style.color = '#dc2626';
     }
   };
 }());
@@ -3162,7 +3220,7 @@ function clearCart() {
 // ── Add to Cart ───────────────────────────────────────────────────────────────
 function addToCart() {
   const lc = window._lastCalc;
-  if (!lc || lc.total <= 0) { showToast('Upload an STL file to calculate a quote first'); return; }
+  if (!lc || lc.total <= 0) { showToast('Upload an STL or STEP file to calculate a quote first'); return; }
 
   const fileName   = document.getElementById('stlFileName').textContent || 'Unnamed Part';
   const material   = document.getElementById('materialType').value;
@@ -3435,7 +3493,7 @@ function renderCart() {
       <div class="cart-empty-state">
         <div class="ce-icon">🛒</div>
         <div class="ce-title">Your cart is empty</div>
-        <div class="ce-sub">Upload an STL and calculate a quote, then add it here.</div>
+        <div class="ce-sub">Upload an STL or STEP and calculate a quote, then add it here.</div>
       </div>`;
     footer.style.display = 'none';
     return;
