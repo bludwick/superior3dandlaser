@@ -267,6 +267,20 @@ exports.handler = async (event) => {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
+  const runtime = {
+    commitRef: process.env.COMMIT_REF || null,
+    deployId: process.env.DEPLOY_ID || null,
+    context: process.env.CONTEXT || null,
+    siteName: process.env.SITE_NAME || null,
+  };
+
+  console.log('[submit-quote] handler entry', {
+    runtime,
+    contentType: event.headers?.['content-type'] || event.headers?.['Content-Type'] || null,
+    isBase64Encoded: !!event.isBase64Encoded,
+    bodyBytes: event.body ? String(event.body).length : 0,
+  });
+
   let stage = 'init';
   let debug = {
     formType: null,
@@ -393,7 +407,7 @@ exports.handler = async (event) => {
       ...(attachments.length ? { attachments } : {}),
     });
 
-    return { statusCode: 200, body: JSON.stringify({ success: true }) };
+    return { statusCode: 200, body: JSON.stringify({ success: true, runtime }) };
 
   } catch (err) {
     console.error('submit-quote error:', {
@@ -402,8 +416,7 @@ exports.handler = async (event) => {
       code: err?.code,
       command: err?.command,
       responseCode: err?.responseCode,
-      commitRef: process.env.COMMIT_REF || null,
-      deployId: process.env.DEPLOY_ID || null,
+      runtime,
       smtpUser: process.env.SMTP_USER ? maskEmail(process.env.SMTP_USER) : null,
     });
     return {
@@ -412,6 +425,7 @@ exports.handler = async (event) => {
         error: 'Submission failed. Please try again.',
         stage,
         detail: err?.message || String(err),
+        runtime,
         debug,
         nodemailer: err && (err.code || err.command || err.responseCode || err.response) ? {
           code: err.code,
