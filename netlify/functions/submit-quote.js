@@ -233,11 +233,30 @@ exports.handler = async (event) => {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
+  let stage = 'init';
+  let debug = {
+    formType: null,
+    orderType: null,
+    fieldsCount: 0,
+    filesCount: 0,
+    savedFilesCount: 0,
+    attachmentsCount: 0,
+  };
+
   try {
+    stage = 'parseForm';
     const { fields, files } = await parseForm(event);
+    debug = {
+      ...debug,
+      formType: fields.formType || null,
+      orderType: fields.orderType || null,
+      fieldsCount: Object.keys(fields || {}).length,
+      filesCount: Array.isArray(files) ? files.length : 0,
+    };
 
     // Save all uploaded files to Supabase
     const savedFiles = [];
+    stage = 'saveFiles';
     for (const f of files) {
       try {
         const { key } = await saveBlobFile(f.buffer, f.fileName, f.fileMime);
@@ -246,8 +265,10 @@ exports.handler = async (event) => {
         console.error('[submit-quote] File save error for', f.fileName, ':', blobErr.message);
       }
     }
+    debug.savedFilesCount = savedFiles.length;
 
     // Route to the correct email template
+    stage = 'buildEmail';
     const formType = fields.formType || (fields.orderType === 'cart-order' ? 'cart' : 'quote');
     let mailBody;
     let attachments = [];
@@ -260,8 +281,10 @@ exports.handler = async (event) => {
       mailBody = buildCartOrderEmail(fields, stlFiles);
 
       attachments = stlFiles.map(f => ({ filename: f.fileName, content: f.buffer }));
+      debug.attachmentsCount = attachments.length;
 
       try {
+        stage = 'saveCartOrder';
         const orderStore = blobStore('orders');
         const orderId    = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         let parsedItems  = [];
@@ -293,10 +316,12 @@ exports.handler = async (event) => {
 
       if (primary?.buffer) {
         attachments = [{ filename: primary.fileName, content: primary.buffer }];
+        debug.attachmentsCount = attachments.length;
       }
 
       if (primary?.key) {
         try {
+          stage = 'saveQuoteOrder';
           const orderStore = blobStore('orders');
           const orderId    = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
           await orderStore.set(`order_${orderId}`, JSON.stringify({
@@ -325,6 +350,7 @@ exports.handler = async (event) => {
       }
     }
 
+    stage = 'sendEmail';
     await sendEmail({
       from:     FROM,
       to:       TO,
@@ -336,10 +362,21 @@ exports.handler = async (event) => {
     return { statusCode: 200, body: JSON.stringify({ success: true }) };
 
   } catch (err) {
-    console.error('submit-quote error:', err);
+    console.error('submit-quote error:', { stage, message: err?.message, code: err?.code, command: err?.command, responseCode: err?.responseCode });
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Submission failed. Please try again.', detail: err.message }),
+      body: JSON.stringify({
+        error: 'Submission failed. Please try again.',
+        stage,
+        detail: err?.message || String(err),
+        debug,
+        nodemailer: err && (err.code || err.command || err.responseCode || err.response) ? {
+          code: err.code,
+          command: err.command,
+          responseCode: err.responseCode,
+          response: typeof err.response === 'string' ? err.response.slice(0, 300) : undefined,
+        } : undefined,
+      }),
     };
   }
 };
