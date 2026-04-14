@@ -243,6 +243,12 @@
   const form = document.getElementById('contactForm');
   const successEl = document.getElementById('formSuccess');
 
+  function dbg(hypothesisId, location, message, data) {
+    // #region agent log
+    fetch('http://127.0.0.1:7699/ingest/482aa9d8-f878-4371-91a1-eb4b12508aeb',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b82726'},body:JSON.stringify({sessionId:'b82726',runId:'pre-fix',hypothesisId,location,message,data,timestamp:Date.now()})}).catch(()=>{});
+    // #endregion agent log
+  }
+
   form.addEventListener('submit', function(e) {
     e.preventDefault();
 
@@ -266,19 +272,39 @@
     btn.disabled = true;
 
     const data = new FormData(form);
+    const fileInput = document.getElementById('fileUpload');
+    const file = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+    dbg('A', 'customquote.html:submit', 'submit start', {
+      hasFile: !!file,
+      fileName: file ? file.name : null,
+      fileSize: file ? file.size : null,
+      fileType: file ? file.type : null,
+    });
 
     fetch('/.netlify/functions/submit-quote', {
       method: 'POST',
       body: data
     })
     .then(async (res) => {
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.detail || json.error || `HTTP ${res.status}`);
+      const text = await res.text().catch(() => '');
+      let json = {};
+      try { json = text ? JSON.parse(text) : {}; } catch { json = {}; }
+      dbg('B', 'customquote.html:submit', 'submit response', {
+        ok: res.ok,
+        status: res.status,
+        statusText: res.statusText,
+        contentType: res.headers.get('content-type'),
+        responseTextHead: (text || '').slice(0, 200),
+        runtime: json && json.runtime ? json.runtime : null,
+        stage: json && json.stage ? json.stage : null,
+      });
+      if (!res.ok) throw new Error((json && (json.detail || json.error)) || text || `HTTP ${res.status}`);
       form.style.display = 'none';
       successEl.style.display = 'block';
       successEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     })
     .catch((err) => {
+      dbg('C', 'customquote.html:submit', 'submit error', { message: err && err.message ? err.message : String(err) });
       btn.textContent = 'Send Quote Request';
       btn.disabled = false;
       alert('Something went wrong: ' + err.message + '\n\nPlease email us directly at sales@superior3dandlaser.com');
