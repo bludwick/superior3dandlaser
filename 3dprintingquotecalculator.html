@@ -2051,11 +2051,20 @@ function setPrintMode(mode) {
   document.querySelectorAll('.fdm-only').forEach(el => { el.style.display = mode === 'fdm' ? '' : 'none'; });
   document.querySelectorAll('.sla-only').forEach(el => { el.style.display = mode === 'sla' ? '' : 'none'; });
 
-  // Swap pricing defaults when mode changes
-  const defaults = mode === 'sla' ? PRICING_DEFAULTS_SLA : PRICING_DEFAULTS;
-  Object.keys(defaults).forEach(k => {
+  // Swap pricing defaults when mode changes — mode defaults are the base,
+  // but saved admin settings take priority so they persist through mode switches
+  const modeDefaults = mode === 'sla' ? PRICING_DEFAULTS_SLA : PRICING_DEFAULTS;
+  let savedSettings = {};
+  try {
+    const raw = localStorage.getItem('3dp_settings');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if ((parsed._v || 1) >= SETTINGS_VERSION) savedSettings = parsed;
+    }
+  } catch {}
+  Object.keys(modeDefaults).forEach(k => {
     const el = document.getElementById(k);
-    if (el) el.value = defaults[k];
+    if (el) el.value = (savedSettings[k] != null && k !== '_v') ? savedSettings[k] : modeDefaults[k];
   });
 
   // Filter material dropdown to show only relevant materials
@@ -2235,7 +2244,8 @@ function loadSettings() {
     .then(r => r.ok ? r.json() : null)
     .then(data => {
       if (!data || typeof data !== 'object') return;
-      const merged = { ...PRICING_DEFAULTS, ...data };
+      const modeDefaults = window._printMode === 'sla' ? PRICING_DEFAULTS_SLA : PRICING_DEFAULTS;
+      const merged = { ...modeDefaults, ...data };
       localStorage.setItem('3dp_settings', JSON.stringify({ _v: SETTINGS_VERSION, ...data }));
       applySettings(merged);
       calc();
