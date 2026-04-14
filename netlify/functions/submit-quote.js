@@ -2,6 +2,16 @@ const busboy       = require('busboy');
 const { getStore } = require('@netlify/blobs');
 const nodemailer   = require('nodemailer');
 
+function maskEmail(email) {
+  const s = String(email || '');
+  const at = s.indexOf('@');
+  if (at <= 1) return at === -1 ? '***' : `*${s.slice(at)}`;
+  const local = s.slice(0, at);
+  const domain = s.slice(at);
+  if (local.length <= 3) return `${local[0]}**${domain}`;
+  return `${local[0]}***${local[local.length - 1]}${domain}`;
+}
+
 // ── Blob store helper ─────────────────────────────────────────────────────────
 function blobStore(name) {
   const opts = { name };
@@ -73,6 +83,20 @@ function createTransport() {
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
 
+  console.log('[submit-quote] smtp-config', {
+    host,
+    port,
+    secure: port === 465,
+    user: user ? maskEmail(user) : null,
+    hasPass: !!pass,
+    deploy: {
+      commitRef: process.env.COMMIT_REF || null,
+      deployId: process.env.DEPLOY_ID || null,
+      siteName: process.env.SITE_NAME || null,
+      context: process.env.CONTEXT || null,
+    },
+  });
+
   if (!host || !user || !pass) {
     throw new Error(
       'SMTP not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASS in Netlify environment variables.'
@@ -89,8 +113,18 @@ function createTransport() {
 
 async function sendEmail(payload) {
   const transporter = createTransport();
-  const info = await transporter.sendMail(payload);
-  return info;
+  try {
+    const info = await transporter.sendMail(payload);
+    return info;
+  } catch (err) {
+    console.error('[submit-quote] sendMail failed', {
+      code: err?.code,
+      command: err?.command,
+      responseCode: err?.responseCode,
+      message: err?.message,
+    });
+    throw err;
+  }
 }
 
 // ── HTML escape helper ────────────────────────────────────────────────────────
@@ -362,7 +396,16 @@ exports.handler = async (event) => {
     return { statusCode: 200, body: JSON.stringify({ success: true }) };
 
   } catch (err) {
-    console.error('submit-quote error:', { stage, message: err?.message, code: err?.code, command: err?.command, responseCode: err?.responseCode });
+    console.error('submit-quote error:', {
+      stage,
+      message: err?.message,
+      code: err?.code,
+      command: err?.command,
+      responseCode: err?.responseCode,
+      commitRef: process.env.COMMIT_REF || null,
+      deployId: process.env.DEPLOY_ID || null,
+      smtpUser: process.env.SMTP_USER ? maskEmail(process.env.SMTP_USER) : null,
+    });
     return {
       statusCode: 500,
       body: JSON.stringify({
