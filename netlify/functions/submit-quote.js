@@ -44,23 +44,39 @@ function parseForm(event) {
   return new Promise((resolve, reject) => {
     const fields = {};
     const files  = [];
+    let tooLarge = false;
+    const MAX_FILE_BYTES = 8 * 1024 * 1024; // 8 MiB hard limit to avoid function OOM
 
-    const bb = busboy({ headers: event.headers });
+    const bb = busboy({ headers: event.headers, limits: { fileSize: MAX_FILE_BYTES } });
 
     bb.on('field', (name, value) => { fields[name] = value; });
 
     bb.on('file', (fieldName, stream, info) => {
       const { filename, mimeType } = info;
       const chunks = [];
+      let bytes = 0;
+      stream.on('limit', () => {
+        tooLarge = true;
+        stream.resume();
+      });
       stream.on('data', chunk => chunks.push(chunk));
       stream.on('end', () => {
         if (chunks.length > 0) {
-          files.push({ fieldName, buffer: Buffer.concat(chunks), fileName: filename, fileMime: mimeType });
+          try { bytes = chunks.reduce((n, c) => n + c.length, 0); } catch { /* best-effort */ }
+          files.push({ fieldName, buffer: Buffer.concat(chunks), fileName: filename, fileMime: mimeType, bytes });
         }
       });
     });
 
-    bb.on('finish', () => resolve({ fields, files }));
+    bb.on('finish', () => {
+      if (tooLarge) {
+        const err = new Error(`File too large. Max allowed is ${MAX_FILE_BYTES} bytes.`);
+        err.code = 'FILE_TOO_LARGE';
+        err.maxBytes = MAX_FILE_BYTES;
+        return reject(err);
+      }
+      resolve({ fields, files, maxFileBytes: MAX_FILE_BYTES });
+    });
     bb.on('error',  reject);
 
     const body = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8');
@@ -293,13 +309,14 @@ exports.handler = async (event) => {
 
   try {
     stage = 'parseForm';
-    const { fields, files } = await parseForm(event);
+    const { fields, files, maxFileBytes } = await parseForm(event);
     debug = {
       ...debug,
       formType: fields.formType || null,
       orderType: fields.orderType || null,
       fieldsCount: Object.keys(fields || {}).length,
       filesCount: Array.isArray(files) ? files.length : 0,
+      maxFileBytes: maxFileBytes || null,
     };
 
     // Save all uploaded files to Supabase
@@ -419,6 +436,18 @@ exports.handler = async (event) => {
       runtime,
       smtpUser: process.env.SMTP_USER ? maskEmail(process.env.SMTP_USER) : null,
     });
+
+    if (err?.code === 'FILE_TOO_LARGE') {
+      return {
+        statusCode: 413,
+        body: JSON.stringify({
+          error: 'File too large.',
+          stage,
+          maxBytes: err.maxBytes || null,
+          runtime,
+        }),
+      };
+    }
     return {
       statusCode: 500,
       body: JSON.stringify({
