@@ -1,0 +1,63 @@
+# systemd service unit for the STEP→STL conversion microservice.
+#
+# Deploy to: /etc/systemd/system/step2stl.service
+#
+# After deploying:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now step2stl
+#   sudo systemctl status step2stl
+
+[Unit]
+Description=STEP to STL Conversion Microservice
+After=network.target
+Documentation=https://github.com/your-org/your-repo
+
+[Service]
+Type=exec
+User=step2stl
+Group=step2stl
+WorkingDirectory=/opt/step2stl
+
+# Load all env vars from .env (overrides defaults in config.py)
+EnvironmentFile=/opt/step2stl/.env
+
+ExecStart=/opt/step2stl/venv/bin/uvicorn app:app \
+    --host 127.0.0.1 \
+    --port 8001 \
+    --workers 2 \
+    --log-level info \
+    --access-log
+
+Restart=on-failure
+RestartSec=5s
+
+# ── Hardening ──────────────────────────────────────────────────────────────
+# Each service invocation gets its own isolated /tmp namespace.
+# tempfile.TemporaryDirectory() paths resolve inside this private /tmp.
+PrivateTmp=true
+
+# Filesystem is read-only except for the listed paths.
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/tmp /var/log/step2stl /opt/step2stl
+
+# Prevent privilege escalation
+NoNewPrivileges=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+# Restrict to syscalls needed by a typical Python service
+SystemCallFilter=@system-service
+
+# ── Resource limits ────────────────────────────────────────────────────────
+# Prevents a runaway FreeCAD subprocess from exhausting VPS memory/CPU.
+# Adjust MemoryMax upward (e.g. 4G) if converting large assemblies.
+MemoryMax=2G
+CPUQuota=80%
+LimitNPROC=64
+LimitNOFILE=1024
+
+[Install]
+WantedBy=multi-user.target

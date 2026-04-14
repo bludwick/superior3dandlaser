@@ -27,6 +27,7 @@ All public-facing pages share `styles.css`. No framework, no bundler — edit HT
 | `customquote.html` | "Get a Quote" — full form with file upload | `/.netlify/functions/submit-quote` |
 | `contact-us.html` | General contact — simplified form, no file upload | `/.netlify/functions/submit-quote` |
 | `3dprintingquotecalculator.html` | Interactive pricing calculator (estimate only, no form submit) | — |
+| `invoice.html` | Public invoice view; customers pay via Stripe from here | — |
 
 `3dprintingquotecalculator.html` uses self-contained inline CSS with its own `:root` variables — it does **not** share `styles.css`. Keep changes to this page self-contained.
 
@@ -50,10 +51,16 @@ All functions live in `netlify/functions/`. API routes are aliased in `netlify.t
 | `submit-quote.js` | `/.netlify/functions/submit-quote` | Handles quote, contact, and cart order submissions |
 | `admin-login.js` | `/api/admin/login` | Authenticates admin; issues JWT cookie |
 | `admin-logout.js` | `/api/admin/logout` | Clears JWT cookie |
-| `list-orders.js` | `/api/admin/orders` | Lists orders; updates order status |
+| `list-orders.js` | `/api/admin/orders` | Lists orders; updates status; attaches files; bulk delete |
 | `manage-jobs.js` | `/api/admin/jobs` | Full CRUD for print jobs + Stripe checkout creation |
+| `manage-materials.js` | `/api/materials` (GET public), `/api/admin/materials` (PUT admin) | Reads/writes materials library from Blobs |
+| `manage-settings.js` | `/api/settings` (GET public), `/api/admin/settings` (PUT admin) | Reads/writes pricing settings from Blobs |
 | `get-invoice.js` | `/api/invoice` | Public job lookup by ID + invoice token |
 | `create-checkout.js` | `/api/checkout` | Creates Stripe payment session for an invoice |
+| `calculate-tax.js` | `/api/calculate-tax` | Calculates sales tax via Stripe Tax API |
+| `upload-file.js` | `/api/admin/upload` | Admin multipart file upload to Supabase |
+| `download-file.js` | `/api/admin/files` (GET), `/api/admin/upload` (POST signed URL) | Generates signed Supabase download URLs; creates signed upload URLs for admin browser uploads |
+| `sign-upload.js` | `/api/sign-upload` | Public endpoint — returns a signed Supabase upload URL so browsers can upload quote files directly (no server proxy) |
 
 ### Edge Function
 
@@ -63,11 +70,30 @@ All functions live in `netlify/functions/`. API routes are aliased in `netlify.t
 
 | Store name | Contents |
 |-----------|----------|
-| `uploads` | User-uploaded quote files |
+| `admin-auth` | Rate-limit counters for admin login attempts (per IP) |
 | `orders` | Submitted quote/cart orders |
 | `jobs` | Admin-managed print jobs |
+| `materials` | Materials library JSON (key: `materials-library`) |
+| `settings` | Pricing settings JSON (key: `pricing-settings`) |
 
-Jobs and orders are mirrored: creating/updating/deleting a job also updates the corresponding entry in the `orders` store.
+The `uploads` Blob store is no longer used for file data — files are stored in Supabase (see below). Jobs and orders are mirrored: creating/updating/deleting a job also updates the corresponding entry in the `orders` store.
+
+### File Storage (Supabase)
+
+User-uploaded files (quote attachments, admin uploads) are stored in a Supabase Storage bucket named `Uploads` (capital U — the bucket name is case-sensitive).
+
+**Upload flow for quote forms:**
+1. Browser calls `POST /api/sign-upload` with `{ fileName, contentType }` — gets back a signed Supabase upload URL.
+2. Browser uploads the file directly to Supabase using the signed URL.
+3. Browser submits the form to `/.netlify/functions/submit-quote` with the Supabase file path (not the file itself).
+
+**Upload flow for admin:**
+1. Admin dashboard calls `POST /api/admin/upload` (multipart form) → `upload-file.js` uploads to Supabase and returns `{ blobKey, fileName }`.
+2. Alternatively, admin calls `POST /api/admin/files` → `download-file.js` returns a signed Supabase upload URL for direct browser upload.
+
+**Download:** `GET /api/admin/files?key={blobKey}` returns a 5-minute signed URL. All downloads go through Supabase to avoid Netlify's 6 MB response limit.
+
+Accepted extensions for uploads (enforced in `sign-upload.js`): `.step`, `.stp`, `.f3d`, `.sldprt`, `.stl`, `.pdf`, `.dxf`, `.svg`, `.ai`
 
 ### Email
 
@@ -82,7 +108,11 @@ Each template sends both plain-text and HTML variants. Outbound address: `sales@
 
 ### Payment
 
-Stripe integration in `manage-jobs.js` and `create-checkout.js`. When a job is created from the admin dashboard, a Stripe checkout session can be created automatically (if `STRIPE_SECRET_KEY` is set). Customers receive an invoice URL (`/api/invoice?job=…&token=…`) that links to a public `invoice.html` page for viewing and paying.
+Stripe integration spans `manage-jobs.js`, `create-checkout.js`, and `calculate-tax.js`.
+
+- When a job is created from the admin dashboard, a Stripe checkout session can be created automatically (if `STRIPE_SECRET_KEY` is set).
+- Customers receive an invoice URL (`/invoice.html?job=…&token=…`) that links to `invoice.html` for viewing and paying.
+- `calculate-tax.js` calls the Stripe Tax Calculations API. It returns `{ taxAmount, taxRate, label }` (e.g. "TX Sales Tax (8.25%)"). The frontend falls back to a static rate if Stripe is not configured.
 
 ---
 
@@ -102,8 +132,8 @@ Set in Netlify's dashboard — never committed to the repo. `.env` is gitignored
 | `SMTP_PASS` | Yes | SMTP password for the above account |
 | `EMAIL_FROM` | Optional | Sender display name/address — defaults to `Superior 3D and Laser <sales@superior3dandlaser.com>` |
 | `EMAIL_TO` | Optional | Recipient for all form submissions — defaults to `sales@superior3dandlaser.com` |
-| `STRIPE_SECRET_KEY` | Optional | Enables Stripe checkout session creation |
-| `SITE_URL` | Yes | `https://superior3dandlaser.com` — used to build invoice and blob download URLs |
+| `STRIPE_SECRET_KEY` | Optional | Enables Stripe checkout session creation and tax calculation |
+| `SITE_URL` | Yes | `https://superior3dandlaser.com` — used to build invoice and file download URLs |
 | `SUPABASE_URL` | Yes | Supabase project URL — used for file storage |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase service role key — used server-side for file storage (bypasses RLS; never expose to client) |
 
@@ -151,7 +181,7 @@ File input `accept` attribute: `.step,.stp,.f3d,.sldprt,.stl,.pdf,.dxf,.svg,.ai`
 ## Admin Auth Flow
 
 1. `admin/login.html` POSTs credentials to `/api/admin/login`
-2. `admin-login.js` rate-limits by IP (5 attempts / 15 min via Blobs), verifies bcrypt hash, issues a signed JWT (8-hour expiry) as an `HttpOnly` cookie
+2. `admin-login.js` rate-limits by IP (5 attempts / 15 min via Blobs `admin-auth` store), verifies bcrypt hash, issues a signed JWT (8-hour expiry) as an `HttpOnly` cookie
 3. `admin-auth.js` (edge function) intercepts every `/admin/*` request, verifies the cookie JWT, redirects to login if invalid
 4. Dashboard pages call `/api/admin/*` endpoints; each function independently re-validates the JWT cookie
 
@@ -177,4 +207,6 @@ When status advances to `ready`, an email is sent to the customer. Stripe checko
 - **Do not add `styles.css` imports** to `3dprintingquotecalculator.html` or `admin/` pages; they are intentionally self-contained.
 - **bcryptjs not bcrypt** — `bcryptjs` is the pure-JS implementation used here (no native addon required on Netlify).
 - **Blobs not a database** — Netlify Blobs is used for all persistence. There is no SQL database.
+- **Supabase for files** — all file uploads (quote attachments and admin uploads) go to Supabase Storage, not Netlify Blobs.
 - **nodemailer SMTP** — email is sent via `nodemailer` using Microsoft 365 / GoDaddy SMTP. Do not re-introduce Resend or any other third-party email API.
+- **Supabase bucket name is case-sensitive** — the bucket is `Uploads` (capital U). `download-file.js` contains a resolver that handles both `uploads` and `Uploads` to account for this.
