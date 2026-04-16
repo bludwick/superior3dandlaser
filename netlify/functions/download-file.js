@@ -146,8 +146,9 @@ exports.handler = async (event) => {
 
     const { signedURL } = await signRes.json();
     const supabaseBase  = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
-    // signedURL is a relative path like /storage/v1/object/sign/...?token=...
-    const downloadUrl   = `${supabaseBase}${signedURL}&download=${encodeURIComponent(originalName)}`;
+    // signedURL is a relative path like /object/sign/...?token=... (relative to /storage/v1)
+    const signedPath    = signedURL.startsWith('/storage/') ? signedURL : `/storage/v1${signedURL}`;
+    const downloadUrl   = `${supabaseBase}${signedPath}&download=${encodeURIComponent(originalName)}`;
     console.log('[download-file] signed download URL created for key=%s', key);
 
     return jsonResp(200, { url: downloadUrl });
