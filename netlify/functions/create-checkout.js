@@ -72,6 +72,20 @@ exports.handler = async function (event) {
       metadata:       { jobId },
     });
 
+    // Best-effort: store session ID so webhook can correlate payment to this job
+    try {
+      const bsUp    = blobStore('jobs');
+      const jobText = await bsUp.get(`job_${jobId}`);
+      if (jobText) {
+        const jobData         = JSON.parse(jobText);
+        jobData.stripeSessionId = session.id;
+        jobData.updatedAt       = new Date().toISOString();
+        await bsUp.set(`job_${jobId}`, JSON.stringify(jobData));
+      }
+    } catch (e) {
+      console.error('[create-checkout] stripeSessionId store error:', e.message);
+    }
+
     return jsonResponse(200, { url: session.url });
   } catch (err) {
     console.error('[create-checkout] error:', err.message);

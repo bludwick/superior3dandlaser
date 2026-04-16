@@ -92,6 +92,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/stripe/webhook"
+  to = "/.netlify/functions/stripe-webhook"
+  status = 200
+
+[[redirects]]
   from = "/contact"
   to = "/customquote"
   status = 301

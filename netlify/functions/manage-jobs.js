@@ -112,8 +112,11 @@ async function createJob(rawBody, isBase64) {
     startTime:     data.startTime     || null,
     estEndTime:    data.estEndTime    || null,
     notes:         data.notes         || '',
-    status:        'confirmed',
-    createdAt:     new Date().toISOString(),
+    status:          'confirmed',
+    paymentStatus:   'unpaid',
+    paidAt:          null,
+    stripeSessionId: null,
+    createdAt:       new Date().toISOString(),
   };
 
   console.log('[manage-jobs] createJob id=' + id + ' customer=' + job.customerName + ' items=' + job.items.length);
@@ -197,6 +200,14 @@ async function createJob(rawBody, isBase64) {
         metadata:    { jobId: id },
       });
       paymentUrl = session.url;
+      // Persist session ID so webhook can correlate payment to this job
+      job.stripeSessionId = session.id;
+      try {
+        const bsUp = blobStore('jobs');
+        await bsUp.set(`job_${id}`, JSON.stringify(job));
+      } catch (e) {
+        console.error('[manage-jobs] stripeSessionId store error:', e.message);
+      }
     } catch (err) {
       console.error('[manage-jobs] Stripe error:', err.message);
     }

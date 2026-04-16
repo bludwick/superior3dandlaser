@@ -291,6 +291,11 @@
   .delete-job-btn { font-size: 12px; background: none; border: none; cursor: pointer; color: var(--muted); padding: 2px 5px; border-radius: 4px; transition: all .15s; margin-left: 2px; }
   .delete-job-btn:hover { color: #dc2626; background: rgba(220,38,38,.1); }
 
+  /* ── PAYMENT BADGE ── */
+  .pay-badge { display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border-radius:4px;padding:2px 6px;white-space:nowrap; }
+  .pay-badge.paid   { background:rgba(15,118,110,.1);color:#0f766e;border:1px solid rgba(15,118,110,.25); }
+  .pay-badge.unpaid { background:rgba(234,179,8,.12);color:#854d0e;border:1px solid rgba(234,179,8,.3); }
+
   /* ── FILTER PILLS ── */
   .filter-row { display: flex; gap: 6px; flex-wrap: wrap; }
   .filter-pill {
@@ -1409,13 +1414,15 @@ function renderJobs(filter) {
     container.innerHTML = '<div class="empty-state"><div class="empty-icon">🖨</div><div>No print jobs yet. Create one to get started.</div></div>';
     return;
   }
-  let html = '<table><thead><tr><th>Date</th><th>Customer</th><th>Printer</th><th>Items</th><th>Total</th><th>Est. End</th><th>Status</th><th></th></tr></thead><tbody>';
+  let html = '<table><thead><tr><th>Date</th><th>Customer</th><th>Printer</th><th>Items</th><th>Total</th><th>Est. End</th><th>Status</th><th>Payment</th><th></th></tr></thead><tbody>';
   list.forEach((j, idx) => {
     const date    = j.createdAt ? new Date(j.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
     const estEnd  = j.estEndTime ? new Date(j.estEndTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
-    const label   = JOB_STATUS_LABEL[j.status] || j.status;
-    const itemCnt = (j.items || []).length;
-    const canAdv  = j.status !== 'complete';
+    const label      = JOB_STATUS_LABEL[j.status] || j.status;
+    const itemCnt    = (j.items || []).length;
+    const canAdv     = j.status !== 'complete';
+    const payStatus  = j.paymentStatus || 'unpaid';
+    const payLabel   = payStatus === 'paid' ? '💳 Paid' : '⏳ Unpaid';
     const jIdx    = _jobs.indexOf(j);
     html += `<tr>
       <td style="white-space:nowrap;color:var(--muted);">${date}</td>
@@ -1425,6 +1432,7 @@ function renderJobs(filter) {
       <td class="order-total">$${parseFloat(j.total || 0).toFixed(2)}</td>
       <td style="color:var(--muted);">${estEnd}</td>
       <td><span class="status-badge ${esc(j.status)}">${label}</span></td>
+      <td><span class="pay-badge ${esc(payStatus)}">${payLabel}</span></td>
       <td style="white-space:nowrap;">
         ${canAdv ? `<button class="advance-btn" onclick="advanceJobStatus('${esc(j.id)}', this)">Advance ›</button>` : ''}
         ${j.invoiceToken ? `<a class="invoice-btn" href="/invoice.html?job=${esc(j.id)}&token=${esc(j.invoiceToken)}" target="_blank">📄 Invoice</a>` : ''}
@@ -1434,7 +1442,7 @@ function renderJobs(filter) {
       </td>
     </tr>
     <tr class="expand-row" id="jrow-${idx}">
-      <td colspan="8">
+      <td colspan="9">
         <div class="expand-inner">
           ${j.customerEmail ? `<div style="margin-bottom:6px;color:var(--muted);font-size:12px;">✉️ ${esc(j.customerEmail)}${j.customerPhone ? ' · ' + esc(j.customerPhone) : ''}</div>` : ''}
           ${j.startTime ? `<div style="margin-bottom:4px;color:var(--muted);font-size:12px;">▶ Start: ${new Date(j.startTime).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'})}</div>` : ''}
