@@ -144,7 +144,8 @@ exports.handler = async (event) => {
         { error: signRes.status === 404 ? 'File not found' : 'Storage error' });
     }
 
-    const { signedURL } = await signRes.json();
+    const signData      = await signRes.json();
+    const signedURL     = signData.signedURL || signData.signedUrl;  // handle both API versions
     const supabaseBase  = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
     // signedURL is a relative path like /object/sign/...?token=... (relative to /storage/v1)
     const signedPath    = signedURL.startsWith('/storage/') ? signedURL : `/storage/v1${signedURL}`;

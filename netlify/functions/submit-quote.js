@@ -40,9 +40,11 @@ async function signDownloadUrl(key, originalName) {
     const t = await signRes.text().catch(() => '');
     throw new Error(`Failed to sign download URL (${signRes.status}): ${t.slice(0, 200)}`);
   }
-  const { signedURL } = await signRes.json();
+  const signData = await signRes.json();
+  const signedURL = signData.signedURL || signData.signedUrl;  // handle both API versions
   const supabaseBase = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
-  const url = `${supabaseBase}${signedURL}&download=${encodeURIComponent(originalName || key.replace(/^\d+-[a-z0-9]+-/, ''))}`;
+  const signedPath = signedURL.startsWith('/storage/') ? signedURL : `/storage/v1${signedURL}`;
+  const url = `${supabaseBase}${signedPath}&download=${encodeURIComponent(originalName || key.replace(/^\d+-[a-z0-9]+-/, ''))}`;
   return url;
 }
 
