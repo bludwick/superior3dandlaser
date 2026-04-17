@@ -1435,7 +1435,8 @@
     <div class="oc-check">✅</div>
     <div class="oc-title">Order Received!</div>
     <div class="oc-msg" id="ocMsg">
-      We will contact you at <strong id="ocEmail"></strong> to confirm and collect payment.
+      Order received! Our team will reach out to <strong id="ocEmail"></strong> to confirm details.
+      Questions? Email <a href="mailto:sales@superior3dandlaser.com" style="color:#b91c1c;">sales@superior3dandlaser.com</a>
     </div>
     <button class="btn-oc-back" onclick="closeOrderConfirm()">← Back to Calculator</button>
   </div>
@@ -3705,6 +3706,9 @@ async function submitOrder() {
     } else {
       // Stripe not configured — fall back to confirmation overlay
       document.getElementById('ocEmail').textContent = email;
+      document.getElementById('ocMsg').innerHTML =
+        'Order received! Our team will reach out to <strong>' + email + '</strong> to confirm details. ' +
+        'Questions? Email <a href="mailto:sales@superior3dandlaser.com" style="color:#b91c1c;">sales@superior3dandlaser.com</a>';
       closeCheckout();
       document.getElementById('orderConfirmOverlay').classList.add('open');
       document.body.style.overflow = 'hidden';
@@ -3804,6 +3808,9 @@ document.addEventListener('DOMContentLoaded', () => {
     sessionStorage.removeItem('pendingOrderEmail');
     sessionStorage.removeItem('pendingOrderName');
     document.getElementById('ocEmail').textContent = email || 'your email';
+    document.getElementById('ocMsg').innerHTML =
+      'Payment received! We\'ll email <strong>' + (email || 'you') + '</strong> when your order is ready for pickup. ' +
+      'Questions? <a href="mailto:sales@superior3dandlaser.com" style="color:#b91c1c;">sales@superior3dandlaser.com</a>';
     document.getElementById('orderConfirmOverlay').classList.add('open');
     document.body.style.overflow = 'hidden';
     clearCart();

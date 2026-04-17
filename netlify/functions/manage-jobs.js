@@ -319,8 +319,9 @@ async function sendStatusEmail(job, status, invoiceUrl, paymentUrl) {
     return;
   }
 
+  const emailFrom = process.env.EMAIL_FROM || 'Superior 3D and Laser <sales@superior3dandlaser.com>';
   await resend.emails.send({
-    from:    'Superior 3D and Laser <sales@superiormetrology.com>',
+    from:    emailFrom,
     replyTo: 'sales@superior3dandlaser.com',
     to:      [job.customerEmail],
     subject,
