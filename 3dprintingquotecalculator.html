@@ -725,6 +725,19 @@
   @media (max-width: 560px) { .co-form-grid { grid-template-columns: 1fr; } }
   .co-field { display: flex; flex-direction: column; gap: 5px; }
   .co-field.full { grid-column: 1 / -1; }
+  .co-field-wrap { position: relative; }
+  .addr-suggestions {
+    position: absolute; top: 100%; left: 0; right: 0; z-index: 999;
+    background: #fff; border: 1px solid #e0e0e0; border-top: none;
+    border-radius: 0 0 6px 6px; max-height: 220px; overflow-y: auto;
+    box-shadow: 0 4px 12px rgba(0,0,0,.12);
+  }
+  .addr-suggestion {
+    padding: 9px 12px; font-size: 12px; cursor: pointer;
+    border-bottom: 1px solid #f0f0f0; color: #111; line-height: 1.35;
+  }
+  .addr-suggestion:last-child { border-bottom: none; }
+  .addr-suggestion:hover, .addr-suggestion.active { background: #fef2f2; color: #b91c1c; }
   .co-label { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--label); }
   .co-req { color: var(--accent); }
   .co-input {
@@ -1393,7 +1406,10 @@
         </div>
         <div class="co-field full">
           <label class="co-label">Shipping Address <span class="co-req">*</span></label>
-          <input class="co-input" type="text" id="coAddress" placeholder="123 Main St, Nashville, TN 37201" autocomplete="street-address">
+          <div class="co-field-wrap">
+            <input class="co-input" type="text" id="coAddress" placeholder="123 Main St, Nashville, TN 37201" autocomplete="off">
+            <div id="addrSuggestions" class="addr-suggestions" style="display:none;"></div>
+          </div>
         </div>
         <div class="co-field full">
           <label class="co-label">Order Notes</label>
@@ -1403,10 +1419,10 @@
 
       <!-- Place Order -->
       <button class="btn-place-order" id="placeOrderBtn" onclick="submitOrder()">
-        🛒 Place Order
+        💳 Proceed to Payment
       </button>
       <div class="payment-notice">
-        🔒 Payment will be collected upon order confirmation
+        🔒 Secure checkout powered by Stripe
       </div>
 
     </div>
@@ -3677,27 +3693,29 @@ async function submitOrder() {
   btn.innerHTML = '⏳ Placing Order…';
 
   try {
-    // ── Payment placeholder ──────────────────────────────────────────────────
-    // processPayment() is intentionally a no-op until you wire in a processor.
-    // See the function definition below for integration instructions.
-    const paymentResult = await processPayment(orderData);
-    if (!paymentResult.success) throw new Error(paymentResult.message || 'Payment failed');
-    // ────────────────────────────────────────────────────────────────────────
+    const checkoutUrl = await submitOrderToBackend(orderData);
 
-    await submitOrderToBackend(orderData, paymentResult.paymentId);
-
-    // Success
-    document.getElementById('ocEmail').textContent = email;
-    closeCheckout();
-    document.getElementById('orderConfirmOverlay').classList.add('open');
-    document.body.style.overflow = 'hidden';
-    clearCart();
+    if (checkoutUrl) {
+      // Store for display on success return from Stripe
+      sessionStorage.setItem('pendingOrderEmail', email);
+      sessionStorage.setItem('pendingOrderName', name);
+      // Cart cleared after payment confirmed (on ?payment=success), not here —
+      // so it survives if the customer cancels and comes back.
+      window.location.href = checkoutUrl;
+    } else {
+      // Stripe not configured — fall back to confirmation overlay
+      document.getElementById('ocEmail').textContent = email;
+      closeCheckout();
+      document.getElementById('orderConfirmOverlay').classList.add('open');
+      document.body.style.overflow = 'hidden';
+      clearCart();
+    }
 
   } catch (err) {
     console.error('[Cart] Order submission error:', err);
     showToast('Something went wrong — please try again or contact us directly');
     btn.disabled  = false;
-    btn.innerHTML = '🛒 Place Order';
+    btn.innerHTML = '💳 Proceed to Payment';
   }
 }
 
@@ -3750,8 +3768,10 @@ async function submitOrderToBackend(orderData, paymentId) {
     }
   });
 
-  const res = await fetch('/.netlify/functions/submit-quote', { method: 'POST', body });
+  const res  = await fetch('/.netlify/functions/submit-quote', { method: 'POST', body });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  return data.checkoutUrl || null;
 }
 
 // ── Order Confirmation ────────────────────────────────────────────────────────
@@ -3775,45 +3795,90 @@ document.addEventListener('keydown', e => {
 });
 
 // ── Restore cart badge on page load ──────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => { updateCartBadge(); });
+document.addEventListener('DOMContentLoaded', () => {
+  updateCartBadge();
 
-// ══════════════════════════════════════════════════════════════════════════════
-//  PAYMENT PROCESSOR PLACEHOLDER
-//  ─────────────────────────────────────────────────────────────────────────────
-//  This function intentionally does nothing — payment is collected offline after
-//  order confirmation. When you're ready to add a payment processor, replace the
-//  body of this function with your integration code.
-//
-//  TO ADD STRIPE:
-//    1. Add <script src="https://js.stripe.com/v3/"><\/script> to <head>
-//    2. Create a Netlify function (e.g. netlify/functions/create-payment-intent.js)
-//       that calls stripe.paymentIntents.create() and returns { clientSecret }
-//    3. Replace this function body with:
-//         const stripe = Stripe('pk_live_YOUR_KEY');
-//         const { data } = await fetch('/.netlify/functions/create-payment-intent',
-//           { method:'POST', body: JSON.stringify({ amount: Math.round(orderData.total * 100) }) }).then(r=>r.json());
-//         const { error, paymentIntent } = await stripe.confirmCardPayment(data.clientSecret, { ... });
-//         if (error) return { success: false, message: error.message };
-//         return { success: true, paymentId: paymentIntent.id };
-//
-//  TO ADD PAYPAL:
-//    1. Load the PayPal JS SDK with your client-id
-//    2. Render paypal.Buttons() in the checkout UI
-//    3. Return { success: true, paymentId: details.id } from the onApprove callback
-//
-//  TO ADD SQUARE:
-//    1. Load the Square Web Payments SDK
-//    2. Initialize with Square.payments(appId, locationId)
-//    3. Create a card payment and tokenize before calling this function
-//
-//  orderData shape: { customer, notes, items[], subtotal, tax, total }
-// ══════════════════════════════════════════════════════════════════════════════
-async function processPayment(orderData) {
-  // PLACEHOLDER — payment collected offline after order confirmation.
-  // Replace this entire function body when wiring in Stripe / PayPal / Square.
-  // See the comment block above for step-by-step integration instructions.
-  return { success: true, paymentId: null, message: 'payment-pending' };
-}
+  // Stripe success redirect: show order confirmation overlay
+  if (new URLSearchParams(location.search).get('payment') === 'success') {
+    const email = sessionStorage.getItem('pendingOrderEmail') || '';
+    sessionStorage.removeItem('pendingOrderEmail');
+    sessionStorage.removeItem('pendingOrderName');
+    document.getElementById('ocEmail').textContent = email || 'your email';
+    document.getElementById('orderConfirmOverlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    clearCart();
+    history.replaceState({}, '', location.pathname);
+  }
+});
+
+// ── Address autocomplete ──────────────────────────────────────────────────────
+(function () {
+  let addrTimer  = null;
+  let addrActive = -1;
+
+  const input = document.getElementById('coAddress');
+  const box   = document.getElementById('addrSuggestions');
+  if (!input || !box) return;
+
+  function hideSuggestions() {
+    box.style.display = 'none';
+    box.innerHTML     = '';
+    addrActive        = -1;
+  }
+
+  function selectSuggestion(text) {
+    input.value = text;
+    hideSuggestions();
+  }
+
+  input.addEventListener('input', function () {
+    clearTimeout(addrTimer);
+    const q = input.value.trim();
+    if (q.length < 3) { hideSuggestions(); return; }
+    addrTimer = setTimeout(async function () {
+      try {
+        const res  = await fetch('/api/address-suggest?q=' + encodeURIComponent(q));
+        const data = await res.json();
+        if (!data.suggestions || !data.suggestions.length) { hideSuggestions(); return; }
+        box.innerHTML = data.suggestions.map(function (s, i) {
+          return '<div class="addr-suggestion" data-idx="' + i + '" data-text="' + s.fullText.replace(/"/g, '&quot;') + '">' + s.fullText + '</div>';
+        }).join('');
+        box.style.display = 'block';
+        addrActive = -1;
+        box.querySelectorAll('.addr-suggestion').forEach(function (el) {
+          el.addEventListener('mousedown', function (e) {
+            e.preventDefault();
+            selectSuggestion(el.dataset.text);
+          });
+        });
+      } catch (e) { hideSuggestions(); }
+    }, 300);
+  });
+
+  input.addEventListener('keydown', function (e) {
+    const items = box.querySelectorAll('.addr-suggestion');
+    if (!items.length) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      addrActive = Math.min(addrActive + 1, items.length - 1);
+      items.forEach(function (el, i) { el.classList.toggle('active', i === addrActive); });
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      addrActive = Math.max(addrActive - 1, -1);
+      items.forEach(function (el, i) { el.classList.toggle('active', i === addrActive); });
+    } else if (e.key === 'Enter' && addrActive >= 0) {
+      e.preventDefault();
+      selectSuggestion(items[addrActive].dataset.text);
+    } else if (e.key === 'Escape') {
+      hideSuggestions();
+    }
+  });
+
+  document.addEventListener('click', function (e) {
+    if (!input.contains(e.target) && !box.contains(e.target)) hideSuggestions();
+  });
+})();
+
 </script>
 </body>
 </html>

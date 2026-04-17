@@ -201,6 +201,7 @@ function esc(str) {
 // ── Email builders ────────────────────────────────────────────────────────────
 const TO   = process.env.EMAIL_TO   || 'sales@superior3dandlaser.com';
 const FROM = process.env.EMAIL_FROM || 'Superior 3D and Laser <sales@superior3dandlaser.com>';
+const SITE_URL = process.env.SITE_URL || 'https://superior3dandlaser.com';
 
 function buildContactEmail(fields) {
   const name = `${fields.firstName || ''} ${fields.lastName || ''}`.trim();
@@ -398,6 +399,7 @@ exports.handler = async (event) => {
     const formType = fields.formType || (fields.orderType === 'cart-order' ? 'cart' : 'quote');
     let mailBody;
     let attachments = [];
+    let checkoutUrl = null;
 
     if (formType === 'contact') {
       mailBody = buildContactEmail(fields);
@@ -409,11 +411,12 @@ exports.handler = async (event) => {
       attachments = stlFiles.map(f => ({ filename: f.fileName, content: f.buffer }));
       debug.attachmentsCount = attachments.length;
 
+      let orderId   = null;
+      let parsedItems = [];
       try {
         stage = 'saveCartOrder';
         const orderStore = blobStore('orders');
-        const orderId    = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-        let parsedItems  = [];
+        orderId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         try { parsedItems = JSON.parse(fields.itemsJson || '[]'); } catch { /* best-effort */ }
         await orderStore.set(`order_${orderId}`, JSON.stringify({
           id:            orderId,
@@ -429,10 +432,62 @@ exports.handler = async (event) => {
           total:         parseFloat(fields.orderTotalRaw) || 0,
           stlFiles:      stlFiles.map(f => ({ fileName: f.fileName, blobKey: f.key })),
           status:        'pending',
+          paymentStatus: 'unpaid',
+          paidAt:        null,
+          stripeSessionId: null,
           createdAt:     new Date().toISOString(),
         }));
       } catch (saveErr) {
         console.error('[submit-quote] Order save error:', saveErr.message);
+      }
+
+      // Create Stripe checkout session so customer can pay immediately
+      if (orderId && process.env.STRIPE_SECRET_KEY) {
+        try {
+          stage = 'stripeCheckout';
+          const Stripe = require('stripe');
+          const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+          const lineItems = parsedItems.length > 0
+            ? parsedItems.map(it => ({
+                price_data: {
+                  currency:     'usd',
+                  product_data: { name: it.fileName || 'Print Job Part' },
+                  unit_amount:  Math.round((it.unitPrice || 0) * 100),
+                },
+                quantity: it.qty || 1,
+              }))
+            : [{
+                price_data: {
+                  currency:     'usd',
+                  product_data: { name: 'Print Order' },
+                  unit_amount:  Math.round((parseFloat(fields.orderTotalRaw) || 0) * 100),
+                },
+                quantity: 1,
+              }];
+
+          const session = await stripe.checkout.sessions.create({
+            payment_method_types: ['card'],
+            line_items:     lineItems,
+            mode:           'payment',
+            success_url:    `${SITE_URL}/3dprintingquotecalculator.html?payment=success`,
+            cancel_url:     `${SITE_URL}/3dprintingquotecalculator.html`,
+            customer_email: fields.email || undefined,
+            metadata:       { orderId },
+          });
+          checkoutUrl = session.url;
+
+          // Persist session ID on the saved order
+          try {
+            const os      = blobStore('orders');
+            const existing = JSON.parse(await os.get(`order_${orderId}`) || '{}');
+            existing.stripeSessionId = session.id;
+            await os.set(`order_${orderId}`, JSON.stringify(existing));
+          } catch (patchErr) {
+            console.error('[submit-quote] stripeSessionId patch error:', patchErr.message);
+          }
+        } catch (stripeErr) {
+          console.error('[submit-quote] Stripe error:', stripeErr.message);
+        }
       }
 
     } else {
@@ -485,7 +540,7 @@ exports.handler = async (event) => {
       ...(attachments.length ? { attachments } : {}),
     });
 
-    return { statusCode: 200, body: JSON.stringify({ success: true, runtime }) };
+    return { statusCode: 200, body: JSON.stringify({ success: true, checkoutUrl, runtime }) };
 
   } catch (err) {
     console.error('submit-quote error:', {

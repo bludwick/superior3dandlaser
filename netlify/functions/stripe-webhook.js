@@ -26,36 +26,36 @@ function createTransport() {
   });
 }
 
-async function sendPaymentConfirmationEmail(job) {
-  const FROM       = process.env.EMAIL_FROM || 'Superior 3D and Laser <sales@superior3dandlaser.com>';
-  const invoiceUrl = `${SITE_URL}/invoice.html?job=${job.id}&token=${job.invoiceToken}`;
+async function sendConfirmationEmail(record, hasInvoice) {
+  const FROM = process.env.EMAIL_FROM || 'Superior 3D and Laser <sales@superior3dandlaser.com>';
 
-  const itemLines = (job.items || []).map(it =>
-    `  • ${it.partName || 'Part'} ×${it.qty || 1}  ${it.material || ''}  ${it.color || ''}  $${parseFloat(it.lineTotal || 0).toFixed(2)}`
+  const itemLines = (record.items || []).map(it =>
+    `  • ${it.partName || it.fileName || 'Part'} ×${it.qty || 1}  ${it.material || ''}  ${it.color || ''}  $${parseFloat(it.lineTotal || 0).toFixed(2)}`
   ).join('\n');
 
-  const paidDate = job.paidAt
-    ? new Date(job.paidAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
+  const paidDate = record.paidAt
+    ? new Date(record.paidAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
     : new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
 
-  const subject = 'Payment received — Superior 3D and Laser';
+  const invoiceLine = hasInvoice && record.invoiceToken
+    ? [`View your invoice: ${SITE_URL}/invoice.html?job=${record.id}&token=${record.invoiceToken}`, '']
+    : [];
 
   const textBody = [
-    `Hi ${job.customerName || 'there'},`,
+    `Hi ${record.customerName || 'there'},`,
     '',
     'We have received your payment. Thank you!',
     '',
     `Payment confirmed: ${paidDate}`,
     '',
     'Order Summary:',
-    itemLines || '  (See invoice for details)',
+    itemLines || '  (See your order confirmation for details)',
     '',
-    `Subtotal: $${parseFloat(job.subtotal || 0).toFixed(2)}`,
-    `Tax:      $${parseFloat(job.tax || 0).toFixed(2)}`,
-    `Total:    $${parseFloat(job.total || 0).toFixed(2)}`,
+    `Subtotal: $${parseFloat(record.subtotal || 0).toFixed(2)}`,
+    `Tax:      $${parseFloat(record.tax || 0).toFixed(2)}`,
+    `Total:    $${parseFloat(record.total || 0).toFixed(2)}`,
     '',
-    `View your invoice: ${invoiceUrl}`,
-    '',
+    ...invoiceLine,
     "We'll send another email when your order is ready for pickup.",
     '',
     'Thank you for choosing Superior 3D and Laser!',
@@ -67,10 +67,106 @@ async function sendPaymentConfirmationEmail(job) {
   const transporter = createTransport();
   await transporter.sendMail({
     from:    FROM,
-    to:      job.customerEmail,
-    subject,
+    to:      record.customerEmail,
+    subject: 'Payment received — Superior 3D and Laser',
     text:    textBody,
   });
+}
+
+async function handleJobPayment(jobId, session) {
+  const bs  = blobStore('jobs');
+  const key = `job_${jobId}`;
+  let jobText;
+  try {
+    jobText = await bs.get(key);
+  } catch (err) {
+    console.error('[stripe-webhook] blob get error (job):', err.message);
+    return { statusCode: 500, body: 'Blob read error' };
+  }
+
+  if (!jobText) {
+    console.error('[stripe-webhook] job not found:', key);
+    return { statusCode: 200, body: 'Job not found' };
+  }
+
+  const job = JSON.parse(jobText);
+
+  if (job.paymentStatus === 'paid') {
+    console.log('[stripe-webhook] job already paid, skipping. jobId=' + jobId);
+    return { statusCode: 200, body: 'Already paid' };
+  }
+
+  job.paymentStatus   = 'paid';
+  job.paidAt          = new Date().toISOString();
+  job.stripeSessionId = session.id;
+  job.updatedAt       = new Date().toISOString();
+
+  try {
+    await bs.set(key, JSON.stringify(job));
+    console.log('[stripe-webhook] job marked paid:', key);
+  } catch (err) {
+    console.error('[stripe-webhook] blob write error (job):', err.message);
+    return { statusCode: 500, body: 'Blob write error' };
+  }
+
+  if (job.customerEmail) {
+    try {
+      await sendConfirmationEmail(job, true);
+      console.log('[stripe-webhook] confirmation email sent to', job.customerEmail);
+    } catch (err) {
+      console.error('[stripe-webhook] email error (job):', err.message);
+    }
+  }
+
+  return { statusCode: 200, body: JSON.stringify({ received: true }) };
+}
+
+async function handleOrderPayment(orderId, session) {
+  const bs  = blobStore('orders');
+  const key = `order_${orderId}`;
+  let orderText;
+  try {
+    orderText = await bs.get(key);
+  } catch (err) {
+    console.error('[stripe-webhook] blob get error (order):', err.message);
+    return { statusCode: 500, body: 'Blob read error' };
+  }
+
+  if (!orderText) {
+    console.error('[stripe-webhook] order not found:', key);
+    return { statusCode: 200, body: 'Order not found' };
+  }
+
+  const order = JSON.parse(orderText);
+
+  if (order.paymentStatus === 'paid') {
+    console.log('[stripe-webhook] order already paid, skipping. orderId=' + orderId);
+    return { statusCode: 200, body: 'Already paid' };
+  }
+
+  order.paymentStatus   = 'paid';
+  order.paidAt          = new Date().toISOString();
+  order.stripeSessionId = session.id;
+  order.updatedAt       = new Date().toISOString();
+
+  try {
+    await bs.set(key, JSON.stringify(order));
+    console.log('[stripe-webhook] order marked paid:', key);
+  } catch (err) {
+    console.error('[stripe-webhook] blob write error (order):', err.message);
+    return { statusCode: 500, body: 'Blob write error' };
+  }
+
+  if (order.customerEmail) {
+    try {
+      await sendConfirmationEmail(order, false);
+      console.log('[stripe-webhook] confirmation email sent to', order.customerEmail);
+    } catch (err) {
+      console.error('[stripe-webhook] email error (order):', err.message);
+    }
+  }
+
+  return { statusCode: 200, body: JSON.stringify({ received: true }) };
 }
 
 exports.handler = async function (event) {
@@ -116,61 +212,18 @@ exports.handler = async function (event) {
 
   const session = stripeEvent.data.object;
   const jobId   = session.metadata && session.metadata.jobId;
+  const orderId = session.metadata && session.metadata.orderId;
 
-  if (!jobId) {
-    console.error('[stripe-webhook] no jobId in session metadata, sessionId=', session.id);
-    return { statusCode: 200, body: 'No jobId in metadata' };
+  if (!jobId && !orderId) {
+    console.error('[stripe-webhook] no jobId or orderId in session metadata, sessionId=', session.id);
+    return { statusCode: 200, body: 'No jobId or orderId in metadata' };
   }
 
-  console.log('[stripe-webhook] checkout.session.completed jobId=' + jobId + ' sessionId=' + session.id);
-
-  // Load job from Blobs
-  const bs  = blobStore('jobs');
-  const key = `job_${jobId}`;
-  let jobText;
-  try {
-    jobText = await bs.get(key);
-  } catch (err) {
-    console.error('[stripe-webhook] blob get error:', err.message);
-    return { statusCode: 500, body: 'Blob read error' };
+  if (jobId) {
+    console.log('[stripe-webhook] checkout.session.completed jobId=' + jobId + ' sessionId=' + session.id);
+    return handleJobPayment(jobId, session);
   }
 
-  if (!jobText) {
-    console.error('[stripe-webhook] job not found:', key);
-    return { statusCode: 200, body: 'Job not found' };
-  }
-
-  const job = JSON.parse(jobText);
-
-  // Idempotency guard — Stripe retries on non-2xx; don't double-process
-  if (job.paymentStatus === 'paid') {
-    console.log('[stripe-webhook] already paid, skipping. jobId=' + jobId);
-    return { statusCode: 200, body: 'Already paid' };
-  }
-
-  // Mark job as paid — do NOT auto-advance job.status
-  job.paymentStatus   = 'paid';
-  job.paidAt          = new Date().toISOString();
-  job.stripeSessionId = session.id;
-  job.updatedAt       = new Date().toISOString();
-
-  try {
-    await bs.set(key, JSON.stringify(job));
-    console.log('[stripe-webhook] job marked paid:', key);
-  } catch (err) {
-    console.error('[stripe-webhook] blob write error:', err.message);
-    return { statusCode: 500, body: 'Blob write error' };
-  }
-
-  // Send payment confirmation email (best-effort — never return 5xx on email failure)
-  if (job.customerEmail) {
-    try {
-      await sendPaymentConfirmationEmail(job);
-      console.log('[stripe-webhook] confirmation email sent to', job.customerEmail);
-    } catch (err) {
-      console.error('[stripe-webhook] email error:', err.message);
-    }
-  }
-
-  return { statusCode: 200, body: JSON.stringify({ received: true }) };
+  console.log('[stripe-webhook] checkout.session.completed orderId=' + orderId + ' sessionId=' + session.id);
+  return handleOrderPayment(orderId, session);
 };
