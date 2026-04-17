@@ -3755,7 +3755,8 @@ async function submitOrderToBackend(orderData, paymentId) {
   body.append('subtotalRaw',   String(subtotal));
   body.append('taxRaw',        String(tax));
   body.append('orderTotalRaw', String(total));
-  body.append('itemsJson',     JSON.stringify(items));
+  // Strip thumbnail (large data URL) before serialising — it's display-only and can exceed busboy's field size limit
+  body.append('itemsJson',     JSON.stringify(items.map(({ thumbnail, ...rest }) => rest)));
   const ltLine = ltSurcharge > 0 ? `Lead Time Surcharge (${leadTime}): ${fmtPrice(ltSurcharge)}\n` : '';
   body.append('message',
     `=== NEW ORDER REQUEST ===\n\nCustomer: ${customer.name}\nEmail: ${customer.email}\nPhone: ${customer.phone || '—'}\nShip To: ${customer.address}\n\n` +

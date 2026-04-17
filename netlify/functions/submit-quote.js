@@ -93,7 +93,7 @@ function parseForm(event) {
     let tooLarge = false;
     const MAX_FILE_BYTES = 8 * 1024 * 1024; // 8 MiB hard limit to avoid function OOM
 
-    const bb = busboy({ headers: event.headers, limits: { fileSize: MAX_FILE_BYTES } });
+    const bb = busboy({ headers: event.headers, limits: { fileSize: MAX_FILE_BYTES, fieldSize: 4 * 1024 * 1024 } });
 
     bb.on('field', (name, value) => { fields[name] = value; });
 
