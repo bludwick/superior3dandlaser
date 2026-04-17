@@ -3818,6 +3818,20 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+// Reset checkout state when user navigates back from Stripe (bfcache restore)
+window.addEventListener('pageshow', (e) => {
+  if (!e.persisted) return;
+  const btn = document.getElementById('placeOrderBtn');
+  if (btn) {
+    btn.disabled  = false;
+    btn.innerHTML = '💳 Proceed to Payment';
+  }
+  renderCart();
+  if (document.getElementById('checkoutOverlay').classList.contains('open')) {
+    renderCheckout();
+  }
+});
+
 // ── Address autocomplete ──────────────────────────────────────────────────────
 (function () {
   let addrTimer  = null;
