@@ -450,14 +450,31 @@ exports.handler = async (event) => {
           const Stripe = require('stripe');
           const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
           const lineItems = parsedItems.length > 0
-            ? parsedItems.map(it => ({
-                price_data: {
-                  currency:     'usd',
-                  product_data: { name: it.fileName || 'Print Job Part' },
-                  unit_amount:  Math.round((it.unitPrice || 0) * 100),
-                },
-                quantity: it.qty || 1,
-              }))
+            ? (() => {
+                const itemLines = parsedItems.map(it => ({
+                  price_data: {
+                    currency:     'usd',
+                    product_data: { name: it.fileName || 'Print Job Part' },
+                    unit_amount:  Math.round((it.lineTotal || (it.unitPrice || 0) * (it.qty || 1)) * 100),
+                  },
+                  quantity: 1,
+                }));
+                // Remainder covers lead time surcharge + tax not included in per-item lineTotals
+                const itemsSubtotal = parseFloat(fields.subtotalRaw) || 0;
+                const orderTotal    = parseFloat(fields.orderTotalRaw) || 0;
+                const fees          = Math.round((orderTotal - itemsSubtotal) * 100);
+                if (fees > 0) {
+                  itemLines.push({
+                    price_data: {
+                      currency:     'usd',
+                      product_data: { name: 'Tax & Fees' },
+                      unit_amount:  fees,
+                    },
+                    quantity: 1,
+                  });
+                }
+                return itemLines;
+              })()
             : [{
                 price_data: {
                   currency:     'usd',
