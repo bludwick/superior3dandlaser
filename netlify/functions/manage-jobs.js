@@ -112,8 +112,11 @@ async function createJob(rawBody, isBase64) {
     startTime:     data.startTime     || null,
     estEndTime:    data.estEndTime    || null,
     notes:         data.notes         || '',
-    status:        'confirmed',
-    createdAt:     new Date().toISOString(),
+    status:          'confirmed',
+    paymentStatus:   'unpaid',
+    paidAt:          null,
+    stripeSessionId: null,
+    createdAt:       new Date().toISOString(),
   };
 
   console.log('[manage-jobs] createJob id=' + id + ' customer=' + job.customerName + ' items=' + job.items.length);
@@ -197,6 +200,14 @@ async function createJob(rawBody, isBase64) {
         metadata:    { jobId: id },
       });
       paymentUrl = session.url;
+      // Persist session ID so webhook can correlate payment to this job
+      job.stripeSessionId = session.id;
+      try {
+        const bsUp = blobStore('jobs');
+        await bsUp.set(`job_${id}`, JSON.stringify(job));
+      } catch (e) {
+        console.error('[manage-jobs] stripeSessionId store error:', e.message);
+      }
     } catch (err) {
       console.error('[manage-jobs] Stripe error:', err.message);
     }
@@ -308,8 +319,9 @@ async function sendStatusEmail(job, status, invoiceUrl, paymentUrl) {
     return;
   }
 
+  const emailFrom = process.env.EMAIL_FROM || 'Superior 3D and Laser <sales@superior3dandlaser.com>';
   await resend.emails.send({
-    from:    'Superior 3D and Laser <sales@superiormetrology.com>',
+    from:    emailFrom,
     replyTo: 'sales@superior3dandlaser.com',
     to:      [job.customerEmail],
     subject,
