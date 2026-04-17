@@ -400,11 +400,13 @@ exports.handler = async (event) => {
     let mailBody;
     let attachments = [];
     let checkoutUrl = null;
+    let isCartOrder = false;
 
     if (formType === 'contact') {
       mailBody = buildContactEmail(fields);
 
     } else if (formType === 'cart' || fields.orderType === 'cart-order') {
+      isCartOrder = true;
       const stlFiles = savedFiles.filter(f => f.fieldName.startsWith('stlFile'));
       mailBody = buildCartOrderEmail(fields, stlFiles);
 
@@ -539,10 +541,10 @@ exports.handler = async (event) => {
       ...mailBody,
       ...(attachments.length ? { attachments } : {}),
     };
-    if (checkoutUrl) {
-      // Email is best-effort — don't block the Stripe redirect on SMTP failures
+    if (isCartOrder) {
+      // Admin notification is best-effort — SMTP failures must not block customer flow
       sendEmail(emailOpts).catch(emailErr =>
-        console.error('[submit-quote] Email error (non-blocking):', emailErr.message)
+        console.error('[submit-quote] Cart email error (non-blocking):', emailErr.message)
       );
     } else {
       await sendEmail(emailOpts);
