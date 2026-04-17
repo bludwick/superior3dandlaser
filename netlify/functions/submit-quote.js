@@ -532,13 +532,21 @@ exports.handler = async (event) => {
     }
 
     stage = 'sendEmail';
-    await sendEmail({
-      from:     FROM,
-      to:       TO,
-      replyTo:  fields.email || undefined,
+    const emailOpts = {
+      from:    FROM,
+      to:      TO,
+      replyTo: fields.email || undefined,
       ...mailBody,
       ...(attachments.length ? { attachments } : {}),
-    });
+    };
+    if (checkoutUrl) {
+      // Email is best-effort — don't block the Stripe redirect on SMTP failures
+      sendEmail(emailOpts).catch(emailErr =>
+        console.error('[submit-quote] Email error (non-blocking):', emailErr.message)
+      );
+    } else {
+      await sendEmail(emailOpts);
+    }
 
     return { statusCode: 200, body: JSON.stringify({ success: true, checkoutUrl, runtime }) };
 
