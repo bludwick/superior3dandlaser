@@ -3798,6 +3798,14 @@ async function submitOrderToBackend(orderData, paymentId) {
     }
   });
 
+  var _stripeDbg = typeof location !== 'undefined' ? new URLSearchParams(location.search) : null;
+  if (_stripeDbg && _stripeDbg.get('stripeDebug') === '1') {
+    body.append('debugStripe', '85749a');
+    // #region agent log
+    fetch('http://127.0.0.1:7491/ingest/295b3c28-d93c-479c-9242-adf8186cfce4', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '85749a' }, body: JSON.stringify({ sessionId: '85749a', runId: 'pre-fix', hypothesisId: 'H4', location: '3dprintingquotecalculator.html:submitOrderToBackend', message: 'client cart totals', data: { subtotal: subtotal, tax: tax, total: total, orderTotalRawSent: total.toFixed(2), itemCount: items.length }, timestamp: Date.now() }) }).catch(function () {});
+    // #endregion
+  }
+
   const res = await fetch('/.netlify/functions/submit-quote', { method: 'POST', body });
   const resText = await res.text();
 
@@ -3807,6 +3815,9 @@ async function submitOrderToBackend(orderData, paymentId) {
     data = JSON.parse(resText);
   } catch (e) {
     throw new Error('HTTP ' + res.status + ' (invalid JSON)');
+  }
+  if (data.debugStripe) {
+    console.info('[debugStripe]', data.debugStripe);
   }
   return data.checkoutUrl || null;
 }

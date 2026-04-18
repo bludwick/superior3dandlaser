@@ -435,6 +435,8 @@ exports.handler = async (event) => {
     let mailBody;
     let attachments = [];
     let checkoutUrl = null;
+    /** Populated when `debugStripe=85749a` on cart orders (no PII). */
+    let responseDebugStripe = null;
     let isCartOrder = false;
 
     if (formType === 'contact') {
@@ -501,6 +503,18 @@ exports.handler = async (event) => {
 
           if (totalCents < 50) {
             console.warn('[submit-quote] Stripe skipped: order total below minimum (50¢):', totalCents);
+            if (fields.debugStripe === '85749a') {
+              const { STRIPE_API_VERSION } = require('./stripe-client');
+              responseDebugStripe = {
+                totalCents,
+                skip: 'below_min',
+                apiVersion: STRIPE_API_VERSION,
+                orderTotalRawLen: String(fields.orderTotalRaw || '').length,
+              };
+              // #region agent log
+              fetch('http://127.0.0.1:7491/ingest/295b3c28-d93c-479c-9242-adf8186cfce4', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '85749a' }, body: JSON.stringify({ sessionId: '85749a', runId: 'pre-fix', hypothesisId: 'H5', location: 'submit-quote.js:stripe:below_min', message: 'stripe skipped below min', data: { totalCents: totalCents }, timestamp: Date.now() }) }).catch(() => {});
+              // #endregion
+            }
           } else {
             const sessionParamsBase = {
               payment_method_types: ['card'],
@@ -525,6 +539,7 @@ exports.handler = async (event) => {
             };
             // Hosted Checkout appearance: API branding_settings (falls back if account/API rejects a part).
             let session;
+            let checkoutBranch = null;
             try {
               session = await stripe.checkout.sessions.create({
                 ...sessionParamsBase,
@@ -534,28 +549,56 @@ exports.handler = async (event) => {
                   logo: { type: 'url', url: `${siteBase}/3dprint-icon.svg` },
                 },
               });
+              checkoutBranch = 'logo_brand';
             } catch (e1) {
               console.warn('[submit-quote] Checkout with logo branding failed, retrying colors only:', e1.message);
+              // #region agent log
+              fetch('http://127.0.0.1:7491/ingest/295b3c28-d93c-479c-9242-adf8186cfce4', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '85749a' }, body: JSON.stringify({ sessionId: '85749a', runId: 'pre-fix', hypothesisId: 'H1', location: 'submit-quote.js:stripe:e1', message: 'checkout create failed (logo brand)', data: { code: e1.code || null, type: e1.type || null }, timestamp: Date.now() }) }).catch(() => {});
+              // #endregion
               try {
                 session = await stripe.checkout.sessions.create({
                   ...sessionParamsBase,
                   custom_text:       { submit: checkoutCustomText.submit },
                   branding_settings: brandColors,
                 });
+                checkoutBranch = 'colors_only';
               } catch (e2) {
                 console.warn('[submit-quote] Checkout with branding failed, retrying custom_text only:', e2.message);
+                // #region agent log
+                fetch('http://127.0.0.1:7491/ingest/295b3c28-d93c-479c-9242-adf8186cfce4', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '85749a' }, body: JSON.stringify({ sessionId: '85749a', runId: 'pre-fix', hypothesisId: 'H1', location: 'submit-quote.js:stripe:e2', message: 'checkout create failed (colors brand)', data: { code: e2.code || null, type: e2.type || null }, timestamp: Date.now() }) }).catch(() => {});
+                // #endregion
                 try {
                   session = await stripe.checkout.sessions.create({
                     ...sessionParamsBase,
                     custom_text: { submit: checkoutCustomText.submit },
                   });
+                  checkoutBranch = 'custom_text_only';
                 } catch (e3) {
                   console.warn('[submit-quote] Checkout with custom_text failed, retrying base:', e3.message);
+                  // #region agent log
+                  fetch('http://127.0.0.1:7491/ingest/295b3c28-d93c-479c-9242-adf8186cfce4', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '85749a' }, body: JSON.stringify({ sessionId: '85749a', runId: 'pre-fix', hypothesisId: 'H1', location: 'submit-quote.js:stripe:e3', message: 'checkout create failed (custom_text)', data: { code: e3.code || null, type: e3.type || null }, timestamp: Date.now() }) }).catch(() => {});
+                  // #endregion
                   session = await stripe.checkout.sessions.create(sessionParamsBase);
+                  checkoutBranch = 'base';
                 }
               }
             }
             checkoutUrl = session.url;
+
+            if (fields.debugStripe === '85749a') {
+              const { STRIPE_API_VERSION } = require('./stripe-client');
+              responseDebugStripe = {
+                totalCents,
+                checkoutBranch,
+                apiVersion: STRIPE_API_VERSION,
+                orderTotalRawLen: String(fields.orderTotalRaw || '').length,
+                siteUrlLen: String(SITE_URL || '').length,
+                logoPathTried: '/3dprint-icon.svg',
+              };
+              // #region agent log
+              fetch('http://127.0.0.1:7491/ingest/295b3c28-d93c-479c-9242-adf8186cfce4', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '85749a' }, body: JSON.stringify({ sessionId: '85749a', runId: 'pre-fix', hypothesisId: 'H2', location: 'submit-quote.js:stripe:success', message: 'cart checkout session created', data: { totalCents: totalCents, checkoutBranch: checkoutBranch, apiVersion: STRIPE_API_VERSION }, timestamp: Date.now() }) }).catch(() => {});
+              // #endregion
+            }
 
             // Persist session ID on the saved order
             try {
@@ -569,6 +612,16 @@ exports.handler = async (event) => {
           }
         } catch (stripeErr) {
           console.error('[submit-quote] Stripe error:', stripeErr.message);
+          if (fields.debugStripe === '85749a') {
+            responseDebugStripe = {
+              stripeError: true,
+              errCode: stripeErr.code || null,
+              errType: stripeErr.type || null,
+            };
+            // #region agent log
+            fetch('http://127.0.0.1:7491/ingest/295b3c28-d93c-479c-9242-adf8186cfce4', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '85749a' }, body: JSON.stringify({ sessionId: '85749a', runId: 'pre-fix', hypothesisId: 'H5', location: 'submit-quote.js:stripe:catch', message: 'stripe outer catch', data: { code: stripeErr.code || null, type: stripeErr.type || null }, timestamp: Date.now() }) }).catch(() => {});
+            // #endregion
+          }
         }
       }
 
@@ -630,7 +683,9 @@ exports.handler = async (event) => {
       await sendEmail(emailOpts);
     }
 
-    return { statusCode: 200, body: JSON.stringify({ success: true, checkoutUrl, runtime }) };
+    const okBody = { success: true, checkoutUrl, runtime };
+    if (responseDebugStripe) okBody.debugStripe = responseDebugStripe;
+    return { statusCode: 200, body: JSON.stringify(okBody) };
 
   } catch (err) {
     console.error('submit-quote error:', {
