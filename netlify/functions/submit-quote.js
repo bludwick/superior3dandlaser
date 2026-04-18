@@ -93,7 +93,7 @@ function parseForm(event) {
     let tooLarge = false;
     const MAX_FILE_BYTES = 8 * 1024 * 1024; // 8 MiB hard limit to avoid function OOM
 
-    const bb = busboy({ headers: event.headers, limits: { fileSize: MAX_FILE_BYTES } });
+    const bb = busboy({ headers: event.headers, limits: { fileSize: MAX_FILE_BYTES, fieldSize: 4 * 1024 * 1024 } });
 
     bb.on('field', (name, value) => { fields[name] = value; });
 
@@ -591,9 +591,9 @@ exports.handler = async (event) => {
         }),
       };
     }
-    return {
-      statusCode: 500,
-      body: JSON.stringify({
+    let body500;
+    try {
+      body500 = JSON.stringify({
         error: 'Submission failed. Please try again.',
         stage,
         detail: err?.message || String(err),
@@ -605,7 +605,10 @@ exports.handler = async (event) => {
           responseCode: err.responseCode,
           response: typeof err.response === 'string' ? err.response.slice(0, 300) : undefined,
         } : undefined,
-      }),
-    };
+      });
+    } catch {
+      body500 = JSON.stringify({ error: 'Submission failed. Please try again.', stage });
+    }
+    return { statusCode: 500, body: body500 };
   }
 };
