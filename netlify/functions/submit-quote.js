@@ -209,6 +209,21 @@ const TO   = process.env.EMAIL_TO   || 'sales@superior3dandlaser.com';
 const FROM = process.env.EMAIL_FROM || 'Superior 3D and Laser <sales@superior3dandlaser.com>';
 const SITE_URL = process.env.SITE_URL || 'https://superior3dandlaser.com';
 
+/** Parse a decimal dollars string (e.g. from orderTotalRaw) to integer cents without float drift. */
+function usdStringToCents(raw) {
+  const t = String(raw ?? '').trim();
+  if (!t) return 0;
+  const sign = t.startsWith('-') ? -1 : 1;
+  const u = t.replace(/^-/, '');
+  const m = u.match(/^(\d*)(?:\.(\d{0,2}))?/);
+  if (!m || (!m[1] && !m[2])) return 0;
+  const dollars = parseInt(m[1] || '0', 10) || 0;
+  let frac = m[2] || '';
+  if (frac.length === 1) frac += '0';
+  const cents = frac ? parseInt(frac.padEnd(2, '0').slice(0, 2), 10) || 0 : 0;
+  return sign * (dollars * 100 + cents);
+}
+
 function buildContactEmail(fields) {
   const name = `${fields.firstName || ''} ${fields.lastName || ''}`.trim();
   return {
@@ -467,8 +482,7 @@ exports.handler = async (event) => {
           stage = 'stripeCheckout';
           const Stripe = require('stripe');
           const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-          const orderTotalNum = parseFloat(String(fields.orderTotalRaw || '').trim());
-          const totalCents    = Math.round((Number.isFinite(orderTotalNum) ? orderTotalNum : 0) * 100);
+          const totalCents = usdStringToCents(fields.orderTotalRaw);
           const productData   = { name: 'Cart order — Superior 3D and Laser' };
           if (fields.itemCount) {
             productData.description = `${String(fields.itemCount)} item(s)`;
@@ -494,20 +508,49 @@ exports.handler = async (event) => {
               customer_email: fields.email || undefined,
               metadata:       { orderId },
             };
-            // Logo/colors: Stripe Dashboard → Settings → Branding. custom_text can fail on some API versions.
+            const checkoutCustomText = {
+              submit: {
+                message: 'You are paying Superior 3D and Laser for your custom 3D print order.',
+              },
+            };
+            const siteBase = String(SITE_URL).replace(/\/$/, '');
+            const brandColors = {
+              display_name:     'Superior 3D and Laser',
+              background_color: '#ffffff',
+              button_color:     '#b91c1c',
+              border_style:     'rounded',
+            };
+            // Hosted Checkout appearance: API branding_settings (falls back if account/API rejects a part).
             let session;
             try {
               session = await stripe.checkout.sessions.create({
                 ...sessionParamsBase,
-                custom_text: {
-                  submit: {
-                    message: 'You are paying Superior 3D and Laser for your custom 3D print order.',
-                  },
+                custom_text:       { submit: checkoutCustomText.submit },
+                branding_settings: {
+                  ...brandColors,
+                  logo: { type: 'url', url: `${siteBase}/3dprint-icon.svg` },
                 },
               });
             } catch (e1) {
-              console.warn('[submit-quote] Checkout with custom_text failed, retrying without:', e1.message);
-              session = await stripe.checkout.sessions.create(sessionParamsBase);
+              console.warn('[submit-quote] Checkout with logo branding failed, retrying colors only:', e1.message);
+              try {
+                session = await stripe.checkout.sessions.create({
+                  ...sessionParamsBase,
+                  custom_text:       { submit: checkoutCustomText.submit },
+                  branding_settings: brandColors,
+                });
+              } catch (e2) {
+                console.warn('[submit-quote] Checkout with branding failed, retrying custom_text only:', e2.message);
+                try {
+                  session = await stripe.checkout.sessions.create({
+                    ...sessionParamsBase,
+                    custom_text: { submit: checkoutCustomText.submit },
+                  });
+                } catch (e3) {
+                  console.warn('[submit-quote] Checkout with custom_text failed, retrying base:', e3.message);
+                  session = await stripe.checkout.sessions.create(sessionParamsBase);
+                }
+              }
             }
             checkoutUrl = session.url;
 
