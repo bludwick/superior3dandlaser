@@ -64,8 +64,8 @@ function agentDebugIngest(payload) {
     if (typeof globalThis.fetch !== 'function') return;
     globalThis.fetch('http://127.0.0.1:7491/ingest/295b3c28-d93c-479c-9242-adf8186cfce4', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '85749a' },
-      body: JSON.stringify({ sessionId: '85749a', ...payload, timestamp: Date.now() }),
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'cb1f49' },
+      body: JSON.stringify({ sessionId: 'cb1f49', ...payload, timestamp: Date.now() }),
     }).catch(() => {});
   } catch (_) { /* ignore */ }
 }
@@ -459,6 +459,8 @@ exports.handler = async (event) => {
     /** Populated when `debugStripe=85749a` on cart orders (no PII). */
     let responseDebugStripe = null;
     let isCartOrder = false;
+    /** Populated when `debugSession=cb1f49` on cart orders (no PII). */
+    let cartDebugCb1f49 = null;
 
     if (formType === 'contact') {
       mailBody = buildContactEmail(fields);
@@ -503,6 +505,10 @@ exports.handler = async (event) => {
 
       // Create Stripe checkout session so customer can pay immediately
       // Single line item = exact order total (subtotal + lead-time + tax) — matches calculator checkout UI.
+      let stripeCheckoutBranchForDebug = null;
+      let stripeTotalCentsForDebug = null;
+      let stripeSessionAmountTotalForDebug = null;
+      let stripeColorsBrandErrForDebug = null;
       if (orderId && process.env.STRIPE_SECRET_KEY) {
         try {
           stage = 'stripeCheckout';
@@ -510,6 +516,7 @@ exports.handler = async (event) => {
           const stripe = createStripeClient();
           let totalCents = usdStringToCents(fields.orderTotalRaw);
           if (!Number.isFinite(totalCents) || totalCents < 0) totalCents = 0;
+          stripeTotalCentsForDebug = totalCents;
           const productData   = { name: 'Cart order — Superior 3D and Laser' };
           if (fields.itemCount) {
             productData.description = `${String(fields.itemCount)} item(s)`;
@@ -524,6 +531,7 @@ exports.handler = async (event) => {
           }];
 
           if (totalCents < 50) {
+            stripeCheckoutBranchForDebug = 'skipped_below_min';
             console.warn('[submit-quote] Stripe skipped: order total below minimum (50¢):', totalCents);
             if (fields.debugStripe === '85749a') {
               const { STRIPE_API_VERSION } = require('./stripe-client');
@@ -571,9 +579,10 @@ exports.handler = async (event) => {
               });
               checkoutBranch = 'colors_only';
             } catch (e1) {
+              stripeColorsBrandErrForDebug = String(e1.message || '').slice(0, 200);
               console.warn('[submit-quote] Checkout with colors branding failed, retrying with logo:', e1.message);
               // #region agent log
-              agentDebugIngest({ runId: 'post-fix', hypothesisId: 'H1', location: 'submit-quote.js:stripe:e1', message: 'checkout create failed (colors brand)', data: { code: e1.code || null, type: e1.type || null } });
+              agentDebugIngest({ runId: 'post-fix', hypothesisId: 'T1', location: 'submit-quote.js:stripe:e1', message: 'checkout create failed (colors brand)', data: { code: e1.code || null, type: e1.type || null } });
               // #endregion
               try {
                 session = await stripe.checkout.sessions.create({
@@ -607,6 +616,10 @@ exports.handler = async (event) => {
               }
             }
             checkoutUrl = session && session.url ? session.url : checkoutUrl;
+            if (session) {
+              stripeCheckoutBranchForDebug = checkoutBranch;
+              stripeSessionAmountTotalForDebug = session.amount_total != null ? session.amount_total : null;
+            }
 
             if (fields.debugStripe === '85749a') {
               const { STRIPE_API_VERSION } = require('./stripe-client');
@@ -636,6 +649,7 @@ exports.handler = async (event) => {
             }
           }
         } catch (stripeErr) {
+          stripeCheckoutBranchForDebug = stripeCheckoutBranchForDebug || 'stripe_outer_error';
           console.error('[submit-quote] Stripe error:', stripeErr.message);
           if (fields.debugStripe === '85749a') {
             responseDebugStripe = {
@@ -648,6 +662,35 @@ exports.handler = async (event) => {
             // #endregion
           }
         }
+      }
+
+      if (fields.debugSession === 'cb1f49' && isCartOrder) {
+        const { STRIPE_API_VERSION } = require('./stripe-client');
+        const centsDbg =
+          stripeTotalCentsForDebug != null
+            ? stripeTotalCentsForDebug
+            : usdStringToCents(fields.orderTotalRaw);
+        cartDebugCb1f49 = {
+          hypothesisIds: ['P1', 'P3', 'T1', 'T2'],
+          orderTotalRaw: String(fields.orderTotalRaw || ''),
+          subtotalRaw: String(fields.subtotalRaw || ''),
+          taxRaw: String(fields.taxRaw || ''),
+          totalCentsParsed: centsDbg,
+          checkoutBranch: stripeCheckoutBranchForDebug,
+          stripeSessionAmountTotal: stripeSessionAmountTotalForDebug,
+          colorsBrandError: stripeColorsBrandErrForDebug,
+          hadStripeKey: !!process.env.STRIPE_SECRET_KEY,
+          apiVersion: STRIPE_API_VERSION,
+        };
+        // #region agent log
+        agentDebugIngest({
+          runId: 'pre-fix',
+          hypothesisId: 'P1',
+          location: 'submit-quote.js:cart:debugCb1f49',
+          message: 'cart checkout debug snapshot',
+          data: cartDebugCb1f49,
+        });
+        // #endregion
       }
 
     } else {
@@ -710,6 +753,7 @@ exports.handler = async (event) => {
 
     const okBody = { success: true, checkoutUrl, runtime };
     if (responseDebugStripe) okBody.debugStripe = responseDebugStripe;
+    if (cartDebugCb1f49) okBody.debugCb1f49 = cartDebugCb1f49;
     return { statusCode: 200, body: JSON.stringify(okBody) };
 
   } catch (err) {
