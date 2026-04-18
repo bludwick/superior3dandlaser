@@ -1,0 +1,35 @@
+---
+description: 
+alwaysApply: true
+---
+
+# Deploy from Cursor → GitHub → Netlify
+
+This site deploys via **Netlify** with **GitHub** auto-deploy: a push to the tracked branch (usually `main`) triggers a deploy. There is no separate “deploy” command in Cursor beyond **git**.
+
+## Standard flow (agent should run these)
+
+1. `git status` — see what changed; only stage **intentional** project files.
+2. `git add <paths>` — prefer explicit paths over `git add .` (avoids committing noise).
+3. `git commit -m "…"` — short imperative subject; add a body only when the why isn’t obvious.
+4. `git push origin <branch>` — use the branch the user is on (confirm with `git branch --show-current` if unsure).
+
+## Branch and remote
+
+- Default integration branch is **`main`** unless the user is on a feature branch (e.g. merge via PR).
+- Remote is typically **`origin`** pointing at this repo on GitHub.
+
+## Do not commit or push
+
+- **Secrets**: `.env`, API keys, tokens, passwords, private keys.
+- **Local/tooling noise** unless the user asks: editor folders, personal PDFs, duplicate nested copies of the repo, lockfiles from unrelated tooling.
+- **Large binaries** not needed for the site — ask before adding.
+
+## Netlify
+
+- Netlify runs **`npm install`** on deploy; there is **no static-site build step** for HTML/CSS.
+- After a successful push, **Netlify builds/deploys automatically** — no manual Netlify CLI step required for normal updates.
+
+## When the user says “deploy” or “push”
+
+Prefer **executing** `git add` / `commit` / `push` (with permission) rather than only listing instructions, unless they asked for docs only.

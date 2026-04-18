@@ -58,6 +58,18 @@ function maskEmail(email) {
   return `${local[0]}***${local[local.length - 1]}${domain}`;
 }
 
+/** Debug NDJSON ingest — never throw (fetch may be missing in some Lambda runtimes). */
+function agentDebugIngest(payload) {
+  try {
+    if (typeof globalThis.fetch !== 'function') return;
+    globalThis.fetch('http://127.0.0.1:7491/ingest/295b3c28-d93c-479c-9242-adf8186cfce4', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '85749a' },
+      body: JSON.stringify({ sessionId: '85749a', ...payload, timestamp: Date.now() }),
+    }).catch(() => {});
+  } catch (_) { /* ignore */ }
+}
+
 // ── Blob store helper ─────────────────────────────────────────────────────────
 function blobStore(name) {
   const opts = { name };
@@ -219,12 +231,21 @@ function usdStringToCents(raw) {
   const sign = t.startsWith('-') ? -1 : 1;
   const u = t.replace(/^-/, '');
   const m = u.match(/^(\d*)(?:\.(\d{0,2}))?/);
-  if (!m || (!m[1] && !m[2])) return 0;
+  if (!m || (!m[1] && !m[2])) {
+    const n = parseFloat(u.replace(/[^0-9.-]/g, ''));
+    if (Number.isFinite(n)) return Math.round(n * 100 + 1e-8);
+    return 0;
+  }
   const dollars = parseInt(m[1] || '0', 10) || 0;
   let frac = m[2] || '';
   if (frac.length === 1) frac += '0';
   const cents = frac ? parseInt(frac.padEnd(2, '0').slice(0, 2), 10) || 0 : 0;
-  return sign * (dollars * 100 + cents);
+  const primary = sign * (dollars * 100 + cents);
+  if (primary === 0 && t.replace(/\s/g, '').length > 0) {
+    const n = parseFloat(u.replace(/[^0-9.-]/g, ''));
+    if (Number.isFinite(n)) return Math.round(n * 100 + 1e-8);
+  }
+  return primary;
 }
 
 function buildContactEmail(fields) {
@@ -487,7 +508,8 @@ exports.handler = async (event) => {
           stage = 'stripeCheckout';
           const { createStripeClient } = require('./stripe-client');
           const stripe = createStripeClient();
-          const totalCents = usdStringToCents(fields.orderTotalRaw);
+          let totalCents = usdStringToCents(fields.orderTotalRaw);
+          if (!Number.isFinite(totalCents) || totalCents < 0) totalCents = 0;
           const productData   = { name: 'Cart order — Superior 3D and Laser' };
           if (fields.itemCount) {
             productData.description = `${String(fields.itemCount)} item(s)`;
@@ -512,7 +534,7 @@ exports.handler = async (event) => {
                 orderTotalRawLen: String(fields.orderTotalRaw || '').length,
               };
               // #region agent log
-              fetch('http://127.0.0.1:7491/ingest/295b3c28-d93c-479c-9242-adf8186cfce4', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '85749a' }, body: JSON.stringify({ sessionId: '85749a', runId: 'pre-fix', hypothesisId: 'H5', location: 'submit-quote.js:stripe:below_min', message: 'stripe skipped below min', data: { totalCents: totalCents }, timestamp: Date.now() }) }).catch(() => {});
+              agentDebugIngest({ runId: 'pre-fix', hypothesisId: 'H5', location: 'submit-quote.js:stripe:below_min', message: 'stripe skipped below min', data: { totalCents: totalCents } });
               // #endregion
             }
           } else {
@@ -537,53 +559,54 @@ exports.handler = async (event) => {
               button_color:     '#b91c1c',
               border_style:     'rounded',
             };
-            // Hosted Checkout appearance: API branding_settings (falls back if account/API rejects a part).
+            // Hosted Checkout: try colors+name first (no logo). Logo URLs often fail Stripe fetch; they must not block theme.
+            const customTextPayload = { submit: checkoutCustomText.submit };
             let session;
             let checkoutBranch = null;
             try {
               session = await stripe.checkout.sessions.create({
                 ...sessionParamsBase,
-                custom_text:       { submit: checkoutCustomText.submit },
-                branding_settings: {
-                  ...brandColors,
-                  logo: { type: 'url', url: `${siteBase}/3dprint-icon.svg` },
-                },
+                custom_text:       customTextPayload,
+                branding_settings: brandColors,
               });
-              checkoutBranch = 'logo_brand';
+              checkoutBranch = 'colors_only';
             } catch (e1) {
-              console.warn('[submit-quote] Checkout with logo branding failed, retrying colors only:', e1.message);
+              console.warn('[submit-quote] Checkout with colors branding failed, retrying with logo:', e1.message);
               // #region agent log
-              fetch('http://127.0.0.1:7491/ingest/295b3c28-d93c-479c-9242-adf8186cfce4', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '85749a' }, body: JSON.stringify({ sessionId: '85749a', runId: 'pre-fix', hypothesisId: 'H1', location: 'submit-quote.js:stripe:e1', message: 'checkout create failed (logo brand)', data: { code: e1.code || null, type: e1.type || null }, timestamp: Date.now() }) }).catch(() => {});
+              agentDebugIngest({ runId: 'post-fix', hypothesisId: 'H1', location: 'submit-quote.js:stripe:e1', message: 'checkout create failed (colors brand)', data: { code: e1.code || null, type: e1.type || null } });
               // #endregion
               try {
                 session = await stripe.checkout.sessions.create({
                   ...sessionParamsBase,
-                  custom_text:       { submit: checkoutCustomText.submit },
-                  branding_settings: brandColors,
+                  custom_text:       customTextPayload,
+                  branding_settings: {
+                    ...brandColors,
+                    logo: { type: 'url', url: `${siteBase}/3dprint-icon.svg` },
+                  },
                 });
-                checkoutBranch = 'colors_only';
+                checkoutBranch = 'logo_brand';
               } catch (e2) {
-                console.warn('[submit-quote] Checkout with branding failed, retrying custom_text only:', e2.message);
+                console.warn('[submit-quote] Checkout with logo branding failed, retrying custom_text only:', e2.message);
                 // #region agent log
-                fetch('http://127.0.0.1:7491/ingest/295b3c28-d93c-479c-9242-adf8186cfce4', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '85749a' }, body: JSON.stringify({ sessionId: '85749a', runId: 'pre-fix', hypothesisId: 'H1', location: 'submit-quote.js:stripe:e2', message: 'checkout create failed (colors brand)', data: { code: e2.code || null, type: e2.type || null }, timestamp: Date.now() }) }).catch(() => {});
+                agentDebugIngest({ runId: 'post-fix', hypothesisId: 'H1', location: 'submit-quote.js:stripe:e2', message: 'checkout create failed (logo brand)', data: { code: e2.code || null, type: e2.type || null } });
                 // #endregion
                 try {
                   session = await stripe.checkout.sessions.create({
                     ...sessionParamsBase,
-                    custom_text: { submit: checkoutCustomText.submit },
+                    custom_text: customTextPayload,
                   });
                   checkoutBranch = 'custom_text_only';
                 } catch (e3) {
                   console.warn('[submit-quote] Checkout with custom_text failed, retrying base:', e3.message);
                   // #region agent log
-                  fetch('http://127.0.0.1:7491/ingest/295b3c28-d93c-479c-9242-adf8186cfce4', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '85749a' }, body: JSON.stringify({ sessionId: '85749a', runId: 'pre-fix', hypothesisId: 'H1', location: 'submit-quote.js:stripe:e3', message: 'checkout create failed (custom_text)', data: { code: e3.code || null, type: e3.type || null }, timestamp: Date.now() }) }).catch(() => {});
+                  agentDebugIngest({ runId: 'post-fix', hypothesisId: 'H1', location: 'submit-quote.js:stripe:e3', message: 'checkout create failed (custom_text)', data: { code: e3.code || null, type: e3.type || null } });
                   // #endregion
                   session = await stripe.checkout.sessions.create(sessionParamsBase);
                   checkoutBranch = 'base';
                 }
               }
             }
-            checkoutUrl = session.url;
+            checkoutUrl = session && session.url ? session.url : checkoutUrl;
 
             if (fields.debugStripe === '85749a') {
               const { STRIPE_API_VERSION } = require('./stripe-client');
@@ -593,21 +616,23 @@ exports.handler = async (event) => {
                 apiVersion: STRIPE_API_VERSION,
                 orderTotalRawLen: String(fields.orderTotalRaw || '').length,
                 siteUrlLen: String(SITE_URL || '').length,
-                logoPathTried: '/3dprint-icon.svg',
+                brandingStrategy: 'colors_first_then_logo',
               };
               // #region agent log
-              fetch('http://127.0.0.1:7491/ingest/295b3c28-d93c-479c-9242-adf8186cfce4', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '85749a' }, body: JSON.stringify({ sessionId: '85749a', runId: 'pre-fix', hypothesisId: 'H2', location: 'submit-quote.js:stripe:success', message: 'cart checkout session created', data: { totalCents: totalCents, checkoutBranch: checkoutBranch, apiVersion: STRIPE_API_VERSION }, timestamp: Date.now() }) }).catch(() => {});
+              agentDebugIngest({ runId: 'pre-fix', hypothesisId: 'H2', location: 'submit-quote.js:stripe:success', message: 'cart checkout session created', data: { totalCents: totalCents, checkoutBranch: checkoutBranch, apiVersion: STRIPE_API_VERSION } });
               // #endregion
             }
 
             // Persist session ID on the saved order
-            try {
-              const os       = blobStore('orders');
-              const existing = JSON.parse(await os.get(`order_${orderId}`) || '{}');
-              existing.stripeSessionId = session.id;
-              await os.set(`order_${orderId}`, JSON.stringify(existing));
-            } catch (patchErr) {
-              console.error('[submit-quote] stripeSessionId patch error:', patchErr.message);
+            if (session && session.id) {
+              try {
+                const os       = blobStore('orders');
+                const existing = JSON.parse(await os.get(`order_${orderId}`) || '{}');
+                existing.stripeSessionId = session.id;
+                await os.set(`order_${orderId}`, JSON.stringify(existing));
+              } catch (patchErr) {
+                console.error('[submit-quote] stripeSessionId patch error:', patchErr.message);
+              }
             }
           }
         } catch (stripeErr) {
@@ -619,7 +644,7 @@ exports.handler = async (event) => {
               errType: stripeErr.type || null,
             };
             // #region agent log
-            fetch('http://127.0.0.1:7491/ingest/295b3c28-d93c-479c-9242-adf8186cfce4', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '85749a' }, body: JSON.stringify({ sessionId: '85749a', runId: 'pre-fix', hypothesisId: 'H5', location: 'submit-quote.js:stripe:catch', message: 'stripe outer catch', data: { code: stripeErr.code || null, type: stripeErr.type || null }, timestamp: Date.now() }) }).catch(() => {});
+            agentDebugIngest({ runId: 'pre-fix', hypothesisId: 'H5', location: 'submit-quote.js:stripe:catch', message: 'stripe outer catch', data: { code: stripeErr.code || null, type: stripeErr.type || null } });
             // #endregion
           }
         }
