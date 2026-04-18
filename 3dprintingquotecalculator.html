@@ -3208,6 +3208,7 @@ renderMatLibDropdown(true);
 // Payment processing is intentionally stubbed — see processPayment() below.
 
 const CART_STORAGE_KEY = '3dp_cart';
+const STRIPE_RETURN_SESSION_KEY = 'cartPendingStripeReturn';
 const TAX_RATE = 0.085; // Tennessee sales tax
 
 // ── Cart state ────────────────────────────────────────────────────────────────
@@ -3722,6 +3723,8 @@ async function submitOrder() {
       // Store for display on success return from Stripe
       sessionStorage.setItem('pendingOrderEmail', email);
       sessionStorage.setItem('pendingOrderName', name);
+      // Survives bfcache / Back from Stripe so we can reopen checkout and reset the button.
+      sessionStorage.setItem(STRIPE_RETURN_SESSION_KEY, '1');
       // Cart cleared after payment confirmed (on ?payment=success), not here —
       // so it survives if the customer cancels and comes back.
       window.location.href = checkoutUrl;
@@ -3834,6 +3837,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Stripe success redirect: show order confirmation overlay
   if (new URLSearchParams(location.search).get('payment') === 'success') {
+    sessionStorage.removeItem(STRIPE_RETURN_SESSION_KEY);
     const email = sessionStorage.getItem('pendingOrderEmail') || '';
     sessionStorage.removeItem('pendingOrderEmail');
     sessionStorage.removeItem('pendingOrderName');
@@ -3845,6 +3849,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.style.overflow = 'hidden';
     clearCart();
     history.replaceState({}, '', location.pathname);
+  } else {
+    recoverCheckoutUiAfterStripeNavigation();
   }
 });
 
@@ -3853,6 +3859,28 @@ document.addEventListener('DOMContentLoaded', () => {
  * “Placing Order…” state without re-rendering checkout on every tab switch.
  */
 function recoverCheckoutUiAfterStripeNavigation() {
+  if (new URLSearchParams(location.search).get('payment') === 'success') {
+    sessionStorage.removeItem(STRIPE_RETURN_SESSION_KEY);
+    return;
+  }
+
+  if (sessionStorage.getItem(STRIPE_RETURN_SESSION_KEY) === '1') {
+    sessionStorage.removeItem(STRIPE_RETURN_SESSION_KEY);
+    if (!cart.length) return;
+    const overlay = document.getElementById('checkoutOverlay');
+    if (overlay) {
+      overlay.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+    try {
+      renderCart();
+      renderCheckout();
+    } catch (e) {
+      console.warn('[Cart] recover after Stripe return', e);
+    }
+    return;
+  }
+
   const overlay = document.getElementById('checkoutOverlay');
   const btn     = document.getElementById('placeOrderBtn');
   if (!overlay || !btn) return;
