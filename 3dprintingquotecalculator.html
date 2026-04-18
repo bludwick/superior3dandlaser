@@ -3574,11 +3574,42 @@ function cartSubtotal() {
 }
 
 function fmtPrice(n) { return '$' + Number(n).toFixed(2); }
+/** Round USD to cents — keeps UI, FormData, and Stripe amounts identical. */
+function roundCurrency(n) {
+  return Math.round((Number(n) || 0) * 100) / 100;
+}
 function escHtml(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 // ── Checkout ──────────────────────────────────────────────────────────────────
+function resetCheckoutSubmitButton() {
+  const btn = document.getElementById('placeOrderBtn');
+  if (!btn) return;
+  btn.disabled = false;
+  btn.innerHTML = '💳 Proceed to Payment';
+}
+
+/** Single source of truth for subtotal / tax / total (matches checkout table + Stripe). */
+function getCheckoutTotals() {
+  const subtotal = roundCurrency(cartSubtotal());
+  const { val: ltVal, amount: ltAmount } = getLeadTimeSurcharge(subtotal);
+  const ltSurcharge = roundCurrency(ltAmount);
+  const taxBase     = roundCurrency(subtotal + ltSurcharge);
+  const tax         = roundCurrency(taxBase * TAX_RATE);
+  const total       = roundCurrency(taxBase + tax);
+  const leadTimeLabels = { expedite: 'Expedite (1–2 Days)', rush: 'Rush (3–5 Days)', standard: 'Standard (1–2 Weeks)' };
+  return {
+    subtotal,
+    ltVal,
+    ltSurcharge,
+    taxBase,
+    tax,
+    total,
+    leadTimeLabel: leadTimeLabels[ltVal] || 'Standard (1–2 Weeks)',
+  };
+}
+
 function openCheckout() {
   if (cart.length === 0) { showToast('Your cart is empty'); return; }
   closeCart();
@@ -3602,11 +3633,8 @@ function getLeadTimeSurcharge(subtotal) {
 }
 
 function renderCheckout() {
-  const subtotal              = cartSubtotal();
-  const { val: ltVal, amount: ltSurcharge } = getLeadTimeSurcharge(subtotal);
-  const taxBase               = subtotal + ltSurcharge;
-  const tax                   = taxBase * TAX_RATE;
-  const total                 = taxBase + tax;
+  resetCheckoutSubmitButton();
+  const { subtotal, ltVal, ltSurcharge, tax, total } = getCheckoutTotals();
 
   // Lead time note + surcharge row
   const ltNote = document.getElementById('coLeadTimeNote');
@@ -3665,13 +3693,7 @@ async function submitOrder() {
   if (!email || !email.includes('@')) { document.getElementById('coEmail').focus(); showToast('Please enter a valid email'); return; }
   if (!address) { document.getElementById('coAddress').focus(); showToast('Please enter a shipping address'); return; }
 
-  const subtotal              = cartSubtotal();
-  const { val: ltVal, amount: ltSurcharge } = getLeadTimeSurcharge(subtotal);
-  const leadTimeLabels = { expedite: 'Expedite (1–2 Days)', rush: 'Rush (3–5 Days)', standard: 'Standard (1–2 Weeks)' };
-  const leadTimeLabel  = leadTimeLabels[ltVal] || 'Standard (1–2 Weeks)';
-  const taxBase               = subtotal + ltSurcharge;
-  const tax                   = taxBase * TAX_RATE;
-  const total                 = taxBase + tax;
+  const t = getCheckoutTotals();
 
   const orderData = {
     customer: {
@@ -3681,12 +3703,12 @@ async function submitOrder() {
       address,
     },
     notes:       document.getElementById('coNotes').value.trim(),
-    leadTime:    leadTimeLabel,
-    ltSurcharge,
+    leadTime:    t.leadTimeLabel,
+    ltSurcharge: t.ltSurcharge,
     items:       cart,
-    subtotal,
-    tax,
-    total,
+    subtotal:    t.subtotal,
+    tax:         t.tax,
+    total:       t.total,
   };
 
   const btn = document.getElementById('placeOrderBtn');
@@ -3752,9 +3774,9 @@ async function submitOrderToBackend(orderData, paymentId) {
   if (paymentId) body.append('paymentId', paymentId);
   // Extra fields for admin order storage
   body.append('leadTime',      leadTime || 'Standard');
-  body.append('subtotalRaw',   String(subtotal));
-  body.append('taxRaw',        String(tax));
-  body.append('orderTotalRaw', String(total));
+  body.append('subtotalRaw',   subtotal.toFixed(2));
+  body.append('taxRaw',        tax.toFixed(2));
+  body.append('orderTotalRaw', total.toFixed(2));
   // Strip thumbnail (large data URL) before serialising — it's display-only and can exceed busboy's field size limit
   body.append('itemsJson',     JSON.stringify(items.map(({ thumbnail, ...rest }) => rest)));
   const ltLine = ltSurcharge > 0 ? `Lead Time Surcharge (${leadTime}): ${fmtPrice(ltSurcharge)}\n` : '';
@@ -3773,9 +3795,16 @@ async function submitOrderToBackend(orderData, paymentId) {
     }
   });
 
-  const res  = await fetch('/.netlify/functions/submit-quote', { method: 'POST', body });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = await res.json();
+  const res = await fetch('/.netlify/functions/submit-quote', { method: 'POST', body });
+  const resText = await res.text();
+
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  var data = {};
+  try {
+    data = JSON.parse(resText);
+  } catch (e) {
+    throw new Error('HTTP ' + res.status + ' (invalid JSON)');
+  }
   return data.checkoutUrl || null;
 }
 
@@ -3819,18 +3848,19 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// Reset checkout state when user navigates back from Stripe (bfcache restore)
-window.addEventListener('pageshow', (e) => {
-  if (!e.persisted) return;
-  const btn = document.getElementById('placeOrderBtn');
-  if (btn) {
-    btn.disabled  = false;
-    btn.innerHTML = '💳 Proceed to Payment';
-  }
+function syncCheckoutAfterReturnFromPayment() {
   renderCart();
   if (document.getElementById('checkoutOverlay').classList.contains('open')) {
     renderCheckout();
+  } else {
+    resetCheckoutSubmitButton();
   }
+}
+
+// Returning from Stripe: pageshow is unreliable cross-origin — visibilitychange covers most cases.
+window.addEventListener('pageshow', syncCheckoutAfterReturnFromPayment);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') syncCheckoutAfterReturnFromPayment();
 });
 
 // ── Address autocomplete ──────────────────────────────────────────────────────

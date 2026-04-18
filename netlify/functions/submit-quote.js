@@ -125,7 +125,13 @@ function parseForm(event) {
     });
     bb.on('error',  reject);
 
-    const body = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8');
+    const rawBody = event.body;
+    if (rawBody == null || rawBody === '') {
+      const err = new Error('Empty request body');
+      err.code = 'EMPTY_BODY';
+      return reject(err);
+    }
+    const body = Buffer.from(rawBody, event.isBase64Encoded ? 'base64' : 'utf8');
     bb.write(body);
     bb.end();
   });
@@ -355,6 +361,17 @@ exports.handler = async (event) => {
     attachmentsCount: 0,
   };
 
+  if (event.body == null || event.body === '') {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({
+        error: 'Empty request body.',
+        stage: 'parseForm',
+        runtime,
+      }),
+    };
+  }
+
   try {
     stage = 'parseForm';
     const { fields, files, maxFileBytes } = await parseForm(event);
@@ -444,65 +461,56 @@ exports.handler = async (event) => {
       }
 
       // Create Stripe checkout session so customer can pay immediately
+      // Single line item = exact order total (subtotal + lead-time + tax) — matches calculator checkout UI.
       if (orderId && process.env.STRIPE_SECRET_KEY) {
         try {
           stage = 'stripeCheckout';
           const Stripe = require('stripe');
           const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-          const lineItems = parsedItems.length > 0
-            ? (() => {
-                const itemLines = parsedItems.map(it => ({
-                  price_data: {
-                    currency:     'usd',
-                    product_data: { name: it.fileName || 'Print Job Part' },
-                    unit_amount:  Math.round((it.lineTotal || (it.unitPrice || 0) * (it.qty || 1)) * 100),
-                  },
-                  quantity: 1,
-                }));
-                // Remainder covers lead time surcharge + tax not included in per-item lineTotals
-                const itemsSubtotal = parseFloat(fields.subtotalRaw) || 0;
-                const orderTotal    = parseFloat(fields.orderTotalRaw) || 0;
-                const fees          = Math.round((orderTotal - itemsSubtotal) * 100);
-                if (fees > 0) {
-                  itemLines.push({
-                    price_data: {
-                      currency:     'usd',
-                      product_data: { name: 'Tax & Fees' },
-                      unit_amount:  fees,
-                    },
-                    quantity: 1,
-                  });
-                }
-                return itemLines;
-              })()
-            : [{
-                price_data: {
-                  currency:     'usd',
-                  product_data: { name: 'Print Order' },
-                  unit_amount:  Math.round((parseFloat(fields.orderTotalRaw) || 0) * 100),
+          const orderTotalNum = parseFloat(String(fields.orderTotalRaw || '').trim());
+          const totalCents    = Math.round((Number.isFinite(orderTotalNum) ? orderTotalNum : 0) * 100);
+          const productData   = { name: 'Cart order — Superior 3D and Laser' };
+          if (fields.itemCount) {
+            productData.description = `${String(fields.itemCount)} item(s)`;
+          }
+          const lineItems = [{
+            price_data: {
+              currency:     'usd',
+              product_data: productData,
+              unit_amount:  totalCents,
+            },
+            quantity: 1,
+          }];
+
+          if (totalCents < 50) {
+            console.warn('[submit-quote] Stripe skipped: order total below minimum (50¢):', totalCents);
+          } else {
+            const session = await stripe.checkout.sessions.create({
+              payment_method_types: ['card'],
+              line_items:     lineItems,
+              mode:           'payment',
+              success_url:    `${SITE_URL}/3dprintingquotecalculator.html?payment=success`,
+              cancel_url:     `${SITE_URL}/3dprintingquotecalculator.html`,
+              customer_email: fields.email || undefined,
+              metadata:       { orderId },
+              // Copy and logo still come from Stripe Dashboard → Settings → Branding (applies to every session).
+              custom_text: {
+                submit: {
+                  message: 'You are paying Superior 3D and Laser for your custom 3D print order.',
                 },
-                quantity: 1,
-              }];
+              },
+            });
+            checkoutUrl = session.url;
 
-          const session = await stripe.checkout.sessions.create({
-            payment_method_types: ['card'],
-            line_items:     lineItems,
-            mode:           'payment',
-            success_url:    `${SITE_URL}/3dprintingquotecalculator.html?payment=success`,
-            cancel_url:     `${SITE_URL}/3dprintingquotecalculator.html`,
-            customer_email: fields.email || undefined,
-            metadata:       { orderId },
-          });
-          checkoutUrl = session.url;
-
-          // Persist session ID on the saved order
-          try {
-            const os      = blobStore('orders');
-            const existing = JSON.parse(await os.get(`order_${orderId}`) || '{}');
-            existing.stripeSessionId = session.id;
-            await os.set(`order_${orderId}`, JSON.stringify(existing));
-          } catch (patchErr) {
-            console.error('[submit-quote] stripeSessionId patch error:', patchErr.message);
+            // Persist session ID on the saved order
+            try {
+              const os       = blobStore('orders');
+              const existing = JSON.parse(await os.get(`order_${orderId}`) || '{}');
+              existing.stripeSessionId = session.id;
+              await os.set(`order_${orderId}`, JSON.stringify(existing));
+            } catch (patchErr) {
+              console.error('[submit-quote] stripeSessionId patch error:', patchErr.message);
+            }
           }
         } catch (stripeErr) {
           console.error('[submit-quote] Stripe error:', stripeErr.message);
@@ -587,6 +595,16 @@ exports.handler = async (event) => {
           error: 'File too large.',
           stage,
           maxBytes: err.maxBytes || null,
+          runtime,
+        }),
+      };
+    }
+    if (err?.code === 'EMPTY_BODY') {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({
+          error: 'Empty request body.',
+          stage: 'parseForm',
           runtime,
         }),
       };
