@@ -3848,20 +3848,43 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-function syncCheckoutAfterReturnFromPayment() {
-  renderCart();
-  if (document.getElementById('checkoutOverlay').classList.contains('open')) {
+/**
+ * After returning from Stripe (Back) or refocusing the tab, recover a stuck
+ * “Placing Order…” state without re-rendering checkout on every tab switch.
+ */
+function recoverCheckoutUiAfterStripeNavigation() {
+  const overlay = document.getElementById('checkoutOverlay');
+  const btn     = document.getElementById('placeOrderBtn');
+  if (!overlay || !btn) return;
+  try {
+    renderCart();
+  } catch (e) { /* DOM may not be ready on very early events */ }
+
+  const overlayOpen = overlay.classList.contains('open');
+  const looksStuck  = btn.disabled || (String(btn.innerHTML || '').indexOf('Placing') !== -1);
+
+  if (overlayOpen && looksStuck) {
     renderCheckout();
-  } else {
+  } else if (!overlayOpen) {
     resetCheckoutSubmitButton();
   }
 }
 
-// Returning from Stripe: pageshow is unreliable cross-origin — visibilitychange covers most cases.
-window.addEventListener('pageshow', syncCheckoutAfterReturnFromPayment);
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') syncCheckoutAfterReturnFromPayment();
-});
+function attachCheckoutReturnListeners() {
+  window.addEventListener('pageshow', recoverCheckoutUiAfterStripeNavigation);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') recoverCheckoutUiAfterStripeNavigation();
+  });
+  window.addEventListener('focus', () => {
+    requestAnimationFrame(recoverCheckoutUiAfterStripeNavigation);
+  });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', attachCheckoutReturnListeners);
+} else {
+  attachCheckoutReturnListeners();
+}
 
 // ── Address autocomplete ──────────────────────────────────────────────────────
 (function () {

@@ -485,7 +485,7 @@ exports.handler = async (event) => {
           if (totalCents < 50) {
             console.warn('[submit-quote] Stripe skipped: order total below minimum (50¢):', totalCents);
           } else {
-            const session = await stripe.checkout.sessions.create({
+            const sessionParamsBase = {
               payment_method_types: ['card'],
               line_items:     lineItems,
               mode:           'payment',
@@ -493,13 +493,22 @@ exports.handler = async (event) => {
               cancel_url:     `${SITE_URL}/3dprintingquotecalculator.html`,
               customer_email: fields.email || undefined,
               metadata:       { orderId },
-              // Copy and logo still come from Stripe Dashboard → Settings → Branding (applies to every session).
-              custom_text: {
-                submit: {
-                  message: 'You are paying Superior 3D and Laser for your custom 3D print order.',
+            };
+            // Logo/colors: Stripe Dashboard → Settings → Branding. custom_text can fail on some API versions.
+            let session;
+            try {
+              session = await stripe.checkout.sessions.create({
+                ...sessionParamsBase,
+                custom_text: {
+                  submit: {
+                    message: 'You are paying Superior 3D and Laser for your custom 3D print order.',
+                  },
                 },
-              },
-            });
+              });
+            } catch (e1) {
+              console.warn('[submit-quote] Checkout with custom_text failed, retrying without:', e1.message);
+              session = await stripe.checkout.sessions.create(sessionParamsBase);
+            }
             checkoutUrl = session.url;
 
             // Persist session ID on the saved order
