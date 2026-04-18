@@ -133,6 +133,7 @@ Set in Netlify's dashboard — never committed to the repo. `.env` is gitignored
 | `EMAIL_FROM` | Optional | Sender display name/address — defaults to `Superior 3D and Laser <sales@superior3dandlaser.com>` |
 | `EMAIL_TO` | Optional | Recipient for all form submissions — defaults to `sales@superior3dandlaser.com` |
 | `STRIPE_SECRET_KEY` | Optional | Enables Stripe checkout session creation and tax calculation |
+| `STRIPE_API_VERSION` | Optional | Override Stripe API version (default `2025-09-30.clover` — required for Checkout `branding_settings`) |
 | `SITE_URL` | Yes | `https://superior3dandlaser.com` — used to build invoice and file download URLs |
 | `SUPABASE_URL` | Yes | Supabase project URL — used for file storage |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase service role key — used server-side for file storage (bypasses RLS; never expose to client) |

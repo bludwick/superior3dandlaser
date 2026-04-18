@@ -1,6 +1,6 @@
 const { getStore } = require('@netlify/blobs');
 const nodemailer   = require('nodemailer');
-const Stripe       = require('stripe');
+const { createStripeClient } = require('./stripe-client');
 
 const SITE_URL = process.env.SITE_URL || 'https://superior3dandlaser.com';
 
@@ -197,7 +197,7 @@ exports.handler = async function (event) {
 
   let stripeEvent;
   try {
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+    const stripe = createStripeClient();
     stripeEvent  = stripe.webhooks.constructEvent(rawBody, sig, secret);
   } catch (err) {
     console.error('[stripe-webhook] signature verification failed:', err.message);

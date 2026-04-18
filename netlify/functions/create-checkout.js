@@ -39,8 +39,8 @@ exports.handler = async function (event) {
     const job  = text ? JSON.parse(text) : null;
     if (!job || job.invoiceToken !== token) return jsonResponse(404, { error: 'Invoice not found or token invalid' });
 
-    const Stripe = require('stripe');
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+    const { createStripeClient } = require('./stripe-client');
+    const stripe = createStripeClient();
 
     const lineItems = job.items && job.items.length > 0
       ? job.items.map(it => ({

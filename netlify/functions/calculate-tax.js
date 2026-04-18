@@ -20,8 +20,8 @@ exports.handler = async function (event) {
   }
 
   try {
-    const Stripe = require('stripe');
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+    const { createStripeClient } = require('./stripe-client');
+    const stripe = createStripeClient();
 
     const calculation = await stripe.tax.calculations.create({
       currency: 'usd',

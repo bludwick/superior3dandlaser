@@ -211,7 +211,10 @@ const SITE_URL = process.env.SITE_URL || 'https://superior3dandlaser.com';
 
 /** Parse a decimal dollars string (e.g. from orderTotalRaw) to integer cents without float drift. */
 function usdStringToCents(raw) {
-  const t = String(raw ?? '').trim();
+  const t = String(raw ?? '')
+    .trim()
+    .replace(/\$/g, '')
+    .replace(/,/g, '');
   if (!t) return 0;
   const sign = t.startsWith('-') ? -1 : 1;
   const u = t.replace(/^-/, '');
@@ -480,8 +483,8 @@ exports.handler = async (event) => {
       if (orderId && process.env.STRIPE_SECRET_KEY) {
         try {
           stage = 'stripeCheckout';
-          const Stripe = require('stripe');
-          const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+          const { createStripeClient } = require('./stripe-client');
+          const stripe = createStripeClient();
           const totalCents = usdStringToCents(fields.orderTotalRaw);
           const productData   = { name: 'Cart order — Superior 3D and Laser' };
           if (fields.itemCount) {

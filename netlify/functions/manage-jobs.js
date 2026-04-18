@@ -170,8 +170,8 @@ async function createJob(rawBody, isBase64) {
   let paymentUrl = null;
   if (process.env.STRIPE_SECRET_KEY) {
     try {
-      const Stripe = require('stripe');
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+      const { createStripeClient } = require('./stripe-client');
+      const stripe = createStripeClient();
       const lineItems = job.items.length > 0
         ? job.items.map(it => ({
             price_data: {
