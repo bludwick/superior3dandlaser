@@ -64,8 +64,8 @@ function agentDebugIngest(payload) {
     if (typeof globalThis.fetch !== 'function') return;
     globalThis.fetch('http://127.0.0.1:7491/ingest/295b3c28-d93c-479c-9242-adf8186cfce4', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '85749a' },
-      body: JSON.stringify({ sessionId: '85749a', ...payload, timestamp: Date.now() }),
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'cb1f49' },
+      body: JSON.stringify({ sessionId: 'cb1f49', ...payload, timestamp: Date.now() }),
     }).catch(() => {});
   } catch (_) { /* ignore */ }
 }
@@ -320,7 +320,9 @@ ${fileUrl ? `<p><strong>File:</strong> <a href="${esc(fileUrl)}" target="_blank"
 
 function buildCartOrderEmail(fields, stlFiles) {
   const filesText = stlFiles.length
-    ? `\n--- Attached STL Files (${stlFiles.length}) ---\n${stlFiles.map(f => f.fileName).join('\n')}`
+    ? `\n--- STL Files (${stlFiles.length}) ---\n${stlFiles.map(f => (
+        f.downloadUrl ? `${f.fileName}\nDownload: ${f.downloadUrl}` : f.fileName
+      )).join('\n\n')}`
     : '';
 
   return {
@@ -366,6 +368,13 @@ ${fields.paymentId ? `Payment ID: ${fields.paymentId}` : ''}
 </table>
 <p><strong>Payment Status:</strong> ${esc(fields.paymentStatus || 'Pending')}</p>
 ${fields.paymentId ? `<p><strong>Payment ID:</strong> ${esc(fields.paymentId)}</p>` : ''}
+${stlFiles.length ? `
+<h3>STL Files (${stlFiles.length})</h3>
+<ul>${stlFiles.map(f => (
+  f.downloadUrl
+    ? `<li><a href="${esc(f.downloadUrl)}" target="_blank" rel="noreferrer noopener">${esc(f.fileName)}</a></li>`
+    : `<li>${esc(f.fileName)} (attached)</li>`
+)).join('')}</ul>` : ''}
     `.trim(),
   };
 }
@@ -459,16 +468,41 @@ exports.handler = async (event) => {
     /** Populated when `debugStripe=85749a` on cart orders (no PII). */
     let responseDebugStripe = null;
     let isCartOrder = false;
+    /** Populated when `debugSession=cb1f49` on cart orders (no PII). */
+    let cartDebugCb1f49 = null;
 
     if (formType === 'contact') {
       mailBody = buildContactEmail(fields);
 
     } else if (formType === 'cart' || fields.orderType === 'cart-order') {
       isCartOrder = true;
-      const stlFiles = savedFiles.filter(f => f.fieldName.startsWith('stlFile'));
+
+      // The cart uploads STLs directly to Supabase via sign-upload (to bypass Netlify's
+      // ~6MB function body limit). Those arrive here as `uploadedStlKeys` JSON. Older
+      // clients may still attach STLs to the multipart body — we support both.
+      let directStlList = [];
+      try {
+        const parsed = JSON.parse(fields.uploadedStlKeys || '[]');
+        if (Array.isArray(parsed)) directStlList = parsed;
+      } catch { /* ignore malformed list */ }
+
+      const directStlFiles = await Promise.all(directStlList.map(async (u) => {
+        let downloadUrl = null;
+        try {
+          downloadUrl = await signDownloadUrl(String(u.key), String(u.fileName || ''));
+        } catch (e) {
+          console.error('[submit-quote] Failed to sign STL download URL:', e?.message || String(e));
+        }
+        return { fileName: String(u.fileName || ''), key: String(u.key), downloadUrl };
+      }));
+
+      const multipartStlFiles = savedFiles.filter(f => f.fieldName.startsWith('stlFile'));
+      const stlFiles = [...directStlFiles, ...multipartStlFiles];
       mailBody = buildCartOrderEmail(fields, stlFiles);
 
-      attachments = stlFiles.map(f => ({ filename: f.fileName, content: f.buffer }));
+      // Only multipart-attached STLs have buffers available to attach to the email.
+      // Direct-upload STLs are linked via signed download URL in the email body instead.
+      attachments = multipartStlFiles.map(f => ({ filename: f.fileName, content: f.buffer }));
       debug.attachmentsCount = attachments.length;
 
       let orderId   = null;
@@ -503,6 +537,10 @@ exports.handler = async (event) => {
 
       // Create Stripe checkout session so customer can pay immediately
       // Single line item = exact order total (subtotal + lead-time + tax) — matches calculator checkout UI.
+      let stripeCheckoutBranchForDebug = null;
+      let stripeTotalCentsForDebug = null;
+      let stripeSessionAmountTotalForDebug = null;
+      let stripeColorsBrandErrForDebug = null;
       if (orderId && process.env.STRIPE_SECRET_KEY) {
         try {
           stage = 'stripeCheckout';
@@ -510,6 +548,7 @@ exports.handler = async (event) => {
           const stripe = createStripeClient();
           let totalCents = usdStringToCents(fields.orderTotalRaw);
           if (!Number.isFinite(totalCents) || totalCents < 0) totalCents = 0;
+          stripeTotalCentsForDebug = totalCents;
           const productData   = { name: 'Cart order — Superior 3D and Laser' };
           if (fields.itemCount) {
             productData.description = `${String(fields.itemCount)} item(s)`;
@@ -524,6 +563,7 @@ exports.handler = async (event) => {
           }];
 
           if (totalCents < 50) {
+            stripeCheckoutBranchForDebug = 'skipped_below_min';
             console.warn('[submit-quote] Stripe skipped: order total below minimum (50¢):', totalCents);
             if (fields.debugStripe === '85749a') {
               const { STRIPE_API_VERSION } = require('./stripe-client');
@@ -571,9 +611,10 @@ exports.handler = async (event) => {
               });
               checkoutBranch = 'colors_only';
             } catch (e1) {
+              stripeColorsBrandErrForDebug = String(e1.message || '').slice(0, 200);
               console.warn('[submit-quote] Checkout with colors branding failed, retrying with logo:', e1.message);
               // #region agent log
-              agentDebugIngest({ runId: 'post-fix', hypothesisId: 'H1', location: 'submit-quote.js:stripe:e1', message: 'checkout create failed (colors brand)', data: { code: e1.code || null, type: e1.type || null } });
+              agentDebugIngest({ runId: 'post-fix', hypothesisId: 'T1', location: 'submit-quote.js:stripe:e1', message: 'checkout create failed (colors brand)', data: { code: e1.code || null, type: e1.type || null } });
               // #endregion
               try {
                 session = await stripe.checkout.sessions.create({
@@ -607,6 +648,10 @@ exports.handler = async (event) => {
               }
             }
             checkoutUrl = session && session.url ? session.url : checkoutUrl;
+            if (session) {
+              stripeCheckoutBranchForDebug = checkoutBranch;
+              stripeSessionAmountTotalForDebug = session.amount_total != null ? session.amount_total : null;
+            }
 
             if (fields.debugStripe === '85749a') {
               const { STRIPE_API_VERSION } = require('./stripe-client');
@@ -636,6 +681,7 @@ exports.handler = async (event) => {
             }
           }
         } catch (stripeErr) {
+          stripeCheckoutBranchForDebug = stripeCheckoutBranchForDebug || 'stripe_outer_error';
           console.error('[submit-quote] Stripe error:', stripeErr.message);
           if (fields.debugStripe === '85749a') {
             responseDebugStripe = {
@@ -648,6 +694,35 @@ exports.handler = async (event) => {
             // #endregion
           }
         }
+      }
+
+      if (fields.debugSession === 'cb1f49' && isCartOrder) {
+        const { STRIPE_API_VERSION } = require('./stripe-client');
+        const centsDbg =
+          stripeTotalCentsForDebug != null
+            ? stripeTotalCentsForDebug
+            : usdStringToCents(fields.orderTotalRaw);
+        cartDebugCb1f49 = {
+          hypothesisIds: ['P1', 'P3', 'T1', 'T2'],
+          orderTotalRaw: String(fields.orderTotalRaw || ''),
+          subtotalRaw: String(fields.subtotalRaw || ''),
+          taxRaw: String(fields.taxRaw || ''),
+          totalCentsParsed: centsDbg,
+          checkoutBranch: stripeCheckoutBranchForDebug,
+          stripeSessionAmountTotal: stripeSessionAmountTotalForDebug,
+          colorsBrandError: stripeColorsBrandErrForDebug,
+          hadStripeKey: !!process.env.STRIPE_SECRET_KEY,
+          apiVersion: STRIPE_API_VERSION,
+        };
+        // #region agent log
+        agentDebugIngest({
+          runId: 'pre-fix',
+          hypothesisId: 'P1',
+          location: 'submit-quote.js:cart:debugCb1f49',
+          message: 'cart checkout debug snapshot',
+          data: cartDebugCb1f49,
+        });
+        // #endregion
       }
 
     } else {
@@ -710,6 +785,7 @@ exports.handler = async (event) => {
 
     const okBody = { success: true, checkoutUrl, runtime };
     if (responseDebugStripe) okBody.debugStripe = responseDebugStripe;
+    if (cartDebugCb1f49) okBody.debugCb1f49 = cartDebugCb1f49;
     return { statusCode: 200, body: JSON.stringify(okBody) };
 
   } catch (err) {
