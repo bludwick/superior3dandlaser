@@ -320,7 +320,9 @@ ${fileUrl ? `<p><strong>File:</strong> <a href="${esc(fileUrl)}" target="_blank"
 
 function buildCartOrderEmail(fields, stlFiles) {
   const filesText = stlFiles.length
-    ? `\n--- Attached STL Files (${stlFiles.length}) ---\n${stlFiles.map(f => f.fileName).join('\n')}`
+    ? `\n--- STL Files (${stlFiles.length}) ---\n${stlFiles.map(f => (
+        f.downloadUrl ? `${f.fileName}\nDownload: ${f.downloadUrl}` : f.fileName
+      )).join('\n\n')}`
     : '';
 
   return {
@@ -366,6 +368,13 @@ ${fields.paymentId ? `Payment ID: ${fields.paymentId}` : ''}
 </table>
 <p><strong>Payment Status:</strong> ${esc(fields.paymentStatus || 'Pending')}</p>
 ${fields.paymentId ? `<p><strong>Payment ID:</strong> ${esc(fields.paymentId)}</p>` : ''}
+${stlFiles.length ? `
+<h3>STL Files (${stlFiles.length})</h3>
+<ul>${stlFiles.map(f => (
+  f.downloadUrl
+    ? `<li><a href="${esc(f.downloadUrl)}" target="_blank" rel="noreferrer noopener">${esc(f.fileName)}</a></li>`
+    : `<li>${esc(f.fileName)} (attached)</li>`
+)).join('')}</ul>` : ''}
     `.trim(),
   };
 }
@@ -467,10 +476,33 @@ exports.handler = async (event) => {
 
     } else if (formType === 'cart' || fields.orderType === 'cart-order') {
       isCartOrder = true;
-      const stlFiles = savedFiles.filter(f => f.fieldName.startsWith('stlFile'));
+
+      // The cart uploads STLs directly to Supabase via sign-upload (to bypass Netlify's
+      // ~6MB function body limit). Those arrive here as `uploadedStlKeys` JSON. Older
+      // clients may still attach STLs to the multipart body — we support both.
+      let directStlList = [];
+      try {
+        const parsed = JSON.parse(fields.uploadedStlKeys || '[]');
+        if (Array.isArray(parsed)) directStlList = parsed;
+      } catch { /* ignore malformed list */ }
+
+      const directStlFiles = await Promise.all(directStlList.map(async (u) => {
+        let downloadUrl = null;
+        try {
+          downloadUrl = await signDownloadUrl(String(u.key), String(u.fileName || ''));
+        } catch (e) {
+          console.error('[submit-quote] Failed to sign STL download URL:', e?.message || String(e));
+        }
+        return { fileName: String(u.fileName || ''), key: String(u.key), downloadUrl };
+      }));
+
+      const multipartStlFiles = savedFiles.filter(f => f.fieldName.startsWith('stlFile'));
+      const stlFiles = [...directStlFiles, ...multipartStlFiles];
       mailBody = buildCartOrderEmail(fields, stlFiles);
 
-      attachments = stlFiles.map(f => ({ filename: f.fileName, content: f.buffer }));
+      // Only multipart-attached STLs have buffers available to attach to the email.
+      // Direct-upload STLs are linked via signed download URL in the email body instead.
+      attachments = multipartStlFiles.map(f => ({ filename: f.fileName, content: f.buffer }));
       debug.attachmentsCount = attachments.length;
 
       let orderId   = null;

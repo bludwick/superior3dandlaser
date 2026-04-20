@@ -3870,13 +3870,48 @@ async function submitOrderToBackend(orderData, paymentId) {
     `--- Notes ---\n${notes || 'None'}\n\nPayment: Pending — to be collected upon confirmation`
   );
 
-  // Attach STL files for each cart item (if available in memory)
-  items.forEach(item => {
+  // Upload STL files directly to Supabase (bypasses Netlify's ~6MB function body limit).
+  // Without this, large STLs cause the edge to reject the multipart POST with HTTP 400
+  // before submit-quote ever runs, blocking the Stripe checkout redirect.
+  const uploadedStlKeys = [];
+  for (const item of items) {
     const stlFile = window._cartSTLFiles && window._cartSTLFiles[item.id];
-    if (stlFile instanceof File) {
-      body.append(`stlFile_${item.id}`, stlFile, stlFile.name);
+    if (!(stlFile instanceof File)) continue;
+    try {
+      const signRes = await fetch('/.netlify/functions/sign-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName:    stlFile.name,
+          contentType: stlFile.type || 'application/octet-stream',
+        }),
+      });
+      const signJson = await signRes.json().catch(() => ({}));
+      if (!signRes.ok || !signJson.signedUrl || !signJson.path) {
+        throw new Error(signJson.error || `sign-upload HTTP ${signRes.status}`);
+      }
+      const putRes = await fetch(signJson.signedUrl, {
+        method:  'PUT',
+        headers: { 'Content-Type': stlFile.type || 'application/octet-stream' },
+        body:    stlFile,
+      });
+      if (!putRes.ok) {
+        throw new Error(`Supabase PUT HTTP ${putRes.status}`);
+      }
+      uploadedStlKeys.push({
+        itemId:   item.id,
+        key:      signJson.path,
+        fileName: stlFile.name,
+      });
+    } catch (uploadErr) {
+      // Best-effort: if one STL fails to upload, continue so the order still goes through.
+      // Admin will follow up for the missing file.
+      console.error('[Cart] STL upload failed for', stlFile && stlFile.name, uploadErr);
     }
-  });
+  }
+  if (uploadedStlKeys.length) {
+    body.append('uploadedStlKeys', JSON.stringify(uploadedStlKeys));
+  }
 
   // #region agent log
   if (isCartDebugUrl()) {
