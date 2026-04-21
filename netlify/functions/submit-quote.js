@@ -563,7 +563,7 @@ exports.handler = async (event) => {
           for (const it of cartItems) {
             const qty = Math.max(1, parseInt(it.qty, 10) || 1);
             // lineTotal already incorporates unitPrice×qty + printLabourFlat + colorSurcharge.
-            const lineTotalCents = Math.max(0, usdStringToCents((Number(it.lineTotal) || 0).toFixed(2)));
+            const lineTotalCents = Math.max(0, Math.round((Number(it.lineTotal) || 0) * 100));
             const baseName = (String(it.fileName || '').slice(0, 240)) || 'Custom print';
             // Append qty to name if >1 so the customer can see how many units are billed.
             const displayName = qty > 1 ? `${baseName} × ${qty}`.slice(0, 240) : baseName;
