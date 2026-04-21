@@ -3928,6 +3928,27 @@ async function submitOrderToBackend(orderData, paymentId) {
     body.append('debugStripe', '85749a');
   }
 
+  // Always log exactly what's being sent so any UI-vs-Stripe total mismatch is diagnosable from the console.
+  try {
+    console.info('[Cart] POST /submit-quote payload', {
+      subtotalRaw:    subtotal.toFixed(2),
+      taxRaw:         tax.toFixed(2),
+      orderTotalRaw:  total.toFixed(2),
+      ltSurchargeRaw: Number(ltSurcharge || 0).toFixed(2),
+      itemCount:      items.length,
+      items: items.map(function (i) {
+        return {
+          fileName:        i.fileName,
+          qty:             i.qty,
+          unitPrice:       i.unitPrice,
+          printLabourFlat: i.printLabourFlat,
+          colorSurcharge:  i.colorSurcharge,
+          lineTotal:       i.lineTotal,
+        };
+      }),
+    });
+  } catch (e) { /* best-effort logging */ }
+
   const res = await fetch('/.netlify/functions/submit-quote', { method: 'POST', body });
   const resText = await res.text();
 

@@ -540,7 +540,6 @@ exports.handler = async (event) => {
       let stripeCheckoutBranchForDebug = null;
       let stripeTotalCentsForDebug = null;
       let stripeSessionAmountTotalForDebug = null;
-      let stripeColorsBrandErrForDebug = null;
       if (orderId && process.env.STRIPE_SECRET_KEY) {
         try {
           stage = 'stripeCheckout';
@@ -681,65 +680,31 @@ exports.handler = async (event) => {
               customer_email: fields.email || undefined,
               metadata:       { orderId },
             };
-            const checkoutCustomText = {
+            // Session-level `branding_settings` are intentionally omitted so the
+            // Stripe Dashboard branding settings (Test and Live each configured
+            // separately) are the single source of truth for logo/colors/name.
+            // That eliminates intermittent unbranded Checkout pages caused by
+            // transient session-branding failures.
+            const customTextPayload = {
               submit: {
                 message: 'You are paying Superior 3D and Laser for your custom 3D print order.',
               },
             };
-            const siteBase = String(SITE_URL).replace(/\/$/, '');
-            const brandColors = {
-              display_name:     'Superior 3D and Laser',
-              background_color: '#ffffff',
-              button_color:     '#b91c1c',
-              border_style:     'rounded',
-            };
-            // Hosted Checkout: try colors+name first (no logo). Logo URLs often fail Stripe fetch; they must not block theme.
-            const customTextPayload = { submit: checkoutCustomText.submit };
             let session;
             let checkoutBranch = null;
             try {
               session = await stripe.checkout.sessions.create({
                 ...sessionParamsBase,
-                custom_text:       customTextPayload,
-                branding_settings: brandColors,
+                custom_text: customTextPayload,
               });
-              checkoutBranch = 'colors_only';
+              checkoutBranch = 'custom_text';
             } catch (e1) {
-              stripeColorsBrandErrForDebug = String(e1.message || '').slice(0, 200);
-              console.warn('[submit-quote] Checkout with colors branding failed, retrying with logo:', e1.message);
+              console.warn('[submit-quote] Checkout with custom_text failed, retrying base:', e1.message);
               // #region agent log
-              agentDebugIngest({ runId: 'post-fix', hypothesisId: 'T1', location: 'submit-quote.js:stripe:e1', message: 'checkout create failed (colors brand)', data: { code: e1.code || null, type: e1.type || null } });
+              agentDebugIngest({ runId: 'post-fix', hypothesisId: 'B1', location: 'submit-quote.js:stripe:e1', message: 'checkout create failed (custom_text)', data: { code: e1.code || null, type: e1.type || null } });
               // #endregion
-              try {
-                session = await stripe.checkout.sessions.create({
-                  ...sessionParamsBase,
-                  custom_text:       customTextPayload,
-                  branding_settings: {
-                    ...brandColors,
-                    logo: { type: 'url', url: `${siteBase}/3dprint-icon.svg` },
-                  },
-                });
-                checkoutBranch = 'logo_brand';
-              } catch (e2) {
-                console.warn('[submit-quote] Checkout with logo branding failed, retrying custom_text only:', e2.message);
-                // #region agent log
-                agentDebugIngest({ runId: 'post-fix', hypothesisId: 'H1', location: 'submit-quote.js:stripe:e2', message: 'checkout create failed (logo brand)', data: { code: e2.code || null, type: e2.type || null } });
-                // #endregion
-                try {
-                  session = await stripe.checkout.sessions.create({
-                    ...sessionParamsBase,
-                    custom_text: customTextPayload,
-                  });
-                  checkoutBranch = 'custom_text_only';
-                } catch (e3) {
-                  console.warn('[submit-quote] Checkout with custom_text failed, retrying base:', e3.message);
-                  // #region agent log
-                  agentDebugIngest({ runId: 'post-fix', hypothesisId: 'H1', location: 'submit-quote.js:stripe:e3', message: 'checkout create failed (custom_text)', data: { code: e3.code || null, type: e3.type || null } });
-                  // #endregion
-                  session = await stripe.checkout.sessions.create(sessionParamsBase);
-                  checkoutBranch = 'base';
-                }
-              }
+              session = await stripe.checkout.sessions.create(sessionParamsBase);
+              checkoutBranch = 'base';
             }
             checkoutUrl = session && session.url ? session.url : checkoutUrl;
             if (session) {
@@ -804,7 +769,6 @@ exports.handler = async (event) => {
           totalCentsParsed: centsDbg,
           checkoutBranch: stripeCheckoutBranchForDebug,
           stripeSessionAmountTotal: stripeSessionAmountTotalForDebug,
-          colorsBrandError: stripeColorsBrandErrForDebug,
           hadStripeKey: !!process.env.STRIPE_SECRET_KEY,
           apiVersion: STRIPE_API_VERSION,
         };
