@@ -489,6 +489,12 @@
       <span class="nav-icon">🧱</span>
       <span>Materials & Rates</span>
     </button>
+    <span class="sidebar-section">Accounting</span>
+    <button class="nav-item" onclick="showPage('quickbooks', this)">
+      <span class="nav-icon">📒</span>
+      <span>QuickBooks</span>
+      <span class="nav-badge" id="qbBadge" style="display:none;"></span>
+    </button>
   </aside>
 
   <!-- MAIN CONTENT -->
@@ -632,6 +638,121 @@
       </div>
     </div>
 
+    <!-- ── QUICKBOOKS PAGE ── -->
+    <div class="page" id="page-quickbooks">
+      <div class="page-header">
+        <div class="page-title">QuickBooks Desktop</div>
+        <div class="page-sub">Sync paid print jobs into QuickBooks Desktop via the Web Connector. Invoices are pushed for unpaid jobs; sales receipts for already-paid jobs; payments are recorded when an invoiced job is later paid.</div>
+      </div>
+
+      <div class="stat-row" id="qbStats">
+        <div class="stat-card"><div class="stat-label">Paid Jobs</div><div class="stat-val" id="qbStatJobs">—</div></div>
+        <div class="stat-card"><div class="stat-label">Revenue</div><div class="stat-val" id="qbStatRevenue">—</div></div>
+        <div class="stat-card"><div class="stat-label">Tax Collected</div><div class="stat-val" id="qbStatTax">—</div></div>
+        <div class="stat-card"><div class="stat-label">Pending Sync</div><div class="stat-val" id="qbStatPending">—</div></div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-card-header">
+          <div class="section-card-icon">🔌</div>
+          <span class="section-card-title">Connection</span>
+          <span id="qbConnStatus" style="margin-left:auto;font-size:12px;color:var(--muted);">—</span>
+        </div>
+        <div class="section-card-body">
+          <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
+            Install the free <strong>QuickBooks Web Connector</strong> on the Windows PC running QuickBooks Desktop, then import the <code>.qwc</code> file below. The Web Connector will poll this endpoint every 5 minutes and push pending changes.
+          </div>
+          <div class="fields-grid">
+            <div class="field"><label>QBWC Username</label><input type="text" id="qb-username" placeholder="e.g. superior-qbwc"></div>
+            <div class="field"><label>QBWC Password <span id="qb-pwd-status" style="font-size:10px;color:var(--muted);"></span></label><input type="password" id="qb-password" placeholder="Leave blank to keep current"></div>
+            <div class="field"><label>Default QB Item</label><input type="text" id="qb-item" placeholder="3D Printing Service"><span class="hint">All line items are mapped to this QB Item/Service</span></div>
+            <div class="field"><label>Taxable Tax Code</label><input type="text" id="qb-taxcode" placeholder="TAX"></div>
+            <div class="field"><label>Non-Taxable Code</label><input type="text" id="qb-nontaxcode" placeholder="NON"></div>
+            <div class="field"><label>Payment Method</label><input type="text" id="qb-paymethod" placeholder="Stripe"></div>
+            <div class="field"><label>Company File (optional)</label><input type="text" id="qb-companyfile" placeholder="Leave blank for currently-open file"></div>
+            <div class="field">
+              <label>Auto-Sync on Payment</label>
+              <select id="qb-autosync">
+                <option value="true">Enabled</option>
+                <option value="false">Disabled</option>
+              </select>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn-primary" onclick="saveQbSettings()">💾 Save Settings</button>
+            <button class="btn-secondary" onclick="downloadQwc()">⬇ Download .qwc File</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-card-header">
+          <div class="section-card-icon">⏱</div>
+          <span class="section-card-title">Sync Queue</span>
+          <button class="refresh-btn" style="margin-left:auto;" onclick="loadQbQueue()">↺ Refresh</button>
+        </div>
+        <div class="section-card-body" style="padding:0;">
+          <div style="overflow-x:auto;">
+            <table class="mat-table" id="qbQueueTable">
+              <thead>
+                <tr>
+                  <th style="width:150px;">Created</th>
+                  <th>Job</th>
+                  <th style="width:120px;">Operation</th>
+                  <th style="width:110px;">Status</th>
+                  <th style="width:70px;">Tries</th>
+                  <th>QB TxnID / Error</th>
+                  <th style="width:140px;"></th>
+                </tr>
+              </thead>
+              <tbody id="qbQueueBody">
+                <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted);">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-card-header">
+          <div class="section-card-icon">📈</div>
+          <span class="section-card-title">Revenue Report</span>
+          <div style="margin-left:auto;display:flex;gap:6px;align-items:center;font-size:12px;">
+            <label style="color:var(--muted);">From</label>
+            <input type="date" id="qb-from" style="padding:4px 6px;font-size:12px;">
+            <label style="color:var(--muted);">To</label>
+            <input type="date" id="qb-to"   style="padding:4px 6px;font-size:12px;">
+            <button class="refresh-btn" onclick="loadQbRevenue()">Apply</button>
+          </div>
+        </div>
+        <div class="section-card-body">
+          <div class="stat-row">
+            <div class="stat-card"><div class="stat-label">By Material</div><div id="qbByMaterial" style="font-size:12px;margin-top:6px;line-height:1.6;">—</div></div>
+            <div class="stat-card"><div class="stat-label">By Part</div><div id="qbByPart" style="font-size:12px;margin-top:6px;line-height:1.6;max-height:160px;overflow:auto;">—</div></div>
+            <div class="stat-card"><div class="stat-label">By Day</div><div id="qbByDay" style="font-size:12px;margin-top:6px;line-height:1.6;max-height:160px;overflow:auto;">—</div></div>
+          </div>
+          <div style="overflow-x:auto;margin-top:12px;">
+            <table class="mat-table" id="qbRevenueTable">
+              <thead>
+                <tr>
+                  <th style="width:150px;">Paid</th>
+                  <th>Customer</th>
+                  <th style="width:90px;">Items</th>
+                  <th style="width:100px;">Subtotal</th>
+                  <th style="width:100px;">Tax</th>
+                  <th style="width:100px;">Total</th>
+                  <th style="width:160px;">QB Status</th>
+                </tr>
+              </thead>
+              <tbody id="qbRevenueBody">
+                <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted);">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -734,9 +855,10 @@ function showPage(id, btn) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
   btn.classList.add('active');
-  if (id === 'pricing')   loadPricingSettings();
-  if (id === 'materials') loadMatLibrary();
-  if (id === 'jobs')      loadJobs();
+  if (id === 'pricing')    loadPricingSettings();
+  if (id === 'materials')  loadMatLibrary();
+  if (id === 'jobs')       loadJobs();
+  if (id === 'quickbooks') loadQuickBooksTab();
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
@@ -1858,6 +1980,219 @@ async function submitNewJob() {
     const label = isEdit ? '✓ Save Changes' : '✓ Create Job';
     showToast((isEdit ? 'Failed to update job: ' : 'Failed to create job: ') + err.message);
     btns.forEach(b => { b.disabled = false; b.textContent = label; });
+  }
+}
+
+// ── QuickBooks ────────────────────────────────────────────────────────────────
+async function loadQuickBooksTab() {
+  await Promise.all([loadQbSettings(), loadQbQueue(), loadQbRevenue()]);
+}
+
+async function loadQbSettings() {
+  try {
+    const res = await fetch('/api/admin/qb/settings');
+    if (res.status === 401) { window.location.href = '/admin/login.html'; return; }
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const s = await res.json();
+    document.getElementById('qb-username').value     = s.qbwcUsername    || '';
+    document.getElementById('qb-item').value         = s.defaultItemName || '';
+    document.getElementById('qb-taxcode').value      = s.defaultTaxCode  || '';
+    document.getElementById('qb-nontaxcode').value   = s.nonTaxCode      || '';
+    document.getElementById('qb-paymethod').value    = s.paymentMethod   || '';
+    document.getElementById('qb-companyfile').value  = s.companyFile     || '';
+    document.getElementById('qb-autosync').value     = s.autoSyncEnabled === false ? 'false' : 'true';
+    document.getElementById('qb-pwd-status').textContent = s.qbwcPasswordConfigured ? '• configured' : '• not set';
+    const connStatus = document.getElementById('qbConnStatus');
+    if (s.lastSyncAt) {
+      const mins = Math.floor((Date.now() - new Date(s.lastSyncAt)) / 60000);
+      const recent = mins < 30;
+      connStatus.textContent = recent ? `● Connected — last sync ${mins} min ago` : `○ Last sync ${mins} min ago`;
+      connStatus.style.color = recent ? '#0b8f3e' : 'var(--muted)';
+    } else {
+      connStatus.textContent = '○ Not yet connected';
+      connStatus.style.color = 'var(--muted)';
+    }
+    if (s.lastSyncError) {
+      connStatus.textContent += ` — error: ${s.lastSyncError}`;
+      connStatus.style.color = 'var(--accent)';
+    }
+  } catch (err) {
+    showToast('Failed to load QB settings: ' + err.message);
+  }
+}
+
+async function saveQbSettings() {
+  const body = {
+    qbwcUsername:    document.getElementById('qb-username').value.trim(),
+    qbwcPassword:    document.getElementById('qb-password').value,
+    defaultItemName: document.getElementById('qb-item').value.trim(),
+    defaultTaxCode:  document.getElementById('qb-taxcode').value.trim(),
+    nonTaxCode:      document.getElementById('qb-nontaxcode').value.trim(),
+    paymentMethod:   document.getElementById('qb-paymethod').value.trim(),
+    companyFile:     document.getElementById('qb-companyfile').value.trim(),
+    autoSyncEnabled: document.getElementById('qb-autosync').value === 'true',
+  };
+  if (!body.qbwcPassword) delete body.qbwcPassword;
+  try {
+    const res = await fetch('/api/admin/qb/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'HTTP ' + res.status);
+    }
+    showToast('Settings saved');
+    document.getElementById('qb-password').value = '';
+    await loadQbSettings();
+  } catch (err) {
+    showToast('Save failed: ' + err.message);
+  }
+}
+
+function downloadQwc() {
+  // Opens in a new tab so the browser respects the Content-Disposition attachment header.
+  window.location.href = '/api/admin/qb/qwc';
+}
+
+async function loadQbQueue() {
+  const tbody = document.getElementById('qbQueueBody');
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted);">Loading…</td></tr>';
+  try {
+    const res = await fetch('/api/admin/qb/queue');
+    if (res.status === 401) { window.location.href = '/admin/login.html'; return; }
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const tasks = data.tasks || [];
+    const pendingCount = tasks.filter(t => t.status === 'pending' || t.status === 'in_progress').length;
+    document.getElementById('qbStatPending').textContent = pendingCount;
+    const qbBadge = document.getElementById('qbBadge');
+    if (pendingCount > 0) { qbBadge.textContent = pendingCount; qbBadge.style.display = ''; }
+    else qbBadge.style.display = 'none';
+
+    if (!tasks.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted);">No sync tasks yet. Tasks appear here when print jobs are created or paid.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = tasks.map(t => {
+      const created = t.createdAt ? new Date(t.createdAt).toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : '—';
+      const opLabel = { invoice: 'Invoice', sales_receipt: 'Sales Receipt', payment: 'Payment' }[t.op] || t.op;
+      const statusColor = {
+        pending: 'var(--muted)', in_progress: '#1e6fe0', done: '#0b8f3e',
+        failed: 'var(--accent)', canceled: 'var(--muted)',
+      }[t.status] || 'var(--muted)';
+      const detail = t.qbTxnId
+        ? `<span style="font-family:monospace;font-size:11px;">${esc(t.qbTxnId)}</span>`
+        : (t.lastError ? `<span style="color:var(--accent);font-size:11px;">${esc(t.lastError)}</span>` : '—');
+      const retryBtn = (t.status === 'failed' || t.status === 'canceled')
+        ? `<button class="btn-secondary" style="font-size:11px;padding:4px 10px;" onclick="retryQbTask('${esc(t.id)}')">↻ Retry</button>`
+        : '';
+      const delBtn = `<button class="btn-secondary" style="font-size:11px;padding:4px 10px;margin-left:4px;" onclick="deleteQbTask('${esc(t.id)}')">✕</button>`;
+      return `<tr>
+        <td style="font-size:11px;">${esc(created)}</td>
+        <td style="font-family:monospace;font-size:11px;">${esc(t.jobId || '')}</td>
+        <td>${opLabel}</td>
+        <td><span style="color:${statusColor};font-weight:600;">${esc(t.status)}</span></td>
+        <td style="text-align:center;">${t.attempts || 0}</td>
+        <td>${detail}</td>
+        <td style="text-align:right;">${retryBtn}${delBtn}</td>
+      </tr>`;
+    }).join('');
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--accent);">Failed: ${esc(err.message)}</td></tr>`;
+  }
+}
+
+async function retryQbTask(id) {
+  try {
+    const res = await fetch('/api/admin/qb/retry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ taskId: id }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    showToast('Task re-queued');
+    await loadQbQueue();
+  } catch (err) {
+    showToast('Retry failed: ' + err.message);
+  }
+}
+
+async function deleteQbTask(id) {
+  if (!confirm('Delete this sync task?')) return;
+  try {
+    const res = await fetch('/api/admin/qb/item?id=' + encodeURIComponent(id), { method: 'DELETE' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    await loadQbQueue();
+  } catch (err) {
+    showToast('Delete failed: ' + err.message);
+  }
+}
+
+async function loadQbRevenue() {
+  const tbody = document.getElementById('qbRevenueBody');
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted);">Loading…</td></tr>';
+  try {
+    const from = document.getElementById('qb-from').value;
+    const to   = document.getElementById('qb-to').value;
+    const params = new URLSearchParams();
+    if (from) params.set('from', from);
+    if (to)   params.set('to', to);
+    const res = await fetch('/api/admin/qb/revenue' + (params.toString() ? '?' + params.toString() : ''));
+    if (res.status === 401) { window.location.href = '/admin/login.html'; return; }
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+
+    document.getElementById('qbStatJobs').textContent    = data.totals.jobCount;
+    document.getElementById('qbStatRevenue').textContent = '$' + data.totals.revenue.toFixed(2);
+    document.getElementById('qbStatTax').textContent     = '$' + data.totals.tax.toFixed(2);
+
+    const fmtGroup = (obj) => {
+      const entries = Object.entries(obj).sort((a, b) => b[1] - a[1]);
+      if (!entries.length) return '<span style="color:var(--muted);">No data</span>';
+      return entries.map(([k, v]) =>
+        `<div style="display:flex;justify-content:space-between;"><span>${esc(k)}</span><strong>$${v.toFixed(2)}</strong></div>`
+      ).join('');
+    };
+    document.getElementById('qbByMaterial').innerHTML = fmtGroup(data.byMaterial || {});
+    document.getElementById('qbByPart').innerHTML     = fmtGroup(data.byPart || {});
+    document.getElementById('qbByDay').innerHTML      = fmtGroup(data.byDay || {});
+
+    if (!data.rows.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted);">No paid jobs in this range.</td></tr>';
+      return;
+    }
+    const statusLabel = {
+      sales_receipt: '✓ Sales Receipt',
+      paid_invoice:  '✓ Invoice + Payment',
+      invoice_only:  '⏳ Invoice posted, payment pending',
+      pending:       '⏳ Sync pending',
+      not_synced:    '○ Not synced',
+    };
+    const statusColor = {
+      sales_receipt: '#0b8f3e', paid_invoice: '#0b8f3e',
+      invoice_only: '#b07b00',  pending: '#1e6fe0', not_synced: 'var(--muted)',
+    };
+    tbody.innerHTML = data.rows.map(r => {
+      const paid = r.paidAt ? new Date(r.paidAt).toLocaleString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' }) : '—';
+      const label = statusLabel[r.qbStatus] || r.qbStatus;
+      const color = statusColor[r.qbStatus] || 'var(--muted)';
+      return `<tr>
+        <td style="font-size:11px;">${esc(paid)}</td>
+        <td>
+          <div style="font-weight:600;">${esc(r.customerName || '—')}</div>
+          <div style="font-size:11px;color:var(--muted);">${esc(r.customerEmail || '')}</div>
+        </td>
+        <td style="text-align:center;">${r.itemCount}</td>
+        <td>$${r.subtotal.toFixed(2)}</td>
+        <td>$${r.tax.toFixed(2)}</td>
+        <td><strong>$${r.total.toFixed(2)}</strong></td>
+        <td><span style="color:${color};font-weight:600;font-size:12px;">${esc(label)}</span></td>
+      </tr>`;
+    }).join('');
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--accent);">Failed: ${esc(err.message)}</td></tr>`;
   }
 }
 

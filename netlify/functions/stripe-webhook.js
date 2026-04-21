@@ -2,7 +2,35 @@ const { getStore } = require('@netlify/blobs');
 const nodemailer   = require('nodemailer');
 const { createStripeClient } = require('./stripe-client');
 
+let _qb;
+try { _qb = require('./_lib/qb-queue'); } catch { _qb = null; }
+
 const SITE_URL = process.env.SITE_URL || 'https://superior3dandlaser.com';
+
+async function enqueueQbForPaidJob(job) {
+  if (!_qb) return;
+  try {
+    const settings = await _qb.getSettings();
+    if (!settings || settings.autoSyncEnabled === false) return;
+
+    // If an invoice was already synced for this job, record a Payment against it.
+    // Otherwise (invoice still pending or never enqueued), cancel any pending
+    // invoice task and create a SalesReceipt directly.
+    const tasks = await _qb.listTasks();
+    const invoiceTask = tasks.find(t => t.jobId === job.id && t.op === 'invoice');
+
+    if (invoiceTask && invoiceTask.status === 'done') {
+      await _qb.enqueueQbTask({ jobId: job.id, op: 'payment' });
+    } else {
+      if (invoiceTask && (invoiceTask.status === 'pending' || invoiceTask.status === 'failed')) {
+        await _qb.cancelPendingTasksFor(job.id, 'invoice');
+      }
+      await _qb.enqueueQbTask({ jobId: job.id, op: 'sales_receipt' });
+    }
+  } catch (err) {
+    console.error('[stripe-webhook] enqueueQbForPaidJob error:', err.message);
+  }
+}
 
 function blobStore(name) {
   const opts = { name, consistency: 'strong' };
@@ -117,6 +145,8 @@ async function handleJobPayment(jobId, session) {
       console.error('[stripe-webhook] email error (job):', err.message);
     }
   }
+
+  await enqueueQbForPaidJob(job);
 
   return { statusCode: 200, body: JSON.stringify({ received: true }) };
 }

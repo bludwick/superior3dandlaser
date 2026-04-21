@@ -7,7 +7,7 @@
   node_bundler = "esbuild"
   # Keep these packages un-bundled so they load correctly at runtime
   # (stripe v17 ESM, busboy streams, nodemailer SMTP all have bundling edge cases)
-  external_node_modules = ["@netlify/blobs", "bcryptjs", "stripe", "busboy", "nodemailer"]
+  external_node_modules = ["@netlify/blobs", "bcryptjs", "stripe", "busboy", "nodemailer", "xml2js"]
 
 [[edge_functions]]
   path = "/admin"
@@ -95,6 +95,16 @@
 [[redirects]]
   from = "/api/stripe/webhook"
   to = "/.netlify/functions/stripe-webhook"
+  status = 200
+
+[[redirects]]
+  from = "/api/qbwc"
+  to = "/.netlify/functions/qbwc"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/qb/*"
+  to = "/.netlify/functions/qb-sync"
   status = 200
 
 [[redirects]]
