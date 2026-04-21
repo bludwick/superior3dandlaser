@@ -3856,9 +3856,10 @@ async function submitOrderToBackend(orderData, paymentId) {
   if (paymentId) body.append('paymentId', paymentId);
   // Extra fields for admin order storage
   body.append('leadTime',      leadTime || 'Standard');
-  body.append('subtotalRaw',   subtotal.toFixed(2));
-  body.append('taxRaw',        tax.toFixed(2));
-  body.append('orderTotalRaw', total.toFixed(2));
+  body.append('subtotalRaw',    subtotal.toFixed(2));
+  body.append('taxRaw',         tax.toFixed(2));
+  body.append('orderTotalRaw',  total.toFixed(2));
+  body.append('ltSurchargeRaw', Number(ltSurcharge || 0).toFixed(2));
   if (isCartDebugUrl()) body.append('debugSession', 'cb1f49');
   // Strip thumbnail (large data URL) before serialising — it's display-only and can exceed busboy's field size limit
   body.append('itemsJson',     JSON.stringify(items.map(({ thumbnail, ...rest }) => rest)));

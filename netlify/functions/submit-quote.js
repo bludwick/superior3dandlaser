@@ -549,18 +549,112 @@ exports.handler = async (event) => {
           let totalCents = usdStringToCents(fields.orderTotalRaw);
           if (!Number.isFinite(totalCents) || totalCents < 0) totalCents = 0;
           stripeTotalCentsForDebug = totalCents;
-          const productData   = { name: 'Cart order — Superior 3D and Laser' };
-          if (fields.itemCount) {
-            productData.description = `${String(fields.itemCount)} item(s)`;
+
+          // Build itemized line items so the Stripe Checkout page mirrors the calculator breakdown.
+          // Tax is reconciled as (expectedTotal − preTax) so Stripe's amount_total always matches
+          // the customer-visible total — eliminates intermittent price drift from rounding.
+          const lineItems = [];
+          let cartItems = [];
+          try { cartItems = JSON.parse(fields.itemsJson || '[]'); } catch { cartItems = []; }
+          if (!Array.isArray(cartItems)) cartItems = [];
+
+          let subtotalCents = 0;
+          for (const it of cartItems) {
+            const qty = Math.max(1, parseInt(it.qty, 10) || 1);
+            const unitPriceCents = Math.max(0, Math.round((Number(it.unitPrice) || 0) * 100));
+            const labourCents    = Math.max(0, Math.round((Number(it.printLabourFlat) || 0) * 100));
+            const colorCents     = Math.max(0, Math.round((Number(it.colorSurcharge) || 0) * 100));
+            const baseName = (String(it.fileName || '').slice(0, 240)) || 'Custom print';
+            const descParts = [it.material, it.infill ? `${it.infill} infill` : null, it.color]
+              .filter(Boolean).map(String);
+            const description = descParts.join(' · ').slice(0, 500) || undefined;
+
+            if (unitPriceCents > 0) {
+              lineItems.push({
+                price_data: {
+                  currency: 'usd',
+                  product_data: description ? { name: baseName, description } : { name: baseName },
+                  unit_amount: unitPriceCents,
+                },
+                quantity: qty,
+              });
+              subtotalCents += unitPriceCents * qty;
+            }
+            if (labourCents > 0) {
+              lineItems.push({
+                price_data: {
+                  currency: 'usd',
+                  product_data: { name: `Setup & labour — ${baseName}`.slice(0, 240) },
+                  unit_amount: labourCents,
+                },
+                quantity: 1,
+              });
+              subtotalCents += labourCents;
+            }
+            if (colorCents > 0) {
+              lineItems.push({
+                price_data: {
+                  currency: 'usd',
+                  product_data: { name: `Color surcharge — ${baseName}`.slice(0, 240) },
+                  unit_amount: colorCents,
+                },
+                quantity: 1,
+              });
+              subtotalCents += colorCents;
+            }
           }
-          const lineItems = [{
-            price_data: {
-              currency:     'usd',
-              product_data: productData,
-              unit_amount:  totalCents,
-            },
-            quantity: 1,
-          }];
+
+          const ltSurchargeCents = Math.max(0, usdStringToCents(fields.ltSurchargeRaw));
+          if (ltSurchargeCents > 0) {
+            const ltLabel = String(fields.leadTime || 'Rush').slice(0, 200);
+            lineItems.push({
+              price_data: {
+                currency: 'usd',
+                product_data: { name: `Lead-time surcharge — ${ltLabel}`.slice(0, 240) },
+                unit_amount: ltSurchargeCents,
+              },
+              quantity: 1,
+            });
+          }
+
+          // Reconciled tax = customer-visible total minus everything billed so far.
+          const preTaxCents = subtotalCents + ltSurchargeCents;
+          let taxCents = totalCents - preTaxCents;
+          if (taxCents < 0) taxCents = Math.max(0, usdStringToCents(fields.taxRaw));
+          if (taxCents > 0) {
+            lineItems.push({
+              price_data: {
+                currency: 'usd',
+                product_data: { name: 'Sales Tax (8.5%)' },
+                unit_amount: taxCents,
+              },
+              quantity: 1,
+            });
+          }
+
+          // Safety: if itemsJson was empty/malformed or the sum doesn't match the customer's
+          // total, fall back to a single lumped line item so Stripe still charges correctly.
+          const lineItemsSumCents = lineItems.reduce(
+            (s, li) => s + li.price_data.unit_amount * li.quantity, 0
+          );
+          if (lineItems.length === 0 || lineItemsSumCents !== totalCents) {
+            if (lineItems.length > 0) {
+              console.warn('[submit-quote] itemized line-item sum mismatch; using lumped line item', {
+                lineItemsSumCents, totalCents, itemCount: cartItems.length,
+              });
+            }
+            lineItems.length = 0;
+            const productData = { name: 'Cart order — Superior 3D and Laser' };
+            if (fields.itemCount) productData.description = `${String(fields.itemCount)} item(s)`;
+            lineItems.push({
+              price_data: {
+                currency:     'usd',
+                product_data: productData,
+                unit_amount:  totalCents,
+              },
+              quantity: 1,
+            });
+          }
 
           if (totalCents < 50) {
             stripeCheckoutBranchForDebug = 'skipped_below_min';
