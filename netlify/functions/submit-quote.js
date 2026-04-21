@@ -550,8 +550,10 @@ exports.handler = async (event) => {
           stripeTotalCentsForDebug = totalCents;
 
           // Build itemized line items so the Stripe Checkout page mirrors the calculator breakdown.
-          // Tax is reconciled as (expectedTotal − preTax) so Stripe's amount_total always matches
-          // the customer-visible total — eliminates intermittent price drift from rounding.
+          // Each cart item uses item.lineTotal (= unitPrice×qty + printLabourFlat + colorSurcharge)
+          // as the Stripe unit_amount (quantity=1). This matches the TOTAL column the customer
+          // sees, avoids any mismatch caused by labour/color fields being absent on older cart
+          // items, and keeps the reconciliation simple and reliable.
           const lineItems = [];
           let cartItems = [];
           try { cartItems = JSON.parse(fields.itemsJson || '[]'); } catch { cartItems = []; }
@@ -560,46 +562,27 @@ exports.handler = async (event) => {
           let subtotalCents = 0;
           for (const it of cartItems) {
             const qty = Math.max(1, parseInt(it.qty, 10) || 1);
-            const unitPriceCents = Math.max(0, Math.round((Number(it.unitPrice) || 0) * 100));
-            const labourCents    = Math.max(0, Math.round((Number(it.printLabourFlat) || 0) * 100));
-            const colorCents     = Math.max(0, Math.round((Number(it.colorSurcharge) || 0) * 100));
+            // lineTotal already incorporates unitPrice×qty + printLabourFlat + colorSurcharge.
+            const lineTotalCents = Math.max(0, usdStringToCents((Number(it.lineTotal) || 0).toFixed(2)));
             const baseName = (String(it.fileName || '').slice(0, 240)) || 'Custom print';
+            // Append qty to name if >1 so the customer can see how many units are billed.
+            const displayName = qty > 1 ? `${baseName} × ${qty}`.slice(0, 240) : baseName;
             const descParts = [it.material, it.infill ? `${it.infill} infill` : null, it.color]
               .filter(Boolean).map(String);
             const description = descParts.join(' · ').slice(0, 500) || undefined;
 
-            if (unitPriceCents > 0) {
+            if (lineTotalCents > 0) {
               lineItems.push({
                 price_data: {
                   currency: 'usd',
-                  product_data: description ? { name: baseName, description } : { name: baseName },
-                  unit_amount: unitPriceCents,
-                },
-                quantity: qty,
-              });
-              subtotalCents += unitPriceCents * qty;
-            }
-            if (labourCents > 0) {
-              lineItems.push({
-                price_data: {
-                  currency: 'usd',
-                  product_data: { name: `Setup & labour — ${baseName}`.slice(0, 240) },
-                  unit_amount: labourCents,
+                  product_data: description
+                    ? { name: displayName, description }
+                    : { name: displayName },
+                  unit_amount: lineTotalCents,
                 },
                 quantity: 1,
               });
-              subtotalCents += labourCents;
-            }
-            if (colorCents > 0) {
-              lineItems.push({
-                price_data: {
-                  currency: 'usd',
-                  product_data: { name: `Color surcharge — ${baseName}`.slice(0, 240) },
-                  unit_amount: colorCents,
-                },
-                quantity: 1,
-              });
-              subtotalCents += colorCents;
+              subtotalCents += lineTotalCents;
             }
           }
 
