@@ -81,8 +81,9 @@ async function updateStatus(orderId, body) {
   } catch {
     return jsonResponse(400, { error: 'Invalid body' });
   }
-  if (!['pending', 'confirmed'].includes(status)) {
-    return jsonResponse(400, { error: 'Status must be "pending" or "confirmed"' });
+  const VALID_STATUSES = ['Quote Request', 'New', 'Printing', 'Shipped', 'Complete'];
+  if (!VALID_STATUSES.includes(status)) {
+    return jsonResponse(400, { error: `Status must be one of: ${VALID_STATUSES.join(', ')}` });
   }
 
   try {

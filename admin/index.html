@@ -284,6 +284,22 @@
   .status-badge.complete { background: rgba(15,118,110,.1); color: #0f766e; border: 1px solid rgba(15,118,110,.25); }
   .status-badge.confirmed { background: rgba(21,128,61,.1); color: #15803d; border: 1px solid rgba(21,128,61,.25); }
   .status-badge.quoted   { background: rgba(234,179,8,.12); color: #854d0e; border: 1px solid rgba(234,179,8,.3); cursor: default !important; }
+
+  /* ── ORDER STATUS SELECT ── */
+  .status-select {
+    font-family: var(--font); font-size: 11px; font-weight: 700; letter-spacing: .04em;
+    text-transform: uppercase; border-radius: 5px; padding: 4px 20px 4px 7px; cursor: pointer;
+    outline: none; border: 1px solid; appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23888'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 6px center; transition: opacity .15s;
+  }
+  .status-select:hover { opacity: .8; }
+  .status-select:disabled { opacity: .5; cursor: wait; }
+  .status-select.quote-request { background-color: rgba(234,179,8,.12); color: #854d0e; border-color: rgba(234,179,8,.4); }
+  .status-select.new            { background-color: rgba(37,99,235,.1);  color: #1d4ed8; border-color: rgba(37,99,235,.3); }
+  .status-select.printing       { background-color: rgba(124,58,237,.1); color: #6d28d9; border-color: rgba(124,58,237,.3); }
+  .status-select.shipped        { background-color: rgba(15,118,110,.1); color: #0f766e; border-color: rgba(15,118,110,.3); }
+  .status-select.complete       { background-color: rgba(21,128,61,.1);  color: #15803d; border-color: rgba(21,128,61,.3); }
   .invoice-btn { font-size: 11px; font-weight: 700; color: var(--muted); background: var(--bg-light); border: 1px solid var(--border); border-radius: 5px; padding: 3px 8px; cursor: pointer; transition: all .15s; }
   .invoice-btn:hover { color: var(--accent); border-color: var(--accent); }
   .edit-job-btn   { font-size: 12px; background: none; border: none; cursor: pointer; color: var(--muted); padding: 2px 5px; border-radius: 4px; transition: all .15s; margin-left: 2px; }
@@ -498,13 +514,13 @@
     <div class="page active" id="page-orders">
       <div class="page-header">
         <div class="page-title">Orders</div>
-        <div class="page-sub">All submitted cart orders. Click a row to expand details.</div>
+        <div class="page-sub">All submitted orders and quote requests. Click a row to expand details.</div>
       </div>
 
       <div class="stat-row" id="orderStats">
         <div class="stat-card"><div class="stat-label">Total Orders</div><div class="stat-val" id="statTotal">—</div></div>
-        <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-val" id="statPending">—</div></div>
-        <div class="stat-card"><div class="stat-label">Confirmed</div><div class="stat-val" id="statConfirmed">—</div></div>
+        <div class="stat-card"><div class="stat-label">Quote Requests</div><div class="stat-val" id="statPending">—</div></div>
+        <div class="stat-card"><div class="stat-label">Active</div><div class="stat-val" id="statConfirmed">—</div></div>
         <div class="stat-card"><div class="stat-label">Revenue</div><div class="stat-val" id="statRevenue">—</div></div>
       </div>
 
@@ -517,8 +533,11 @@
         <div id="orderBulkBar">
           <span class="bulk-count" id="orderBulkCount">0 selected</span>
           <select id="orderBulkStatus">
-            <option value="pending">⏳ Pending</option>
-            <option value="confirmed">✓ Confirmed</option>
+            <option value="Quote Request">📋 Quote Request</option>
+            <option value="New">🆕 New</option>
+            <option value="Printing">🖨 Printing</option>
+            <option value="Shipped">📦 Shipped</option>
+            <option value="Complete">✓ Complete</option>
           </select>
           <button class="bulk-apply-btn" onclick="bulkOrderStatus()">Update Status</button>
           <button class="bulk-delete-btn" onclick="bulkOrderDelete()">🗑 Delete</button>
@@ -760,6 +779,12 @@ function openCalculator() {
 }
 
 // ── Orders ────────────────────────────────────────────────────────────────────
+const ORDER_STATUSES = ['Quote Request', 'New', 'Printing', 'Shipped', 'Complete'];
+function normalizeOrderStatus(status) {
+  if (ORDER_STATUSES.includes(status)) return status;
+  if (status === 'confirmed') return 'New';
+  return 'Quote Request';
+}
 let _orders = [];
 async function loadOrders() {
   const container = document.getElementById('ordersContainer');
@@ -782,15 +807,15 @@ function renderOrders(orders) {
 
   // Stats
   const total     = orders.length;
-  const pending   = orders.filter(o => o.status !== 'confirmed').length;
-  const confirmed = orders.filter(o => o.status === 'confirmed').length;
+  const quoteReqs = orders.filter(o => normalizeOrderStatus(o.status) === 'Quote Request').length;
+  const active    = orders.filter(o => ['New','Printing','Shipped'].includes(normalizeOrderStatus(o.status))).length;
   const revenue   = orders.reduce((s, o) => s + (parseFloat(o.total) || 0), 0);
   document.getElementById('statTotal').textContent     = total;
-  document.getElementById('statPending').textContent   = pending;
-  document.getElementById('statConfirmed').textContent = confirmed;
+  document.getElementById('statPending').textContent   = quoteReqs;
+  document.getElementById('statConfirmed').textContent = active;
   document.getElementById('statRevenue').textContent   = '$' + revenue.toFixed(2);
   const badge = document.getElementById('pendingBadge');
-  if (pending > 0) { badge.textContent = pending; badge.style.display = ''; }
+  if (quoteReqs > 0) { badge.textContent = quoteReqs; badge.style.display = ''; }
   else badge.style.display = 'none';
 
   if (!orders.length) {
@@ -800,11 +825,9 @@ function renderOrders(orders) {
 
   let html = '<table><thead><tr><th class="order-cb"><input type="checkbox" id="orderSelectAll" title="Select all" onchange="orderSelectAll(this)"></th><th>Date</th><th>Customer</th><th>Email</th><th>Lead Time</th><th>Items</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>';
   orders.forEach((o, idx) => {
-    const date    = o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
-    const isQuoted = o.status === 'quoted';
-    const status  = isQuoted ? 'quoted' : (o.status === 'confirmed' ? 'confirmed' : 'pending');
-    const label   = isQuoted ? '📋 Quoted' : (status === 'confirmed' ? '✓ Confirmed' : '⏳ Pending');
-    const clickAttr = isQuoted ? '' : `onclick="toggleStatus('${esc(o.id)}', '${status}', this)"`;
+    const date      = o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+    const status    = normalizeOrderStatus(o.status);
+    const statusCls = status.toLowerCase().replace(/\s+/g, '-');
     const itemCount = (o.items || []).length;
     const invoiceHref = o.invoiceToken ? `/invoice.html?job=${esc(o.id)}&token=${esc(o.invoiceToken)}` : null;
 
@@ -816,9 +839,13 @@ function renderOrders(orders) {
       <td>${esc(o.leadTime || '—')}</td>
       <td>${itemCount} part${itemCount !== 1 ? 's' : ''}</td>
       <td class="order-total">$${parseFloat(o.total || 0).toFixed(2)}</td>
-      <td><span class="status-badge ${status}" ${clickAttr}>${label}</span></td>
+      <td>
+        <select class="status-select ${statusCls}" onchange="changeOrderStatus('${esc(o.id)}', this)" data-prev="${esc(status)}">
+          ${ORDER_STATUSES.map(s => `<option value="${s}"${s === status ? ' selected' : ''}>${s}</option>`).join('')}
+        </select>
+      </td>
       <td style="white-space:nowrap;">
-        ${isQuoted && invoiceHref
+        ${invoiceHref
           ? `<a class="invoice-btn" href="${invoiceHref}" target="_blank">📄 Invoice</a>`
           : `<button class="job-create-btn" onclick="openJobOverlay(_orders[${idx}])">→ Job</button>`}
         <button class="expand-btn" onclick="toggleExpand('row-${idx}', this)">▾</button>
@@ -827,7 +854,10 @@ function renderOrders(orders) {
     <tr class="expand-row" id="row-${idx}">
       <td colspan="9">
         <div class="expand-inner">
+          ${o.source === 'quote' ? `<div style="margin-bottom:6px;"><span style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:rgba(234,179,8,.12);color:#854d0e;border:1px solid rgba(234,179,8,.3);border-radius:4px;padding:2px 7px;">📋 Quote Request</span></div>` : ''}
           ${o.address ? `<div style="margin-bottom:6px;color:var(--muted);font-size:12px;">📦 Ship to: <strong style="color:var(--text);">${esc(o.address)}</strong></div>` : ''}
+          ${o.service ? `<div style="margin-bottom:6px;color:var(--muted);font-size:12px;">🔧 Service: <strong style="color:var(--text);">${esc(o.service)}</strong></div>` : ''}
+          ${o.timeline ? `<div style="margin-bottom:6px;color:var(--muted);font-size:12px;">⏱ Timeline: <strong style="color:var(--text);">${esc(o.timeline)}</strong></div>` : ''}
           ${o.notes && o.notes !== '—' ? `<div style="margin-bottom:6px;color:var(--muted);font-size:12px;">📝 Notes: ${esc(o.notes)}</div>` : ''}
           <div class="expand-items">
             ${(o.items || []).map(item => `
@@ -958,8 +988,10 @@ async function bulkOrderDelete() {
   }
 }
 
-async function toggleStatus(orderId, currentStatus, badgeEl) {
-  const newStatus = currentStatus === 'confirmed' ? 'pending' : 'confirmed';
+async function changeOrderStatus(orderId, selectEl) {
+  const newStatus  = selectEl.value;
+  const prevStatus = selectEl.dataset.prev || newStatus;
+  selectEl.disabled = true;
   try {
     const res = await fetch(`/api/admin/orders/${encodeURIComponent(orderId)}/status`, {
       method:  'POST',
@@ -967,14 +999,16 @@ async function toggleStatus(orderId, currentStatus, badgeEl) {
       body:    JSON.stringify({ status: newStatus }),
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    badgeEl.className = `status-badge ${newStatus}`;
-    badgeEl.textContent = newStatus === 'confirmed' ? '✓ Confirmed' : '⏳ Pending';
-    badgeEl.setAttribute('onclick', `toggleStatus('${orderId}', '${newStatus}', this)`);
-    showToast(newStatus === 'confirmed' ? 'Order marked as confirmed' : 'Order marked as pending');
-    // Refresh stats
+    selectEl.dataset.prev = newStatus;
+    selectEl.className = `status-select ${newStatus.toLowerCase().replace(/\s+/g, '-')}`;
+    showToast(`Status updated to ${newStatus}`);
     loadOrders();
-  } catch {
-    showToast('Failed to update status');
+  } catch (err) {
+    showToast('Failed to update status: ' + err.message);
+    selectEl.value = prevStatus;
+    selectEl.className = `status-select ${prevStatus.toLowerCase().replace(/\s+/g, '-')}`;
+  } finally {
+    selectEl.disabled = false;
   }
 }
 
