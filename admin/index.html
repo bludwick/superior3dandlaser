@@ -84,6 +84,54 @@
     padding: 0 5px;
   }
 
+  /* ── QB SIDEBAR WIDGET ── */
+  .qb-widget {
+    margin-top: auto; position: relative;
+    border-top: 1px solid var(--border); padding-top: 10px;
+  }
+  .qb-widget-btn {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg-light); color: var(--text); cursor: pointer;
+    font-family: var(--font); font-size: 12px; font-weight: 600;
+    transition: all .15s;
+  }
+  .qb-widget-btn:hover { background: var(--bg); border-color: var(--muted); }
+  .qb-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    background: var(--muted); box-shadow: 0 0 0 2px rgba(0,0,0,.05);
+  }
+  .qb-dot.ok      { background: #0b8f3e; box-shadow: 0 0 0 3px rgba(11,143,62,.18); }
+  .qb-dot.warn    { background: #d97706; box-shadow: 0 0 0 3px rgba(217,119,6,.2); }
+  .qb-dot.err     { background: var(--accent); box-shadow: 0 0 0 3px rgba(185,28,28,.18); }
+  .qb-widget-label { flex: 1; text-align: left; line-height: 1.15; }
+  .qb-widget-sub   { font-size: 10px; font-weight: 500; color: var(--muted); margin-top: 1px; }
+  .qb-popover {
+    position: absolute; bottom: calc(100% + 8px); left: 0; right: 0;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.12);
+    padding: 12px; z-index: 50; display: none;
+  }
+  .qb-popover.open { display: block; }
+  .qb-popover-row { display: flex; justify-content: space-between; font-size: 11px; padding: 3px 0; color: var(--muted); }
+  .qb-popover-row strong { color: var(--text); font-weight: 700; }
+  .qb-popover-actions { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+  .qb-popover-btn {
+    padding: 7px 10px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--bg); cursor: pointer; font-family: var(--font);
+    font-size: 12px; font-weight: 600; color: var(--text);
+    display: flex; align-items: center; gap: 6px; justify-content: center;
+  }
+  .qb-popover-btn:hover { background: var(--bg-light); }
+  .qb-popover-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .qb-popover-btn.primary:hover { background: var(--accent-lt); }
+  .qb-popover-btn:disabled { opacity: .5; cursor: wait; }
+  @media (max-width: 768px) {
+    .qb-widget-label, .qb-widget-sub { display: none; }
+    .qb-widget-btn { justify-content: center; padding: 8px; }
+    .qb-popover { position: fixed; bottom: 12px; left: 62px; right: 12px; }
+  }
+
   /* ── MAIN ── */
   .main { flex: 1; padding: 28px; overflow-y: auto; }
   .page { display: none; }
@@ -505,6 +553,36 @@
       <span class="nav-icon">🧱</span>
       <span>Materials & Rates</span>
     </button>
+    <span class="sidebar-section">Accounting</span>
+    <button class="nav-item" onclick="showPage('quickbooks', this)">
+      <span class="nav-icon">📒</span>
+      <span>QuickBooks</span>
+      <span class="nav-badge" id="qbBadge" style="display:none;"></span>
+    </button>
+
+    <!-- Sidebar status widget (pinned to bottom) -->
+    <div class="qb-widget">
+      <button class="qb-widget-btn" id="qbWidgetBtn" type="button" onclick="toggleQbPopover(event)" aria-label="QuickBooks status">
+        <span class="qb-dot" id="qbWidgetDot"></span>
+        <span class="qb-widget-label">
+          <span id="qbWidgetLabel">QuickBooks</span>
+          <span class="qb-widget-sub" id="qbWidgetSub">Checking…</span>
+        </span>
+      </button>
+      <div class="qb-popover" id="qbPopover">
+        <div style="font-size:12px;font-weight:700;margin-bottom:6px;">QuickBooks Desktop</div>
+        <div class="qb-popover-row"><span>Status</span><strong id="qbPopStatus">—</strong></div>
+        <div class="qb-popover-row"><span>Last sync</span><strong id="qbPopLast">—</strong></div>
+        <div class="qb-popover-row"><span>Pending</span><strong id="qbPopPending">—</strong></div>
+        <div class="qb-popover-row"><span>Paid, not synced</span><strong id="qbPopUnsynced">—</strong></div>
+        <div id="qbPopError" style="font-size:11px;color:var(--accent);margin-top:6px;display:none;"></div>
+        <div class="qb-popover-actions">
+          <button class="qb-popover-btn" onclick="refreshQbStatus()" id="qbBtnRefresh">↻ Refresh Status</button>
+          <button class="qb-popover-btn primary" onclick="pushAllToQb()" id="qbBtnPush">⬆ Push Paid Jobs to QB</button>
+          <button class="qb-popover-btn" onclick="openQbSettings()">⚙ Open QuickBooks Tab</button>
+        </div>
+      </div>
+    </div>
   </aside>
 
   <!-- MAIN CONTENT -->
@@ -651,6 +729,121 @@
       </div>
     </div>
 
+    <!-- ── QUICKBOOKS PAGE ── -->
+    <div class="page" id="page-quickbooks">
+      <div class="page-header">
+        <div class="page-title">QuickBooks Desktop</div>
+        <div class="page-sub">Sync paid print jobs into QuickBooks Desktop via the Web Connector. Invoices are pushed for unpaid jobs; sales receipts for already-paid jobs; payments are recorded when an invoiced job is later paid.</div>
+      </div>
+
+      <div class="stat-row" id="qbStats">
+        <div class="stat-card"><div class="stat-label">Paid Jobs</div><div class="stat-val" id="qbStatJobs">—</div></div>
+        <div class="stat-card"><div class="stat-label">Revenue</div><div class="stat-val" id="qbStatRevenue">—</div></div>
+        <div class="stat-card"><div class="stat-label">Tax Collected</div><div class="stat-val" id="qbStatTax">—</div></div>
+        <div class="stat-card"><div class="stat-label">Pending Sync</div><div class="stat-val" id="qbStatPending">—</div></div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-card-header">
+          <div class="section-card-icon">🔌</div>
+          <span class="section-card-title">Connection</span>
+          <span id="qbConnStatus" style="margin-left:auto;font-size:12px;color:var(--muted);">—</span>
+        </div>
+        <div class="section-card-body">
+          <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
+            Install the free <strong>QuickBooks Web Connector</strong> on the Windows PC running QuickBooks Desktop, then import the <code>.qwc</code> file below. The Web Connector will poll this endpoint every 5 minutes and push pending changes.
+          </div>
+          <div class="fields-grid">
+            <div class="field"><label>QBWC Username</label><input type="text" id="qb-username" placeholder="e.g. superior-qbwc"></div>
+            <div class="field"><label>QBWC Password <span id="qb-pwd-status" style="font-size:10px;color:var(--muted);"></span></label><input type="password" id="qb-password" placeholder="Leave blank to keep current"></div>
+            <div class="field"><label>Default QB Item</label><input type="text" id="qb-item" placeholder="3D Printing Service"><span class="hint">All line items are mapped to this QB Item/Service</span></div>
+            <div class="field"><label>Taxable Tax Code</label><input type="text" id="qb-taxcode" placeholder="TAX"></div>
+            <div class="field"><label>Non-Taxable Code</label><input type="text" id="qb-nontaxcode" placeholder="NON"></div>
+            <div class="field"><label>Payment Method</label><input type="text" id="qb-paymethod" placeholder="Stripe"></div>
+            <div class="field"><label>Company File (optional)</label><input type="text" id="qb-companyfile" placeholder="Leave blank for currently-open file"></div>
+            <div class="field">
+              <label>Auto-Sync on Payment</label>
+              <select id="qb-autosync">
+                <option value="true">Enabled</option>
+                <option value="false">Disabled</option>
+              </select>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn-primary" onclick="saveQbSettings()">💾 Save Settings</button>
+            <button class="btn-secondary" onclick="downloadQwc()">⬇ Download .qwc File</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-card-header">
+          <div class="section-card-icon">⏱</div>
+          <span class="section-card-title">Sync Queue</span>
+          <button class="refresh-btn" style="margin-left:auto;" onclick="loadQbQueue()">↺ Refresh</button>
+        </div>
+        <div class="section-card-body" style="padding:0;">
+          <div style="overflow-x:auto;">
+            <table class="mat-table" id="qbQueueTable">
+              <thead>
+                <tr>
+                  <th style="width:150px;">Created</th>
+                  <th>Job</th>
+                  <th style="width:120px;">Operation</th>
+                  <th style="width:110px;">Status</th>
+                  <th style="width:70px;">Tries</th>
+                  <th>QB TxnID / Error</th>
+                  <th style="width:140px;"></th>
+                </tr>
+              </thead>
+              <tbody id="qbQueueBody">
+                <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted);">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-card-header">
+          <div class="section-card-icon">📈</div>
+          <span class="section-card-title">Revenue Report</span>
+          <div style="margin-left:auto;display:flex;gap:6px;align-items:center;font-size:12px;">
+            <label style="color:var(--muted);">From</label>
+            <input type="date" id="qb-from" style="padding:4px 6px;font-size:12px;">
+            <label style="color:var(--muted);">To</label>
+            <input type="date" id="qb-to"   style="padding:4px 6px;font-size:12px;">
+            <button class="refresh-btn" onclick="loadQbRevenue()">Apply</button>
+          </div>
+        </div>
+        <div class="section-card-body">
+          <div class="stat-row">
+            <div class="stat-card"><div class="stat-label">By Material</div><div id="qbByMaterial" style="font-size:12px;margin-top:6px;line-height:1.6;">—</div></div>
+            <div class="stat-card"><div class="stat-label">By Part</div><div id="qbByPart" style="font-size:12px;margin-top:6px;line-height:1.6;max-height:160px;overflow:auto;">—</div></div>
+            <div class="stat-card"><div class="stat-label">By Day</div><div id="qbByDay" style="font-size:12px;margin-top:6px;line-height:1.6;max-height:160px;overflow:auto;">—</div></div>
+          </div>
+          <div style="overflow-x:auto;margin-top:12px;">
+            <table class="mat-table" id="qbRevenueTable">
+              <thead>
+                <tr>
+                  <th style="width:150px;">Paid</th>
+                  <th>Customer</th>
+                  <th style="width:90px;">Items</th>
+                  <th style="width:100px;">Subtotal</th>
+                  <th style="width:100px;">Tax</th>
+                  <th style="width:100px;">Total</th>
+                  <th style="width:160px;">QB Status</th>
+                </tr>
+              </thead>
+              <tbody id="qbRevenueBody">
+                <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted);">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -753,9 +946,10 @@ function showPage(id, btn) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
   btn.classList.add('active');
-  if (id === 'pricing')   loadPricingSettings();
-  if (id === 'materials') loadMatLibrary();
-  if (id === 'jobs')      loadJobs();
+  if (id === 'pricing')    loadPricingSettings();
+  if (id === 'materials')  loadMatLibrary();
+  if (id === 'jobs')       loadJobs();
+  if (id === 'quickbooks') loadQuickBooksTab();
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
@@ -1895,8 +2089,353 @@ async function submitNewJob() {
   }
 }
 
+// ── QuickBooks ────────────────────────────────────────────────────────────────
+async function loadQuickBooksTab() {
+  await Promise.all([loadQbSettings(), loadQbQueue(), loadQbRevenue()]);
+}
+
+async function loadQbSettings() {
+  try {
+    const res = await fetch('/api/admin/qb/settings');
+    if (res.status === 401) { window.location.href = '/admin/login.html'; return; }
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const s = await res.json();
+    document.getElementById('qb-username').value     = s.qbwcUsername    || '';
+    document.getElementById('qb-item').value         = s.defaultItemName || '';
+    document.getElementById('qb-taxcode').value      = s.defaultTaxCode  || '';
+    document.getElementById('qb-nontaxcode').value   = s.nonTaxCode      || '';
+    document.getElementById('qb-paymethod').value    = s.paymentMethod   || '';
+    document.getElementById('qb-companyfile').value  = s.companyFile     || '';
+    document.getElementById('qb-autosync').value     = s.autoSyncEnabled === false ? 'false' : 'true';
+    document.getElementById('qb-pwd-status').textContent = s.qbwcPasswordConfigured ? '• configured' : '• not set';
+    const connStatus = document.getElementById('qbConnStatus');
+    if (s.lastSyncAt) {
+      const mins = Math.floor((Date.now() - new Date(s.lastSyncAt)) / 60000);
+      const recent = mins < 30;
+      connStatus.textContent = recent ? `● Connected — last sync ${mins} min ago` : `○ Last sync ${mins} min ago`;
+      connStatus.style.color = recent ? '#0b8f3e' : 'var(--muted)';
+    } else {
+      connStatus.textContent = '○ Not yet connected';
+      connStatus.style.color = 'var(--muted)';
+    }
+    if (s.lastSyncError) {
+      connStatus.textContent += ` — error: ${s.lastSyncError}`;
+      connStatus.style.color = 'var(--accent)';
+    }
+  } catch (err) {
+    showToast('Failed to load QB settings: ' + err.message);
+  }
+}
+
+async function saveQbSettings() {
+  const body = {
+    qbwcUsername:    document.getElementById('qb-username').value.trim(),
+    qbwcPassword:    document.getElementById('qb-password').value,
+    defaultItemName: document.getElementById('qb-item').value.trim(),
+    defaultTaxCode:  document.getElementById('qb-taxcode').value.trim(),
+    nonTaxCode:      document.getElementById('qb-nontaxcode').value.trim(),
+    paymentMethod:   document.getElementById('qb-paymethod').value.trim(),
+    companyFile:     document.getElementById('qb-companyfile').value.trim(),
+    autoSyncEnabled: document.getElementById('qb-autosync').value === 'true',
+  };
+  if (!body.qbwcPassword) delete body.qbwcPassword;
+  try {
+    const res = await fetch('/api/admin/qb/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'HTTP ' + res.status);
+    }
+    showToast('Settings saved');
+    document.getElementById('qb-password').value = '';
+    await loadQbSettings();
+  } catch (err) {
+    showToast('Save failed: ' + err.message);
+  }
+}
+
+function downloadQwc() {
+  // Opens in a new tab so the browser respects the Content-Disposition attachment header.
+  window.location.href = '/api/admin/qb/qwc';
+}
+
+async function loadQbQueue() {
+  const tbody = document.getElementById('qbQueueBody');
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted);">Loading…</td></tr>';
+  try {
+    const res = await fetch('/api/admin/qb/queue');
+    if (res.status === 401) { window.location.href = '/admin/login.html'; return; }
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const tasks = data.tasks || [];
+    const pendingCount = tasks.filter(t => t.status === 'pending' || t.status === 'in_progress').length;
+    document.getElementById('qbStatPending').textContent = pendingCount;
+    const qbBadge = document.getElementById('qbBadge');
+    if (pendingCount > 0) { qbBadge.textContent = pendingCount; qbBadge.style.display = ''; }
+    else qbBadge.style.display = 'none';
+
+    if (!tasks.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted);">No sync tasks yet. Tasks appear here when print jobs are created or paid.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = tasks.map(t => {
+      const created = t.createdAt ? new Date(t.createdAt).toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : '—';
+      const opLabel = { invoice: 'Invoice', sales_receipt: 'Sales Receipt', payment: 'Payment' }[t.op] || t.op;
+      const statusColor = {
+        pending: 'var(--muted)', in_progress: '#1e6fe0', done: '#0b8f3e',
+        failed: 'var(--accent)', canceled: 'var(--muted)',
+      }[t.status] || 'var(--muted)';
+      const detail = t.qbTxnId
+        ? `<span style="font-family:monospace;font-size:11px;">${esc(t.qbTxnId)}</span>`
+        : (t.lastError ? `<span style="color:var(--accent);font-size:11px;">${esc(t.lastError)}</span>` : '—');
+      const retryBtn = (t.status === 'failed' || t.status === 'canceled')
+        ? `<button class="btn-secondary" style="font-size:11px;padding:4px 10px;" onclick="retryQbTask('${esc(t.id)}')">↻ Retry</button>`
+        : '';
+      const delBtn = `<button class="btn-secondary" style="font-size:11px;padding:4px 10px;margin-left:4px;" onclick="deleteQbTask('${esc(t.id)}')">✕</button>`;
+      return `<tr>
+        <td style="font-size:11px;">${esc(created)}</td>
+        <td style="font-family:monospace;font-size:11px;">${esc(t.jobId || '')}</td>
+        <td>${opLabel}</td>
+        <td><span style="color:${statusColor};font-weight:600;">${esc(t.status)}</span></td>
+        <td style="text-align:center;">${t.attempts || 0}</td>
+        <td>${detail}</td>
+        <td style="text-align:right;">${retryBtn}${delBtn}</td>
+      </tr>`;
+    }).join('');
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--accent);">Failed: ${esc(err.message)}</td></tr>`;
+  }
+}
+
+async function retryQbTask(id) {
+  try {
+    const res = await fetch('/api/admin/qb/retry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ taskId: id }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    showToast('Task re-queued');
+    await loadQbQueue();
+  } catch (err) {
+    showToast('Retry failed: ' + err.message);
+  }
+}
+
+async function deleteQbTask(id) {
+  if (!confirm('Delete this sync task?')) return;
+  try {
+    const res = await fetch('/api/admin/qb/item?id=' + encodeURIComponent(id), { method: 'DELETE' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    await loadQbQueue();
+  } catch (err) {
+    showToast('Delete failed: ' + err.message);
+  }
+}
+
+async function loadQbRevenue() {
+  const tbody = document.getElementById('qbRevenueBody');
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted);">Loading…</td></tr>';
+  try {
+    const from = document.getElementById('qb-from').value;
+    const to   = document.getElementById('qb-to').value;
+    const params = new URLSearchParams();
+    if (from) params.set('from', from);
+    if (to)   params.set('to', to);
+    const res = await fetch('/api/admin/qb/revenue' + (params.toString() ? '?' + params.toString() : ''));
+    if (res.status === 401) { window.location.href = '/admin/login.html'; return; }
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+
+    document.getElementById('qbStatJobs').textContent    = data.totals.jobCount;
+    document.getElementById('qbStatRevenue').textContent = '$' + data.totals.revenue.toFixed(2);
+    document.getElementById('qbStatTax').textContent     = '$' + data.totals.tax.toFixed(2);
+
+    const fmtGroup = (obj) => {
+      const entries = Object.entries(obj).sort((a, b) => b[1] - a[1]);
+      if (!entries.length) return '<span style="color:var(--muted);">No data</span>';
+      return entries.map(([k, v]) =>
+        `<div style="display:flex;justify-content:space-between;"><span>${esc(k)}</span><strong>$${v.toFixed(2)}</strong></div>`
+      ).join('');
+    };
+    document.getElementById('qbByMaterial').innerHTML = fmtGroup(data.byMaterial || {});
+    document.getElementById('qbByPart').innerHTML     = fmtGroup(data.byPart || {});
+    document.getElementById('qbByDay').innerHTML      = fmtGroup(data.byDay || {});
+
+    if (!data.rows.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted);">No paid jobs in this range.</td></tr>';
+      return;
+    }
+    const statusLabel = {
+      sales_receipt: '✓ Sales Receipt',
+      paid_invoice:  '✓ Invoice + Payment',
+      invoice_only:  '⏳ Invoice posted, payment pending',
+      pending:       '⏳ Sync pending',
+      not_synced:    '○ Not synced',
+    };
+    const statusColor = {
+      sales_receipt: '#0b8f3e', paid_invoice: '#0b8f3e',
+      invoice_only: '#b07b00',  pending: '#1e6fe0', not_synced: 'var(--muted)',
+    };
+    tbody.innerHTML = data.rows.map(r => {
+      const paid = r.paidAt ? new Date(r.paidAt).toLocaleString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' }) : '—';
+      const label = statusLabel[r.qbStatus] || r.qbStatus;
+      const color = statusColor[r.qbStatus] || 'var(--muted)';
+      return `<tr>
+        <td style="font-size:11px;">${esc(paid)}</td>
+        <td>
+          <div style="font-weight:600;">${esc(r.customerName || '—')}</div>
+          <div style="font-size:11px;color:var(--muted);">${esc(r.customerEmail || '')}</div>
+        </td>
+        <td style="text-align:center;">${r.itemCount}</td>
+        <td>$${r.subtotal.toFixed(2)}</td>
+        <td>$${r.tax.toFixed(2)}</td>
+        <td><strong>$${r.total.toFixed(2)}</strong></td>
+        <td><span style="color:${color};font-weight:600;font-size:12px;">${esc(label)}</span></td>
+      </tr>`;
+    }).join('');
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--accent);">Failed: ${esc(err.message)}</td></tr>`;
+  }
+}
+
+// ── QuickBooks sidebar widget ─────────────────────────────────────────────────
+let _qbStatusTimer = null;
+
+function toggleQbPopover(ev) {
+  if (ev) ev.stopPropagation();
+  const pop = document.getElementById('qbPopover');
+  const isOpen = pop.classList.toggle('open');
+  if (isOpen) refreshQbStatus();
+}
+
+document.addEventListener('click', (ev) => {
+  const pop = document.getElementById('qbPopover');
+  const btn = document.getElementById('qbWidgetBtn');
+  if (!pop || !btn) return;
+  if (pop.classList.contains('open') && !pop.contains(ev.target) && !btn.contains(ev.target)) {
+    pop.classList.remove('open');
+  }
+});
+
+function openQbSettings() {
+  document.getElementById('qbPopover').classList.remove('open');
+  const navBtn = Array.from(document.querySelectorAll('.nav-item'))
+    .find(b => /QuickBooks/.test(b.textContent));
+  if (navBtn) navBtn.click();
+}
+
+async function refreshQbStatus() {
+  const dot   = document.getElementById('qbWidgetDot');
+  const label = document.getElementById('qbWidgetLabel');
+  const sub   = document.getElementById('qbWidgetSub');
+  const popStatus   = document.getElementById('qbPopStatus');
+  const popLast     = document.getElementById('qbPopLast');
+  const popPending  = document.getElementById('qbPopPending');
+  const popUnsynced = document.getElementById('qbPopUnsynced');
+  const popError    = document.getElementById('qbPopError');
+  const pushBtn     = document.getElementById('qbBtnPush');
+
+  try {
+    const res = await fetch('/api/admin/qb/status');
+    if (res.status === 401) { window.location.href = '/admin/login.html'; return; }
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const s = await res.json();
+
+    dot.classList.remove('ok', 'warn', 'err');
+    let statusText, subText;
+    if (!s.configured) {
+      dot.classList.add('err');
+      statusText = 'Not configured';
+      subText    = 'Set credentials';
+    } else if (s.lastSyncError) {
+      dot.classList.add('err');
+      statusText = 'Error';
+      subText    = 'See details';
+    } else if (s.connected) {
+      dot.classList.add('ok');
+      statusText = 'Connected';
+      const mins = s.lastSyncAt ? Math.floor((Date.now() - new Date(s.lastSyncAt)) / 60000) : 0;
+      subText = s.pending ? (s.pending + ' pending') : (mins + ' min ago');
+    } else if (s.lastSyncAt) {
+      dot.classList.add('warn');
+      statusText = 'Idle';
+      const mins = Math.floor((Date.now() - new Date(s.lastSyncAt)) / 60000);
+      subText = mins < 60 ? (mins + 'm ago') : (Math.floor(mins / 60) + 'h ago');
+    } else {
+      dot.classList.add('warn');
+      statusText = 'Never synced';
+      subText    = 'Awaiting QBWC';
+    }
+    label.textContent = 'QuickBooks';
+    sub.textContent   = subText;
+
+    popStatus.textContent = statusText;
+    popLast.textContent   = s.lastSyncAt
+      ? new Date(s.lastSyncAt).toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' })
+      : '—';
+    popPending.textContent  = s.pending + (s.failed ? ` (${s.failed} failed)` : '');
+    popUnsynced.textContent = s.unsyncedPaid;
+    if (s.lastSyncError) { popError.textContent = s.lastSyncError; popError.style.display = ''; }
+    else                 { popError.textContent = '';              popError.style.display = 'none'; }
+
+    pushBtn.disabled = !s.configured;
+  } catch (err) {
+    dot.classList.remove('ok', 'warn'); dot.classList.add('err');
+    label.textContent = 'QuickBooks';
+    sub.textContent   = 'Status error';
+    popStatus.textContent = 'Error: ' + err.message;
+  }
+}
+
+async function pushAllToQb() {
+  const btn = document.getElementById('qbBtnPush');
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ Pushing…';
+  try {
+    const res = await fetch('/api/admin/qb/sync-all', { method: 'POST' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'HTTP ' + res.status);
+    }
+    const data = await res.json();
+    const total = (data.enqueuedInvoice || 0) + (data.enqueuedSalesReceipt || 0) + (data.enqueuedPayment || 0);
+    if (total === 0) {
+      showToast('All jobs are already synced');
+    } else {
+      const parts = [];
+      if (data.enqueuedInvoice)      parts.push(data.enqueuedInvoice + ' invoices');
+      if (data.enqueuedSalesReceipt) parts.push(data.enqueuedSalesReceipt + ' sales receipts');
+      if (data.enqueuedPayment)      parts.push(data.enqueuedPayment + ' payments');
+      showToast('Queued ' + parts.join(', ') + ' for QB sync');
+    }
+    await refreshQbStatus();
+    // If the QuickBooks tab is visible, refresh its queue view too
+    if (document.getElementById('page-quickbooks').classList.contains('active')) {
+      await loadQbQueue();
+    }
+  } catch (err) {
+    showToast('Push failed: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
+// Poll status every 60s so the dot reflects the real connection.
+function startQbStatusPolling() {
+  refreshQbStatus();
+  if (_qbStatusTimer) clearInterval(_qbStatusTimer);
+  _qbStatusTimer = setInterval(refreshQbStatus, 60000);
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 loadOrders();
+startQbStatusPolling();
 </script>
 </body>
 </html>

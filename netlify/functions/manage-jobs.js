@@ -4,6 +4,21 @@ const { getStore } = require('@netlify/blobs');
 let _Resend;
 try { _Resend = require('resend').Resend; } catch { _Resend = null; }
 
+let _qb;
+try { _qb = require('./_lib/qb-queue'); } catch { _qb = null; }
+
+async function enqueueQbForNewJob(job) {
+  if (!_qb) return;
+  try {
+    const settings = await _qb.getSettings();
+    if (!settings || settings.autoSyncEnabled === false) return;
+    const op = job.paymentStatus === 'paid' ? 'sales_receipt' : 'invoice';
+    await _qb.enqueueQbTask({ jobId: job.id, op });
+  } catch (err) {
+    console.error('[manage-jobs] enqueueQbForNewJob error:', err.message);
+  }
+}
+
 const STATUS_NEXT  = { confirmed: 'printing', printing: 'ready', ready: 'complete' };
 const SITE_URL     = process.env.SITE_URL || 'https://superior3dandlaser.com';
 
@@ -218,6 +233,9 @@ async function createJob(rawBody, isBase64) {
     try { await sendStatusEmail(job, 'confirmed', invoiceUrl, paymentUrl); }
     catch (err) { console.error('[manage-jobs] email error:', err.message); }
   }
+
+  // Enqueue QuickBooks sync (best-effort, non-blocking if qb-queue unavailable)
+  await enqueueQbForNewJob(job);
 
   return jsonResponse(200, { id, invoiceToken, invoiceUrl });
 }
