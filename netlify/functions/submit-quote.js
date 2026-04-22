@@ -433,7 +433,7 @@ exports.handler = async (event) => {
           tax:           parseFloat(fields.taxRaw)        || 0,
           total:         parseFloat(fields.orderTotalRaw) || 0,
           stlFiles:      stlFiles.map(f => ({ fileName: f.fileName, blobKey: f.key })),
-          status:        'pending',
+          status:        'New',
           paymentStatus: 'unpaid',
           paidAt:        null,
           stripeSessionId: null,
