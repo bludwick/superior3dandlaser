@@ -1028,7 +1028,7 @@ function renderOrders(orders) {
     return;
   }
 
-  let html = '<table><thead><tr><th class="order-cb"><input type="checkbox" id="orderSelectAll" title="Select all" onchange="orderSelectAll(this)"></th><th>Date</th><th>Customer</th><th>Email</th><th>Lead Time</th><th>Items</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>';
+  let html = '<table><thead><tr><th class="order-cb"><input type="checkbox" id="orderSelectAll" title="Select all" onchange="orderSelectAll(this)"></th><th>Project #</th><th>Date</th><th>Customer</th><th>Email</th><th>Lead Time</th><th>Items</th><th>Total</th><th style="width:1%;white-space:nowrap;">Status</th><th style="width:1%;white-space:nowrap;"></th></tr></thead><tbody>';
   orders.forEach((o, idx) => {
     const date      = o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
     const status    = normalizeOrderStatus(o.status);
@@ -1039,18 +1039,19 @@ function renderOrders(orders) {
 
     html += `<tr class="order-row" data-id="${esc(o.id)}">
       <td class="order-cb"><input type="checkbox" class="order-row-cb" data-id="${esc(o.id)}" onchange="onOrderCbChange()"></td>
+      <td style="white-space:nowrap;">${projNums.length ? `<div style="display:flex;flex-wrap:wrap;gap:3px;">${projNums.map(pn => `<span class="proj-num" title="Project Number — copy to track in QuickBooks" onclick="copyText('${esc(pn)}', event)">${esc(pn)}</span>`).join('')}</div>` : '<span style="color:var(--muted);">—</span>'}</td>
       <td style="white-space:nowrap;color:var(--muted);">${date}</td>
       <td style="font-weight:600;">${esc(o.customerName || '—')}</td>
       <td style="color:var(--muted);">${esc(o.customerEmail || '—')}</td>
       <td>${esc(o.leadTime || '—')}</td>
-      <td>${itemCount} part${itemCount !== 1 ? 's' : ''}${projNums.length ? `<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px;">${projNums.map(pn => `<span class="proj-num" title="Project Number — copy to track in QuickBooks" onclick="copyText('${esc(pn)}', event)">${esc(pn)}</span>`).join('')}</div>` : ''}</td>
+      <td>${itemCount} part${itemCount !== 1 ? 's' : ''}</td>
       <td class="order-total">$${parseFloat(o.total || 0).toFixed(2)}</td>
-      <td>
+      <td style="width:1%;white-space:nowrap;">
         <select class="status-select ${statusCls}" onchange="changeOrderStatus('${esc(o.id)}', this)" data-prev="${esc(status)}">
           ${ORDER_STATUSES.map(s => `<option value="${s}"${s === status ? ' selected' : ''}>${s}</option>`).join('')}
         </select>
       </td>
-      <td style="white-space:nowrap;">
+      <td style="width:1%;white-space:nowrap;">
         ${invoiceHref
           ? `<a class="invoice-btn" href="${invoiceHref}" target="_blank">📄 Invoice</a>`
           : `<button class="job-create-btn" onclick="openJobOverlay(_orders[${idx}])">→ Job</button>`}
@@ -1058,7 +1059,7 @@ function renderOrders(orders) {
       </td>
     </tr>
     <tr class="expand-row" id="row-${idx}">
-      <td colspan="9">
+      <td colspan="10">
         <div class="expand-inner">
           ${o.source === 'quote' ? `<div style="margin-bottom:6px;"><span style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:rgba(234,179,8,.12);color:#854d0e;border:1px solid rgba(234,179,8,.3);border-radius:4px;padding:2px 7px;">📋 Quote Request</span></div>` : ''}
           ${o.address ? `<div style="margin-bottom:6px;color:var(--muted);font-size:12px;">📦 Ship to: <strong style="color:var(--text);">${esc(o.address)}</strong></div>` : ''}
