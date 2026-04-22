@@ -525,7 +525,7 @@ exports.handler = async (event) => {
           tax:           parseFloat(fields.taxRaw)        || 0,
           total:         parseFloat(fields.orderTotalRaw) || 0,
           stlFiles:      stlFiles.map(f => ({ fileName: f.fileName, blobKey: f.key })),
-          status:        'pending',
+          status:        'New',
           paymentStatus: 'unpaid',
           paidAt:        null,
           stripeSessionId: null,
@@ -727,42 +727,48 @@ exports.handler = async (event) => {
 
     } else {
       const primary  = savedFiles.find(f => f.fieldName === 'file') || savedFiles[0];
-      const fileName = primary?.fileName || null;
-      mailBody = buildQuoteEmail(fields, fileName || fields.uploadedFileName || null);
+      const fileName = primary?.fileName || fields.uploadedFileName || null;
+      mailBody = buildQuoteEmail(fields, fileName);
 
       if (primary?.buffer) {
         attachments = [{ filename: primary.fileName, content: primary.buffer }];
         debug.attachmentsCount = attachments.length;
       }
 
-      if (primary?.key) {
-        try {
-          stage = 'saveQuoteOrder';
-          const orderStore = blobStore('orders');
-          const orderId    = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-          await orderStore.set(`order_${orderId}`, JSON.stringify({
-            id:            orderId,
-            customerName:  `${fields.firstName || ''} ${fields.lastName || ''}`.trim(),
-            customerEmail: fields.email   || '',
-            phone:         fields.phone   || '',
-            notes:         fields.message || '',
-            items: [{
-              projectName: fileName || 'Quote Request',
-              material:    fields.material || '',
-              qty:         parseInt(fields.quantity) || 1,
-              lineTotal:   0,
-            }],
-            subtotal:  0,
-            tax:       0,
-            total:     0,
-            stlFiles:  [{ fileName: primary.fileName, blobKey: primary.key }],
-            status:    'pending',
-            source:    'quote',
-            createdAt: new Date().toISOString(),
-          }));
-        } catch (saveErr) {
-          console.error('[submit-quote] Quote order save error:', saveErr.message);
+      try {
+        stage = 'saveQuoteOrder';
+        const orderStore = blobStore('orders');
+        const orderId    = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const stlFiles   = [];
+        if (primary?.key) {
+          stlFiles.push({ fileName: primary.fileName, blobKey: primary.key });
+        } else if (fields.uploadedFileKey) {
+          stlFiles.push({ fileName: fields.uploadedFileName || fields.uploadedFileKey, blobKey: fields.uploadedFileKey });
         }
+        await orderStore.set(`order_${orderId}`, JSON.stringify({
+          id:            orderId,
+          customerName:  `${fields.firstName || ''} ${fields.lastName || ''}`.trim(),
+          customerEmail: fields.email    || '',
+          phone:         fields.phone    || '',
+          service:       fields.service  || '',
+          timeline:      fields.timeline || '',
+          notes:         fields.message  || '',
+          items: [{
+            projectName: fileName || 'Quote Request',
+            material:    fields.material || '',
+            qty:         parseInt(fields.quantity) || 1,
+            lineTotal:   0,
+          }],
+          subtotal:  0,
+          tax:       0,
+          total:     0,
+          stlFiles,
+          status:    'Quote Request',
+          source:    'quote',
+          createdAt: new Date().toISOString(),
+        }));
+      } catch (saveErr) {
+        console.error('[submit-quote] Quote order save error:', saveErr.message);
       }
     }
 
