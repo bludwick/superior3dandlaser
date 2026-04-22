@@ -348,6 +348,7 @@
   .status-select.printing       { background-color: rgba(124,58,237,.1); color: #6d28d9; border-color: rgba(124,58,237,.3); }
   .status-select.shipped        { background-color: rgba(15,118,110,.1); color: #0f766e; border-color: rgba(15,118,110,.3); }
   .status-select.complete       { background-color: rgba(21,128,61,.1);  color: #15803d; border-color: rgba(21,128,61,.3); }
+  .status-select.quoted         { background-color: rgba(234,179,8,.12); color: #854d0e; border-color: rgba(234,179,8,.4); }
   .status-select.confirmed      { background-color: rgba(21,128,61,.1);  color: #15803d; border-color: rgba(21,128,61,.3); }
   .status-select.ready          { background-color: rgba(124,58,237,.1); color: #6d28d9; border-color: rgba(124,58,237,.3); }
   /* ── PROJECT NUMBER CHIP ── */
@@ -690,6 +691,7 @@
         <div class="table-header">
           <div class="filter-row" id="jobFilterRow">
             <button class="filter-pill active" onclick="setJobFilter('all', this)">All</button>
+            <button class="filter-pill" onclick="setJobFilter('quoted', this)">Quoted</button>
             <button class="filter-pill" onclick="setJobFilter('confirmed', this)">Confirmed</button>
             <button class="filter-pill" onclick="setJobFilter('printing', this)">Printing</button>
             <button class="filter-pill" onclick="setJobFilter('ready', this)">Ready</button>
@@ -1640,8 +1642,8 @@ function resetMatLibrary() {
 let _jobs      = [];
 let _jobFilter = 'all';
 
-const JOB_STATUS_NEXT  = { confirmed: 'printing', printing: 'ready', ready: 'complete' };
-const JOB_STATUS_LABEL = { confirmed: '✓ Confirmed', printing: '🖨 Printing', ready: '📦 Ready', complete: '✅ Complete' };
+const JOB_STATUS_NEXT  = { quoted: 'confirmed', confirmed: 'printing', printing: 'ready', ready: 'complete' };
+const JOB_STATUS_LABEL = { quoted: '💬 Quoted', confirmed: '✓ Confirmed', printing: '🖨 Printing', ready: '📦 Ready', complete: '✅ Complete' };
 
 async function loadJobs() {
   const container = document.getElementById('jobsContainer');

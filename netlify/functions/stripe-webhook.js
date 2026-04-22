@@ -148,6 +148,50 @@ async function handleJobPayment(jobId, session) {
 
   await enqueueQbForPaidJob(job);
 
+  // Upsert order mirror so paid job appears in Orders (even if it was still 'quoted')
+  try {
+    const obs = blobStore('orders');
+    const orderKey = `order_${job.id}`;
+    const existing = await obs.get(orderKey).catch(() => null);
+    if (existing) {
+      const order = JSON.parse(existing);
+      order.paymentStatus = 'paid';
+      order.updatedAt = job.updatedAt;
+      await obs.set(orderKey, JSON.stringify(order));
+    } else {
+      await obs.set(orderKey, JSON.stringify({
+        id:            job.id,
+        customerName:  job.customerName,
+        customerEmail: job.customerEmail,
+        phone:         job.customerPhone || '',
+        items:         (job.items || []).map(it => ({
+          projectNumber: it.projectNumber || null,
+          projectName:   it.partName  || 'Part',
+          material:      it.material  || '',
+          color:         it.color     || '',
+          qty:           it.qty       || 1,
+          unitPrice:     it.unitPrice || 0,
+          lineTotal:     it.lineTotal || 0,
+        })),
+        subtotal:      job.subtotal || 0,
+        tax:           job.tax      || 0,
+        total:         job.total    || 0,
+        notes:         job.notes    || '',
+        stlFiles:      job.stlFiles || [],
+        status:        'New',
+        paymentStatus: 'paid',
+        source:        'manual',
+        invoiceToken:  job.invoiceToken,
+        jobId:         job.id,
+        createdAt:     job.createdAt,
+        updatedAt:     job.updatedAt,
+      }));
+    }
+    console.log('[stripe-webhook] order mirror upserted for paid job:', job.id);
+  } catch (err) {
+    console.error('[stripe-webhook] order mirror upsert error:', err.message);
+  }
+
   return { statusCode: 200, body: JSON.stringify({ received: true }) };
 }
 
