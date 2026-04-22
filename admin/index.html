@@ -348,6 +348,17 @@
   .status-select.printing       { background-color: rgba(124,58,237,.1); color: #6d28d9; border-color: rgba(124,58,237,.3); }
   .status-select.shipped        { background-color: rgba(15,118,110,.1); color: #0f766e; border-color: rgba(15,118,110,.3); }
   .status-select.complete       { background-color: rgba(21,128,61,.1);  color: #15803d; border-color: rgba(21,128,61,.3); }
+  /* ── PROJECT NUMBER CHIP ── */
+  .proj-num {
+    display: inline-block; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 10px; font-weight: 700; letter-spacing: .04em;
+    background: rgba(185,28,28,.06); color: var(--accent);
+    border: 1px solid rgba(185,28,28,.18); border-radius: 4px;
+    padding: 1px 6px; margin-right: 8px; cursor: pointer; user-select: all;
+    transition: all .15s;
+  }
+  .proj-num:hover { background: rgba(185,28,28,.12); border-color: var(--accent); }
+
   .invoice-btn { font-size: 11px; font-weight: 700; color: var(--muted); background: var(--bg-light); border: 1px solid var(--border); border-radius: 5px; padding: 3px 8px; cursor: pointer; transition: all .15s; }
   .invoice-btn:hover { color: var(--accent); border-color: var(--accent); }
   .edit-job-btn   { font-size: 12px; background: none; border: none; cursor: pointer; color: var(--muted); padding: 2px 5px; border-radius: 4px; transition: all .15s; margin-left: 2px; }
@@ -1054,11 +1065,17 @@ function renderOrders(orders) {
           ${o.timeline ? `<div style="margin-bottom:6px;color:var(--muted);font-size:12px;">⏱ Timeline: <strong style="color:var(--text);">${esc(o.timeline)}</strong></div>` : ''}
           ${o.notes && o.notes !== '—' ? `<div style="margin-bottom:6px;color:var(--muted);font-size:12px;">📝 Notes: ${esc(o.notes)}</div>` : ''}
           <div class="expand-items">
-            ${(o.items || []).map(item => `
+            ${(o.items || []).map((item, idx) => {
+              const projNum = item.projectNumber || projectNumberFor(o.id, idx);
+              return `
               <div class="expand-item">
-                <div><strong>${esc(item.fileName || item.projectName || 'Part')}</strong> &nbsp;×${item.qty || 1} &nbsp;<span style="font-size:11px;">${esc(item.material || '')} ${esc(item.color || '')}</span></div>
+                <div>
+                  <span class="proj-num" title="Project Number — copy to track in QuickBooks" onclick="copyText('${esc(projNum)}', event)">${esc(projNum)}</span>
+                  <strong>${esc(item.fileName || item.projectName || 'Part')}</strong> &nbsp;×${item.qty || 1} &nbsp;<span style="font-size:11px;">${esc(item.material || '')} ${esc(item.color || '')}</span>
+                </div>
                 <div class="item-price">$${parseFloat(item.lineTotal || 0).toFixed(2)}</div>
-              </div>`).join('')}
+              </div>`;
+            }).join('')}
           </div>
           <div style="margin-top:10px;padding:10px;background:var(--bg-light);border:1px solid var(--border);border-radius:6px;">
             <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--label);margin-bottom:7px;">Customer Files</div>
@@ -1294,6 +1311,22 @@ async function uploadSingleFile(file) {
 
 function esc(str) {
   return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Backfill a project number from order/job id when legacy items don't have one stored.
+// Mirrors the server-side helper in netlify/functions/_lib/qb-queue.js.
+function projectNumberFor(id, idx) {
+  const s = String(id || '');
+  const parts = s.split('-');
+  const tail  = parts[parts.length - 1] || s.slice(-6) || 'XXXXXX';
+  return tail.toUpperCase() + '-' + String((idx || 0) + 1).padStart(2, '0');
+}
+
+function copyText(text, ev) {
+  if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => showToast('Copied: ' + text)).catch(() => {});
+  }
 }
 
 // ── Pricing settings ──────────────────────────────────────────────────────────
@@ -1677,11 +1710,17 @@ function renderJobs(filter) {
           ${j.estEndTime ? `<div style="margin-bottom:4px;color:var(--muted);font-size:12px;">⏱ Est. end: ${new Date(j.estEndTime).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'})}</div>` : ''}
           ${j.notes ? `<div style="margin-bottom:6px;color:var(--muted);font-size:12px;">📝 ${esc(j.notes)}</div>` : ''}
           <div class="expand-items">
-            ${(j.items || []).map(it => `
+            ${(j.items || []).map((it, idx) => {
+              const projNum = it.projectNumber || projectNumberFor(j.id, idx);
+              return `
               <div class="expand-item">
-                <div><strong>${esc(it.partName || 'Part')}</strong> &nbsp;×${it.qty || 1} &nbsp;<span style="font-size:11px;">${esc(it.material || '')} ${esc(it.color || '')}</span></div>
+                <div>
+                  <span class="proj-num" title="Project Number — copy to track in QuickBooks" onclick="copyText('${esc(projNum)}', event)">${esc(projNum)}</span>
+                  <strong>${esc(it.partName || 'Part')}</strong> &nbsp;×${it.qty || 1} &nbsp;<span style="font-size:11px;">${esc(it.material || '')} ${esc(it.color || '')}</span>
+                </div>
                 <div class="item-price">$${parseFloat(it.lineTotal || 0).toFixed(2)}</div>
-              </div>`).join('')}
+              </div>`;
+            }).join('')}
           </div>
           <div style="margin-top:10px;padding:10px;background:var(--bg-light);border:1px solid var(--border);border-radius:6px;">
             <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--label);margin-bottom:7px;">Customer Files</div>

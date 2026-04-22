@@ -193,6 +193,31 @@ async function getJob(jobId) {
   return text ? JSON.parse(text) : null;
 }
 
+// ── Project number generator ───────────────────────────────────────────────────
+// Each line item gets a stable, human-readable project number so it can be
+// referenced from QuickBooks. Format: "<6-CHAR-ID-SUFFIX>-<NN>".
+//
+// The suffix is the trailing portion of the order/job id (which already
+// includes a random base36 chunk), so the number is unique without needing a
+// separate counter, and the line index keeps items distinguishable on
+// multi-part orders.
+function shortIdSuffix(id) {
+  const s = String(id || '');
+  const parts = s.split('-');
+  const tail = parts[parts.length - 1] || s.slice(-6) || 'XXXXXX';
+  return tail.toUpperCase();
+}
+
+function assignProjectNumbers(orderId, items) {
+  const suffix = shortIdSuffix(orderId);
+  return (items || []).map((it, i) => {
+    const existing = it && it.projectNumber;
+    return Object.assign({}, it, {
+      projectNumber: existing || `${suffix}-${String(i + 1).padStart(2, '0')}`,
+    });
+  });
+}
+
 module.exports = {
   MAX_ATTEMPTS,
   enqueueQbTask,
@@ -210,4 +235,6 @@ module.exports = {
   getSettings,
   saveSettings,
   getJob,
+  shortIdSuffix,
+  assignProjectNumbers,
 };

@@ -512,6 +512,10 @@ exports.handler = async (event) => {
         const orderStore = blobStore('orders');
         orderId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         try { parsedItems = JSON.parse(fields.itemsJson || '[]'); } catch { /* best-effort */ }
+        try {
+          const _qb = require('./_lib/qb-queue');
+          parsedItems = _qb.assignProjectNumbers(orderId, parsedItems);
+        } catch { /* qb-queue optional */ }
         await orderStore.set(`order_${orderId}`, JSON.stringify({
           id:            orderId,
           customerName:  fields.name    || '',
@@ -753,12 +757,20 @@ exports.handler = async (event) => {
           service:       fields.service  || '',
           timeline:      fields.timeline || '',
           notes:         fields.message  || '',
-          items: [{
-            projectName: fileName || 'Quote Request',
-            material:    fields.material || '',
-            qty:         parseInt(fields.quantity) || 1,
-            lineTotal:   0,
-          }],
+          items: (() => {
+            const item = {
+              projectName: fileName || 'Quote Request',
+              material:    fields.material || '',
+              qty:         parseInt(fields.quantity) || 1,
+              lineTotal:   0,
+            };
+            try {
+              const _qb = require('./_lib/qb-queue');
+              return _qb.assignProjectNumbers(orderId, [item]);
+            } catch {
+              return [item];
+            }
+          })(),
           subtotal:  0,
           tax:       0,
           total:     0,
