@@ -169,6 +169,108 @@ async function handleListQueue() {
   return jsonResponse(200, { tasks: tasks.slice(0, limit) });
 }
 
+// Lightweight status for the sidebar widget: combines settings, queue counts,
+// and paid-jobs-missing-sync count in a single response.
+async function handleStatus() {
+  const settings = await qb.getSettings();
+  const tasks    = await qb.listTasks();
+  const pending    = tasks.filter(t => t.status === 'pending' || t.status === 'in_progress').length;
+  const failed     = tasks.filter(t => t.status === 'failed').length;
+
+  const lastSyncAt = settings.lastSyncAt || null;
+  const ageMin = lastSyncAt ? Math.floor((Date.now() - new Date(lastSyncAt)) / 60000) : null;
+  const connected = ageMin != null && ageMin < 30;
+
+  // Count paid jobs that are not represented by a done sales_receipt or
+  // done payment task. These are candidates for a "Push All" sync.
+  const bs = blobStore('jobs');
+  const { blobs } = await bs.list();
+  let unsyncedPaid = 0;
+  for (const b of blobs) {
+    try {
+      const text = await bs.get(b.key);
+      if (!text) continue;
+      const j = JSON.parse(text);
+      if (!j || j.paymentStatus !== 'paid') continue;
+      const done = tasks.some(t => t.jobId === j.id &&
+        (t.op === 'sales_receipt' || t.op === 'payment') &&
+        t.status === 'done');
+      if (!done) unsyncedPaid++;
+    } catch { /* skip */ }
+  }
+
+  return jsonResponse(200, {
+    configured: !!(settings.qbwcUsername && settings.qbwcPasswordHash),
+    autoSyncEnabled: settings.autoSyncEnabled !== false,
+    connected,
+    lastSyncAt,
+    lastSyncError: settings.lastSyncError || null,
+    pending,
+    failed,
+    unsyncedPaid,
+  });
+}
+
+// Scan paid jobs and enqueue a sync task (sales_receipt or payment) for any
+// that don't already have a done/pending one. Also enqueues invoice tasks for
+// unpaid jobs that have never been synced.
+async function handleSyncAll() {
+  const settings = await qb.getSettings();
+  if (!settings.qbwcUsername || !settings.qbwcPasswordHash) {
+    return jsonResponse(400, { error: 'Configure QBWC credentials first' });
+  }
+
+  const tasks = await qb.listTasks();
+  const bs = blobStore('jobs');
+  const { blobs } = await bs.list();
+
+  let enqueuedPayment = 0;
+  let enqueuedSalesReceipt = 0;
+  let enqueuedInvoice = 0;
+  let skipped = 0;
+
+  for (const b of blobs) {
+    try {
+      const text = await bs.get(b.key);
+      if (!text) continue;
+      const job = JSON.parse(text);
+      if (!job || !job.id) continue;
+
+      const jobTasks = tasks.filter(t => t.jobId === job.id);
+      const doneInvoice      = jobTasks.find(t => t.op === 'invoice' && t.status === 'done');
+      const doneSalesReceipt = jobTasks.find(t => t.op === 'sales_receipt' && t.status === 'done');
+      const donePayment      = jobTasks.find(t => t.op === 'payment' && t.status === 'done');
+      const pendingAny       = jobTasks.some(t => t.status === 'pending' || t.status === 'in_progress');
+
+      if (job.paymentStatus === 'paid') {
+        if (doneSalesReceipt || donePayment) { skipped++; continue; }
+        if (pendingAny) { skipped++; continue; }
+        if (doneInvoice) {
+          await qb.enqueueQbTask({ jobId: job.id, op: 'payment' });
+          enqueuedPayment++;
+        } else {
+          await qb.enqueueQbTask({ jobId: job.id, op: 'sales_receipt' });
+          enqueuedSalesReceipt++;
+        }
+      } else {
+        if (doneInvoice || pendingAny) { skipped++; continue; }
+        await qb.enqueueQbTask({ jobId: job.id, op: 'invoice' });
+        enqueuedInvoice++;
+      }
+    } catch (err) {
+      console.error('[qb-sync] sync-all job error:', err.message);
+    }
+  }
+
+  return jsonResponse(200, {
+    ok: true,
+    enqueuedPayment,
+    enqueuedSalesReceipt,
+    enqueuedInvoice,
+    skipped,
+  });
+}
+
 async function handleRetry(event) {
   let body;
   try { body = JSON.parse(event.body || '{}'); }
@@ -263,6 +365,8 @@ exports.handler = async function (event) {
     if (method === 'PUT'    && /\/qb\/settings$/.test(path)) return await handlePutSettings(event);
     if (method === 'GET'    && /\/qb\/qwc$/.test(path))      return await handleDownloadQwc();
     if (method === 'GET'    && /\/qb\/revenue$/.test(path))  return await handleRevenue(event);
+    if (method === 'GET'    && /\/qb\/status$/.test(path))   return await handleStatus();
+    if (method === 'POST'   && /\/qb\/sync-all$/.test(path)) return await handleSyncAll();
   } catch (err) {
     console.error('[qb-sync] error:', err.message, err.stack);
     return jsonResponse(500, { error: err.message });
