@@ -1035,6 +1035,7 @@ function renderOrders(orders) {
     const statusCls = status.toLowerCase().replace(/\s+/g, '-');
     const itemCount = (o.items || []).length;
     const invoiceHref = o.invoiceToken ? `/invoice.html?job=${esc(o.id)}&token=${esc(o.invoiceToken)}` : null;
+    const projNums = (o.items || []).map((item, i) => item.projectNumber || projectNumberFor(o.id, i));
 
     html += `<tr class="order-row" data-id="${esc(o.id)}">
       <td class="order-cb"><input type="checkbox" class="order-row-cb" data-id="${esc(o.id)}" onchange="onOrderCbChange()"></td>
@@ -1042,7 +1043,7 @@ function renderOrders(orders) {
       <td style="font-weight:600;">${esc(o.customerName || '—')}</td>
       <td style="color:var(--muted);">${esc(o.customerEmail || '—')}</td>
       <td>${esc(o.leadTime || '—')}</td>
-      <td>${itemCount} part${itemCount !== 1 ? 's' : ''}</td>
+      <td>${itemCount} part${itemCount !== 1 ? 's' : ''}${projNums.length ? `<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px;">${projNums.map(pn => `<span class="proj-num" title="Project Number — copy to track in QuickBooks" onclick="copyText('${esc(pn)}', event)">${esc(pn)}</span>`).join('')}</div>` : ''}</td>
       <td class="order-total">$${parseFloat(o.total || 0).toFixed(2)}</td>
       <td>
         <select class="status-select ${statusCls}" onchange="changeOrderStatus('${esc(o.id)}', this)" data-prev="${esc(status)}">
