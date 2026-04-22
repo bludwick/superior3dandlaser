@@ -19,7 +19,12 @@ async function enqueueQbForNewJob(job) {
   }
 }
 
-const STATUS_NEXT  = { confirmed: 'printing', printing: 'ready', ready: 'complete' };
+const STATUS_NEXT  = { quoted: 'confirmed', confirmed: 'printing', printing: 'ready', ready: 'complete' };
+const JOB_STATUSES = ['quoted', 'confirmed', 'printing', 'ready', 'complete'];
+
+function jobStatusToOrderStatus(s) {
+  return { confirmed: 'New', printing: 'Printing', ready: 'Shipped', complete: 'Complete' }[s] || 'New';
+}
 const SITE_URL     = process.env.SITE_URL || 'https://superior3dandlaser.com';
 
 // Build store options — auto-context first, explicit env vars as fallback
@@ -130,7 +135,7 @@ async function createJob(rawBody, isBase64) {
     startTime:     data.startTime     || null,
     estEndTime:    data.estEndTime    || null,
     notes:         data.notes         || '',
-    status:          'confirmed',
+    status:          'quoted',
     paymentStatus:   'unpaid',
     paidAt:          null,
     stripeSessionId: null,
@@ -147,39 +152,6 @@ async function createJob(rawBody, isBase64) {
   } catch (err) {
     console.error('[manage-jobs] jobs store write error:', err.message);
     return jsonResponse(500, { error: 'Failed to save job: ' + err.message });
-  }
-
-  // Mirror as order with status 'quoted' (best-effort)
-  try {
-    const obs = blobStore('orders');
-    await obs.set(`order_${id}`, JSON.stringify({
-      id,
-      customerName:  job.customerName,
-      customerEmail: job.customerEmail,
-      phone:         job.customerPhone,
-      items: job.items.map(it => ({
-        projectNumber: it.projectNumber || null,
-        projectName: it.partName  || 'Part',
-        material:    it.material  || '',
-        color:       it.color     || '',
-        qty:         it.qty       || 1,
-        unitPrice:   it.unitPrice || 0,
-        lineTotal:   it.lineTotal || 0,
-      })),
-      subtotal:     job.subtotal,
-      tax:          job.tax,
-      total:        job.total,
-      notes:        job.notes,
-      stlFiles:     job.stlFiles || [],
-      status:       'quoted',
-      source:       'manual',
-      invoiceToken: job.invoiceToken,
-      jobId:        id,
-      createdAt:    job.createdAt,
-    }));
-    console.log('[manage-jobs] order mirror saved: order_' + id);
-  } catch (err) {
-    console.error('[manage-jobs] orders mirror write error:', err.message);
   }
 
   // Build URLs
@@ -383,43 +355,60 @@ async function updateJob(jobId, rawBody, isBase64) {
     job.startTime     = data.startTime     !== undefined ? (data.startTime || null)    : job.startTime;
     job.estEndTime    = data.estEndTime    !== undefined ? (data.estEndTime || null)   : job.estEndTime;
     job.notes         = data.notes         ?? job.notes;
+    if (data.status && JOB_STATUSES.includes(data.status)) {
+      job.status = data.status;
+    }
     job.updatedAt     = new Date().toISOString();
 
     await bs.set(key, JSON.stringify(job));
     console.log('[manage-jobs] updated job_' + jobId);
 
-    // Best-effort update order mirror
-    try {
-      const obs = blobStore('orders');
-      const { blobs } = await obs.list();
-      for (const blob of blobs) {
-        const text = await obs.get(blob.key).catch(() => null);
-        const order = text ? JSON.parse(text) : null;
-        if (order && (order.jobId === jobId || order.id === jobId)) {
-          order.customerName  = job.customerName;
-          order.customerEmail = job.customerEmail;
-          order.phone         = job.customerPhone;
-          order.items         = job.items.map(it => ({
+    // Upsert order mirror — only when job has moved past 'quoted' or is paid
+    if (job.status !== 'quoted' || job.paymentStatus === 'paid') {
+      try {
+        const obs = blobStore('orders');
+        const orderFields = {
+          customerName:  job.customerName,
+          customerEmail: job.customerEmail,
+          phone:         job.customerPhone,
+          items:         job.items.map(it => ({
             projectNumber: it.projectNumber || null,
-            projectName: it.partName  || 'Part',
-            material:    it.material  || '',
-            color:       it.color     || '',
-            qty:         it.qty       || 1,
-            unitPrice:   it.unitPrice || 0,
-            lineTotal:   it.lineTotal || 0,
-          }));
-          order.stlFiles  = job.stlFiles || [];
-          order.subtotal  = job.subtotal;
-          order.tax       = job.tax;
-          order.total     = job.total;
-          order.notes     = job.notes;
-          order.updatedAt = job.updatedAt;
-          await obs.set(blob.key, JSON.stringify(order));
-          break;
+            projectName:   it.partName  || 'Part',
+            material:      it.material  || '',
+            color:         it.color     || '',
+            qty:           it.qty       || 1,
+            unitPrice:     it.unitPrice || 0,
+            lineTotal:     it.lineTotal || 0,
+          })),
+          stlFiles:     job.stlFiles || [],
+          subtotal:     job.subtotal,
+          tax:          job.tax,
+          total:        job.total,
+          notes:        job.notes,
+          status:       jobStatusToOrderStatus(job.status),
+          updatedAt:    job.updatedAt,
+        };
+        const { blobs } = await obs.list();
+        let found = false;
+        for (const blob of blobs) {
+          const text = await obs.get(blob.key).catch(() => null);
+          const order = text ? JSON.parse(text) : null;
+          if (order && (order.jobId === jobId || order.id === jobId)) {
+            Object.assign(order, orderFields);
+            await obs.set(blob.key, JSON.stringify(order));
+            found = true;
+            break;
+          }
         }
+        if (!found) {
+          await obs.set(`order_${jobId}`, JSON.stringify({
+            id: jobId, source: 'manual', invoiceToken: job.invoiceToken,
+            jobId, createdAt: job.createdAt, ...orderFields,
+          }));
+        }
+      } catch (err) {
+        console.error('[manage-jobs] order mirror upsert error:', err.message);
       }
-    } catch (err) {
-      console.error('[manage-jobs] order mirror update error:', err.message);
     }
 
     return jsonResponse(200, { ok: true, id: jobId });

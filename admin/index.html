@@ -348,6 +348,9 @@
   .status-select.printing       { background-color: rgba(124,58,237,.1); color: #6d28d9; border-color: rgba(124,58,237,.3); }
   .status-select.shipped        { background-color: rgba(15,118,110,.1); color: #0f766e; border-color: rgba(15,118,110,.3); }
   .status-select.complete       { background-color: rgba(21,128,61,.1);  color: #15803d; border-color: rgba(21,128,61,.3); }
+  .status-select.quoted         { background-color: rgba(234,179,8,.12); color: #854d0e; border-color: rgba(234,179,8,.4); }
+  .status-select.confirmed      { background-color: rgba(21,128,61,.1);  color: #15803d; border-color: rgba(21,128,61,.3); }
+  .status-select.ready          { background-color: rgba(124,58,237,.1); color: #6d28d9; border-color: rgba(124,58,237,.3); }
   /* ── PROJECT NUMBER CHIP ── */
   .proj-num {
     display: inline-block; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -558,11 +561,11 @@
     <span class="sidebar-section">Configuration</span>
     <button class="nav-item" onclick="showPage('pricing', this)">
       <span class="nav-icon">💰</span>
-      <span>Pricing</span>
+      <span>Costs & Rates</span>
     </button>
     <button class="nav-item" onclick="showPage('materials', this)">
       <span class="nav-icon">🧱</span>
-      <span>Materials & Rates</span>
+      <span>Materials Library</span>
     </button>
     <span class="sidebar-section">Accounting</span>
     <button class="nav-item" onclick="showPage('quickbooks', this)">
@@ -642,7 +645,7 @@
     <!-- ── PRICING PAGE ── -->
     <div class="page" id="page-pricing">
       <div class="page-header">
-        <div class="page-title">Pricing Defaults</div>
+        <div class="page-title">Costs & Rates</div>
         <div class="page-sub">These values are stored in the browser and used by the Instant Quote calculator. Changes here update the calculator's admin defaults on this device.</div>
       </div>
 
@@ -688,6 +691,7 @@
         <div class="table-header">
           <div class="filter-row" id="jobFilterRow">
             <button class="filter-pill active" onclick="setJobFilter('all', this)">All</button>
+            <button class="filter-pill" onclick="setJobFilter('quoted', this)">Quoted</button>
             <button class="filter-pill" onclick="setJobFilter('confirmed', this)">Confirmed</button>
             <button class="filter-pill" onclick="setJobFilter('printing', this)">Printing</button>
             <button class="filter-pill" onclick="setJobFilter('ready', this)">Ready</button>
@@ -704,7 +708,7 @@
     <!-- ── MATERIALS PAGE ── -->
     <div class="page" id="page-materials">
       <div class="page-header">
-        <div class="page-title">Materials & Rates</div>
+        <div class="page-title">Materials Library</div>
         <div class="page-sub">Edit material names, pricing, types, and available colors. Changes sync automatically with the Instant Quote calculator.</div>
       </div>
 
@@ -1028,28 +1032,30 @@ function renderOrders(orders) {
     return;
   }
 
-  let html = '<table><thead><tr><th class="order-cb"><input type="checkbox" id="orderSelectAll" title="Select all" onchange="orderSelectAll(this)"></th><th>Date</th><th>Customer</th><th>Email</th><th>Lead Time</th><th>Items</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>';
+  let html = '<table><thead><tr><th class="order-cb"><input type="checkbox" id="orderSelectAll" title="Select all" onchange="orderSelectAll(this)"></th><th>Project #</th><th>Date</th><th>Customer</th><th>Email</th><th>Lead Time</th><th>Items</th><th>Total</th><th style="width:1%;white-space:nowrap;">Status</th><th style="width:1%;white-space:nowrap;"></th></tr></thead><tbody>';
   orders.forEach((o, idx) => {
     const date      = o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
     const status    = normalizeOrderStatus(o.status);
     const statusCls = status.toLowerCase().replace(/\s+/g, '-');
     const itemCount = (o.items || []).length;
     const invoiceHref = o.invoiceToken ? `/invoice.html?job=${esc(o.id)}&token=${esc(o.invoiceToken)}` : null;
+    const projNums = (o.items || []).map((item, i) => item.projectNumber || projectNumberFor(o.id, i));
 
     html += `<tr class="order-row" data-id="${esc(o.id)}">
       <td class="order-cb"><input type="checkbox" class="order-row-cb" data-id="${esc(o.id)}" onchange="onOrderCbChange()"></td>
+      <td style="white-space:nowrap;">${projNums.length ? `<div style="display:flex;flex-wrap:wrap;gap:3px;">${projNums.map(pn => `<span class="proj-num" title="Project Number — copy to track in QuickBooks" onclick="copyText('${esc(pn)}', event)">${esc(pn)}</span>`).join('')}</div>` : '<span style="color:var(--muted);">—</span>'}</td>
       <td style="white-space:nowrap;color:var(--muted);">${date}</td>
       <td style="font-weight:600;">${esc(o.customerName || '—')}</td>
       <td style="color:var(--muted);">${esc(o.customerEmail || '—')}</td>
       <td>${esc(o.leadTime || '—')}</td>
       <td>${itemCount} part${itemCount !== 1 ? 's' : ''}</td>
       <td class="order-total">$${parseFloat(o.total || 0).toFixed(2)}</td>
-      <td>
+      <td style="width:1%;white-space:nowrap;">
         <select class="status-select ${statusCls}" onchange="changeOrderStatus('${esc(o.id)}', this)" data-prev="${esc(status)}">
           ${ORDER_STATUSES.map(s => `<option value="${s}"${s === status ? ' selected' : ''}>${s}</option>`).join('')}
         </select>
       </td>
-      <td style="white-space:nowrap;">
+      <td style="width:1%;white-space:nowrap;">
         ${invoiceHref
           ? `<a class="invoice-btn" href="${invoiceHref}" target="_blank">📄 Invoice</a>`
           : `<button class="job-create-btn" onclick="openJobOverlay(_orders[${idx}])">→ Job</button>`}
@@ -1057,7 +1063,7 @@ function renderOrders(orders) {
       </td>
     </tr>
     <tr class="expand-row" id="row-${idx}">
-      <td colspan="9">
+      <td colspan="10">
         <div class="expand-inner">
           ${o.source === 'quote' ? `<div style="margin-bottom:6px;"><span style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:rgba(234,179,8,.12);color:#854d0e;border:1px solid rgba(234,179,8,.3);border-radius:4px;padding:2px 7px;">📋 Quote Request</span></div>` : ''}
           ${o.address ? `<div style="margin-bottom:6px;color:var(--muted);font-size:12px;">📦 Ship to: <strong style="color:var(--text);">${esc(o.address)}</strong></div>` : ''}
@@ -1636,8 +1642,8 @@ function resetMatLibrary() {
 let _jobs      = [];
 let _jobFilter = 'all';
 
-const JOB_STATUS_NEXT  = { confirmed: 'printing', printing: 'ready', ready: 'complete' };
-const JOB_STATUS_LABEL = { confirmed: '✓ Confirmed', printing: '🖨 Printing', ready: '📦 Ready', complete: '✅ Complete' };
+const JOB_STATUS_NEXT  = { quoted: 'confirmed', confirmed: 'printing', printing: 'ready', ready: 'complete' };
+const JOB_STATUS_LABEL = { quoted: '💬 Quoted', confirmed: '✓ Confirmed', printing: '🖨 Printing', ready: '📦 Ready', complete: '✅ Complete' };
 
 async function loadJobs() {
   const container = document.getElementById('jobsContainer');
@@ -1675,27 +1681,29 @@ function renderJobs(filter) {
     container.innerHTML = '<div class="empty-state"><div class="empty-icon">🖨</div><div>No print jobs yet. Create one to get started.</div></div>';
     return;
   }
-  let html = '<table><thead><tr><th>Date</th><th>Customer</th><th>Printer</th><th>Items</th><th>Total</th><th>Est. End</th><th>Status</th><th>Payment</th><th></th></tr></thead><tbody>';
+  let html = '<table><thead><tr><th>Project #</th><th>Date</th><th>Customer</th><th>Printer</th><th>Items</th><th>Total</th><th>Est. End</th><th style="width:1%;white-space:nowrap;">Status</th><th style="width:1%;white-space:nowrap;">Payment</th><th style="width:1%;white-space:nowrap;"></th></tr></thead><tbody>';
   list.forEach((j, idx) => {
     const date    = j.createdAt ? new Date(j.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
     const estEnd  = j.estEndTime ? new Date(j.estEndTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
-    const label      = JOB_STATUS_LABEL[j.status] || j.status;
     const itemCnt    = (j.items || []).length;
-    const canAdv     = j.status !== 'complete';
     const payStatus  = j.paymentStatus || 'unpaid';
     const payLabel   = payStatus === 'paid' ? '💳 Paid' : '⏳ Unpaid';
-    const jIdx    = _jobs.indexOf(j);
+    const projNums   = (j.items || []).map((it, i) => it.projectNumber || projectNumberFor(j.id, i));
     html += `<tr>
+      <td style="white-space:nowrap;">${projNums.length ? `<div style="display:flex;flex-wrap:wrap;gap:3px;">${projNums.map(pn => `<span class="proj-num" title="Project Number — copy to track in QuickBooks" onclick="copyText('${esc(pn)}', event)">${esc(pn)}</span>`).join('')}</div>` : '<span style="color:var(--muted);">—</span>'}</td>
       <td style="white-space:nowrap;color:var(--muted);">${date}</td>
       <td style="font-weight:600;">${esc(j.customerName || '—')}</td>
       <td style="color:var(--muted);">${esc(j.printer || '—')}</td>
       <td>${itemCnt} part${itemCnt !== 1 ? 's' : ''}</td>
       <td class="order-total">$${parseFloat(j.total || 0).toFixed(2)}</td>
       <td style="color:var(--muted);">${estEnd}</td>
-      <td><span class="status-badge ${esc(j.status)}">${label}</span></td>
-      <td><span class="pay-badge ${esc(payStatus)}">${payLabel}</span></td>
-      <td style="white-space:nowrap;">
-        ${canAdv ? `<button class="advance-btn" onclick="advanceJobStatus('${esc(j.id)}', this)">Advance ›</button>` : ''}
+      <td style="width:1%;white-space:nowrap;">
+        <select class="status-select ${esc(j.status)}" onchange="changeJobStatus('${esc(j.id)}', this)" data-prev="${esc(j.status)}">
+          ${Object.keys(JOB_STATUS_LABEL).map(s => `<option value="${s}"${s === j.status ? ' selected' : ''}>${JOB_STATUS_LABEL[s]}</option>`).join('')}
+        </select>
+      </td>
+      <td style="width:1%;white-space:nowrap;"><span class="pay-badge ${esc(payStatus)}">${payLabel}</span></td>
+      <td style="width:1%;white-space:nowrap;">
         ${j.invoiceToken ? `<a class="invoice-btn" href="/invoice.html?job=${esc(j.id)}&token=${esc(j.invoiceToken)}" target="_blank">📄 Invoice</a>` : ''}
         <button class="edit-job-btn" onclick="openEditJobOverlay(_jobs.find(x=>x.id==='${esc(j.id)}'))" title="Edit job">✏</button>
         <button class="expand-btn" onclick="toggleExpand('jrow-${idx}', this)">▾</button>
@@ -1703,7 +1711,7 @@ function renderJobs(filter) {
       </td>
     </tr>
     <tr class="expand-row" id="jrow-${idx}">
-      <td colspan="9">
+      <td colspan="10">
         <div class="expand-inner">
           ${j.customerEmail ? `<div style="margin-bottom:6px;color:var(--muted);font-size:12px;">✉️ ${esc(j.customerEmail)}${j.customerPhone ? ' · ' + esc(j.customerPhone) : ''}</div>` : ''}
           ${j.startTime ? `<div style="margin-bottom:4px;color:var(--muted);font-size:12px;">▶ Start: ${new Date(j.startTime).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'})}</div>` : ''}
@@ -1761,6 +1769,30 @@ async function advanceJobStatus(jobId, btn) {
     showToast('Failed to advance job: ' + err.message);
     btn.disabled = false;
     btn.textContent = 'Advance ›';
+  }
+}
+
+async function changeJobStatus(jobId, selectEl) {
+  const newStatus  = selectEl.value;
+  const prevStatus = selectEl.dataset.prev || newStatus;
+  selectEl.disabled = true;
+  try {
+    const res = await fetch(`/api/admin/jobs/${encodeURIComponent(jobId)}`, {
+      method:  'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ status: newStatus }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    selectEl.dataset.prev = newStatus;
+    selectEl.className = `status-select ${newStatus}`;
+    showToast(`Job updated to ${JOB_STATUS_LABEL[newStatus] || newStatus}`);
+    loadJobs();
+  } catch (err) {
+    showToast('Failed to update job: ' + err.message);
+    selectEl.value = prevStatus;
+    selectEl.className = `status-select ${prevStatus}`;
+  } finally {
+    selectEl.disabled = false;
   }
 }
 
