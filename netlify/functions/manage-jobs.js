@@ -20,6 +20,7 @@ async function enqueueQbForNewJob(job) {
 }
 
 const STATUS_NEXT  = { confirmed: 'printing', printing: 'ready', ready: 'complete' };
+const JOB_STATUSES = ['confirmed', 'printing', 'ready', 'complete'];
 const SITE_URL     = process.env.SITE_URL || 'https://superior3dandlaser.com';
 
 // Build store options — auto-context first, explicit env vars as fallback
@@ -383,6 +384,9 @@ async function updateJob(jobId, rawBody, isBase64) {
     job.startTime     = data.startTime     !== undefined ? (data.startTime || null)    : job.startTime;
     job.estEndTime    = data.estEndTime    !== undefined ? (data.estEndTime || null)   : job.estEndTime;
     job.notes         = data.notes         ?? job.notes;
+    if (data.status && JOB_STATUSES.includes(data.status)) {
+      job.status = data.status;
+    }
     job.updatedAt     = new Date().toISOString();
 
     await bs.set(key, JSON.stringify(job));
