@@ -130,10 +130,14 @@ ${QBXML_FOOTER}`;
 }
 
 function buildLines(job, defaultItemName, taxCodeRef) {
-  const lines = (job.items || []).map((it) => {
+  const items = (job.items && job.items.length)
+    ? qb.assignProjectNumbers(job.id, job.items)
+    : [];
+  const lines = items.map((it) => {
     const qty  = parseFloat(it.qty) || 1;
     const rate = parseFloat(it.unitPrice) || 0;
-    const desc = [it.partName || 'Part', it.material || '', it.color || ''].filter(Boolean).join(' — ');
+    const projectTag = it.projectNumber ? `[${it.projectNumber}] ` : '';
+    const desc = projectTag + [it.partName || 'Part', it.material || '', it.color || ''].filter(Boolean).join(' — ');
     return `        <InvoiceLineAdd>
           <ItemRef><FullName>${xmlEscape(defaultItemName)}</FullName></ItemRef>
           <Desc>${xmlEscape(desc)}</Desc>

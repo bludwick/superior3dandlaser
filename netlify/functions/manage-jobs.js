@@ -110,6 +110,9 @@ async function createJob(rawBody, isBase64) {
   const id           = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const invoiceToken = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
 
+  const rawItems = Array.isArray(data.items) ? data.items : [];
+  const items    = _qb ? _qb.assignProjectNumbers(id, rawItems) : rawItems;
+
   const job = {
     id,
     invoiceToken,
@@ -118,7 +121,7 @@ async function createJob(rawBody, isBase64) {
     customerName:  data.customerName  || '',
     customerEmail: data.customerEmail || '',
     customerPhone: data.customerPhone || '',
-    items:         Array.isArray(data.items) ? data.items : [],
+    items,
     stlFiles:      Array.isArray(data.stlFiles) ? data.stlFiles : [],
     subtotal:      parseFloat(data.subtotal)  || 0,
     tax:           parseFloat(data.tax)       || 0,
@@ -155,6 +158,7 @@ async function createJob(rawBody, isBase64) {
       customerEmail: job.customerEmail,
       phone:         job.customerPhone,
       items: job.items.map(it => ({
+        projectNumber: it.projectNumber || null,
         projectName: it.partName  || 'Part',
         material:    it.material  || '',
         color:       it.color     || '',
@@ -368,7 +372,9 @@ async function updateJob(jobId, rawBody, isBase64) {
     job.customerName  = data.customerName  ?? job.customerName;
     job.customerEmail = data.customerEmail ?? job.customerEmail;
     job.customerPhone = data.customerPhone ?? job.customerPhone;
-    job.items         = Array.isArray(data.items)    ? data.items    : job.items;
+    if (Array.isArray(data.items)) {
+      job.items = _qb ? _qb.assignProjectNumbers(jobId, data.items) : data.items;
+    }
     job.stlFiles      = Array.isArray(data.stlFiles) ? data.stlFiles : (job.stlFiles || []);
     job.subtotal      = data.subtotal != null ? parseFloat(data.subtotal)  : job.subtotal;
     job.tax           = data.tax      != null ? parseFloat(data.tax)       : job.tax;
@@ -394,6 +400,7 @@ async function updateJob(jobId, rawBody, isBase64) {
           order.customerEmail = job.customerEmail;
           order.phone         = job.customerPhone;
           order.items         = job.items.map(it => ({
+            projectNumber: it.projectNumber || null,
             projectName: it.partName  || 'Part',
             material:    it.material  || '',
             color:       it.color     || '',
