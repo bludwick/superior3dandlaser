@@ -113,6 +113,41 @@
   status = 200
 
 [[redirects]]
+  from = "/api/customer/login"
+  to = "/.netlify/functions/customer-login"
+  status = 200
+
+[[redirects]]
+  from = "/api/customer/logout"
+  to = "/.netlify/functions/customer-logout"
+  status = 200
+
+[[redirects]]
+  from = "/api/customer/profile"
+  to = "/.netlify/functions/customer-profile"
+  status = 200
+
+[[redirects]]
+  from = "/api/customer/orders"
+  to = "/.netlify/functions/customer-orders"
+  status = 200
+
+[[redirects]]
+  from = "/api/customer/files"
+  to = "/.netlify/functions/customer-files"
+  status = 200
+
+[[redirects]]
+  from = "/api/customer/guest"
+  to = "/.netlify/functions/customer-guest-access"
+  status = 200
+
+[[redirects]]
+  from = "/api/customer/invoice"
+  to = "/.netlify/functions/customer-invoice"
+  status = 200
+
+[[redirects]]
   from = "/contact"
   to = "/customquote"
   status = 301
