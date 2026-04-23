@@ -3856,9 +3856,10 @@ async function submitOrderToBackend(orderData, paymentId) {
   if (paymentId) body.append('paymentId', paymentId);
   // Extra fields for admin order storage
   body.append('leadTime',      leadTime || 'Standard');
-  body.append('subtotalRaw',   subtotal.toFixed(2));
-  body.append('taxRaw',        tax.toFixed(2));
-  body.append('orderTotalRaw', total.toFixed(2));
+  body.append('subtotalRaw',    subtotal.toFixed(2));
+  body.append('taxRaw',         tax.toFixed(2));
+  body.append('orderTotalRaw',  total.toFixed(2));
+  body.append('ltSurchargeRaw', Number(ltSurcharge || 0).toFixed(2));
   if (isCartDebugUrl()) body.append('debugSession', 'cb1f49');
   // Strip thumbnail (large data URL) before serialising — it's display-only and can exceed busboy's field size limit
   body.append('itemsJson',     JSON.stringify(items.map(({ thumbnail, ...rest }) => rest)));
@@ -3927,15 +3928,46 @@ async function submitOrderToBackend(orderData, paymentId) {
     body.append('debugStripe', '85749a');
   }
 
+  // Always log exactly what's being sent so any UI-vs-Stripe total mismatch is diagnosable from the console.
+  try {
+    console.info('[Cart] POST /submit-quote payload', {
+      subtotalRaw:    subtotal.toFixed(2),
+      taxRaw:         tax.toFixed(2),
+      orderTotalRaw:  total.toFixed(2),
+      ltSurchargeRaw: Number(ltSurcharge || 0).toFixed(2),
+      itemCount:      items.length,
+      items: items.map(function (i) {
+        return {
+          fileName:        i.fileName,
+          qty:             i.qty,
+          unitPrice:       i.unitPrice,
+          printLabourFlat: i.printLabourFlat,
+          colorSurcharge:  i.colorSurcharge,
+          lineTotal:       i.lineTotal,
+        };
+      }),
+    });
+  } catch (e) { /* best-effort logging */ }
+
   const res = await fetch('/.netlify/functions/submit-quote', { method: 'POST', body });
   const resText = await res.text();
 
-  if (!res.ok) throw new Error('HTTP ' + res.status);
   var data = {};
-  try {
-    data = JSON.parse(resText);
-  } catch (e) {
-    throw new Error('HTTP ' + res.status + ' (invalid JSON)');
+  try { data = resText ? JSON.parse(resText) : {}; } catch (e) { data = {}; }
+
+  if (!res.ok) {
+    // Surface the server's stage + detail so the browser console shows the real failure.
+    console.error('[Cart] submit-quote failed', {
+      status: res.status,
+      stage:  data.stage  || null,
+      detail: data.detail || data.error || null,
+      debug:  data.debug  || null,
+    });
+    throw new Error(
+      'HTTP ' + res.status +
+      (data.stage  ? ' @' + data.stage : '') +
+      (data.detail ? ' — ' + data.detail : '')
+    );
   }
   if (data.debugStripe) {
     console.info('[debugStripe]', data.debugStripe);

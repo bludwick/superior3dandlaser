@@ -544,7 +544,6 @@ exports.handler = async (event) => {
       let stripeCheckoutBranchForDebug = null;
       let stripeTotalCentsForDebug = null;
       let stripeSessionAmountTotalForDebug = null;
-      let stripeColorsBrandErrForDebug = null;
       if (orderId && process.env.STRIPE_SECRET_KEY) {
         try {
           stage = 'stripeCheckout';
@@ -553,18 +552,95 @@ exports.handler = async (event) => {
           let totalCents = usdStringToCents(fields.orderTotalRaw);
           if (!Number.isFinite(totalCents) || totalCents < 0) totalCents = 0;
           stripeTotalCentsForDebug = totalCents;
-          const productData   = { name: 'Cart order — Superior 3D and Laser' };
-          if (fields.itemCount) {
-            productData.description = `${String(fields.itemCount)} item(s)`;
+
+          // Build itemized line items so the Stripe Checkout page mirrors the calculator breakdown.
+          // Each cart item uses item.lineTotal (= unitPrice×qty + printLabourFlat + colorSurcharge)
+          // as the Stripe unit_amount (quantity=1). This matches the TOTAL column the customer
+          // sees, avoids any mismatch caused by labour/color fields being absent on older cart
+          // items, and keeps the reconciliation simple and reliable.
+          const lineItems = [];
+          let cartItems = [];
+          try { cartItems = JSON.parse(fields.itemsJson || '[]'); } catch { cartItems = []; }
+          if (!Array.isArray(cartItems)) cartItems = [];
+
+          let subtotalCents = 0;
+          for (const it of cartItems) {
+            const qty = Math.max(1, parseInt(it.qty, 10) || 1);
+            // lineTotal already incorporates unitPrice×qty + printLabourFlat + colorSurcharge.
+            const lineTotalCents = Math.max(0, Math.round((Number(it.lineTotal) || 0) * 100));
+            const baseName = (String(it.fileName || '').slice(0, 240)) || 'Custom print';
+            // Append qty to name if >1 so the customer can see how many units are billed.
+            const displayName = qty > 1 ? `${baseName} × ${qty}`.slice(0, 240) : baseName;
+            const descParts = [it.material, it.infill ? `${it.infill} infill` : null, it.color]
+              .filter(Boolean).map(String);
+            const description = descParts.join(' · ').slice(0, 500) || undefined;
+
+            if (lineTotalCents > 0) {
+              lineItems.push({
+                price_data: {
+                  currency: 'usd',
+                  product_data: description
+                    ? { name: displayName, description }
+                    : { name: displayName },
+                  unit_amount: lineTotalCents,
+                },
+                quantity: 1,
+              });
+              subtotalCents += lineTotalCents;
+            }
           }
-          const lineItems = [{
-            price_data: {
-              currency:     'usd',
-              product_data: productData,
-              unit_amount:  totalCents,
-            },
-            quantity: 1,
-          }];
+
+          const ltSurchargeCents = Math.max(0, usdStringToCents(fields.ltSurchargeRaw));
+          if (ltSurchargeCents > 0) {
+            const ltLabel = String(fields.leadTime || 'Rush').slice(0, 200);
+            lineItems.push({
+              price_data: {
+                currency: 'usd',
+                product_data: { name: `Lead-time surcharge — ${ltLabel}`.slice(0, 240) },
+                unit_amount: ltSurchargeCents,
+              },
+              quantity: 1,
+            });
+          }
+
+          // Reconciled tax = customer-visible total minus everything billed so far.
+          const preTaxCents = subtotalCents + ltSurchargeCents;
+          let taxCents = totalCents - preTaxCents;
+          if (taxCents < 0) taxCents = Math.max(0, usdStringToCents(fields.taxRaw));
+          if (taxCents > 0) {
+            lineItems.push({
+              price_data: {
+                currency: 'usd',
+                product_data: { name: 'Sales Tax (8.5%)' },
+                unit_amount: taxCents,
+              },
+              quantity: 1,
+            });
+          }
+
+          // Safety: if itemsJson was empty/malformed or the sum doesn't match the customer's
+          // total, fall back to a single lumped line item so Stripe still charges correctly.
+          const lineItemsSumCents = lineItems.reduce(
+            (s, li) => s + li.price_data.unit_amount * li.quantity, 0
+          );
+          if (lineItems.length === 0 || lineItemsSumCents !== totalCents) {
+            if (lineItems.length > 0) {
+              console.warn('[submit-quote] itemized line-item sum mismatch; using lumped line item', {
+                lineItemsSumCents, totalCents, itemCount: cartItems.length,
+              });
+            }
+            lineItems.length = 0;
+            const productData = { name: 'Cart order — Superior 3D and Laser' };
+            if (fields.itemCount) productData.description = `${String(fields.itemCount)} item(s)`;
+            lineItems.push({
+              price_data: {
+                currency:     'usd',
+                product_data: productData,
+                unit_amount:  totalCents,
+              },
+              quantity: 1,
+            });
+          }
 
           if (totalCents < 50) {
             stripeCheckoutBranchForDebug = 'skipped_below_min';
@@ -591,65 +667,31 @@ exports.handler = async (event) => {
               customer_email: fields.email || undefined,
               metadata:       { orderId },
             };
-            const checkoutCustomText = {
+            // Session-level `branding_settings` are intentionally omitted so the
+            // Stripe Dashboard branding settings (Test and Live each configured
+            // separately) are the single source of truth for logo/colors/name.
+            // That eliminates intermittent unbranded Checkout pages caused by
+            // transient session-branding failures.
+            const customTextPayload = {
               submit: {
                 message: 'You are paying Superior 3D and Laser for your custom 3D print order.',
               },
             };
-            const siteBase = String(SITE_URL).replace(/\/$/, '');
-            const brandColors = {
-              display_name:     'Superior 3D and Laser',
-              background_color: '#ffffff',
-              button_color:     '#b91c1c',
-              border_style:     'rounded',
-            };
-            // Hosted Checkout: try colors+name first (no logo). Logo URLs often fail Stripe fetch; they must not block theme.
-            const customTextPayload = { submit: checkoutCustomText.submit };
             let session;
             let checkoutBranch = null;
             try {
               session = await stripe.checkout.sessions.create({
                 ...sessionParamsBase,
-                custom_text:       customTextPayload,
-                branding_settings: brandColors,
+                custom_text: customTextPayload,
               });
-              checkoutBranch = 'colors_only';
+              checkoutBranch = 'custom_text';
             } catch (e1) {
-              stripeColorsBrandErrForDebug = String(e1.message || '').slice(0, 200);
-              console.warn('[submit-quote] Checkout with colors branding failed, retrying with logo:', e1.message);
+              console.warn('[submit-quote] Checkout with custom_text failed, retrying base:', e1.message);
               // #region agent log
-              agentDebugIngest({ runId: 'post-fix', hypothesisId: 'T1', location: 'submit-quote.js:stripe:e1', message: 'checkout create failed (colors brand)', data: { code: e1.code || null, type: e1.type || null } });
+              agentDebugIngest({ runId: 'post-fix', hypothesisId: 'B1', location: 'submit-quote.js:stripe:e1', message: 'checkout create failed (custom_text)', data: { code: e1.code || null, type: e1.type || null } });
               // #endregion
-              try {
-                session = await stripe.checkout.sessions.create({
-                  ...sessionParamsBase,
-                  custom_text:       customTextPayload,
-                  branding_settings: {
-                    ...brandColors,
-                    logo: { type: 'url', url: `${siteBase}/3dprint-icon.svg` },
-                  },
-                });
-                checkoutBranch = 'logo_brand';
-              } catch (e2) {
-                console.warn('[submit-quote] Checkout with logo branding failed, retrying custom_text only:', e2.message);
-                // #region agent log
-                agentDebugIngest({ runId: 'post-fix', hypothesisId: 'H1', location: 'submit-quote.js:stripe:e2', message: 'checkout create failed (logo brand)', data: { code: e2.code || null, type: e2.type || null } });
-                // #endregion
-                try {
-                  session = await stripe.checkout.sessions.create({
-                    ...sessionParamsBase,
-                    custom_text: customTextPayload,
-                  });
-                  checkoutBranch = 'custom_text_only';
-                } catch (e3) {
-                  console.warn('[submit-quote] Checkout with custom_text failed, retrying base:', e3.message);
-                  // #region agent log
-                  agentDebugIngest({ runId: 'post-fix', hypothesisId: 'H1', location: 'submit-quote.js:stripe:e3', message: 'checkout create failed (custom_text)', data: { code: e3.code || null, type: e3.type || null } });
-                  // #endregion
-                  session = await stripe.checkout.sessions.create(sessionParamsBase);
-                  checkoutBranch = 'base';
-                }
-              }
+              session = await stripe.checkout.sessions.create(sessionParamsBase);
+              checkoutBranch = 'base';
             }
             checkoutUrl = session && session.url ? session.url : checkoutUrl;
             if (session) {
@@ -714,7 +756,6 @@ exports.handler = async (event) => {
           totalCentsParsed: centsDbg,
           checkoutBranch: stripeCheckoutBranchForDebug,
           stripeSessionAmountTotal: stripeSessionAmountTotalForDebug,
-          colorsBrandError: stripeColorsBrandErrForDebug,
           hadStripeKey: !!process.env.STRIPE_SECRET_KEY,
           apiVersion: STRIPE_API_VERSION,
         };
