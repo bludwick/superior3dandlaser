@@ -1,6 +1,6 @@
 [build]
   publish = "."
-  command = "npm install"
+  command = "npm install && cd customer && npm install && npm run build"
 
 [functions]
   directory = "netlify/functions"
@@ -110,6 +110,12 @@
 [[redirects]]
   from = "/api/address-suggest"
   to = "/.netlify/functions/address-suggest"
+  status = 200
+
+# Customer portal SPA — serve index.html for all /portal/* routes
+[[redirects]]
+  from = "/portal/*"
+  to   = "/customer-dist/index.html"
   status = 200
 
 [[redirects]]
