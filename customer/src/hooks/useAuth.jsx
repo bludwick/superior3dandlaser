@@ -21,15 +21,13 @@ export function AuthProvider({ children }) {
   }, []);
 
   async function login(email, password) {
-    // Demo shortcut: any credentials with demo@example.com
-    if (email === 'demo@example.com') {
-      const demoUser = { email: SAMPLE_PROFILE.email, name: SAMPLE_PROFILE.name };
-      sessionStorage.setItem('demo_user', JSON.stringify(demoUser));
-      setUser(demoUser);
-      return;
+    const emailLower = email.toLowerCase();
+    const data = await api.post('/api/customer/login', { email: emailLower, password });
+    // Mark demo mode if logged in as demo@example.com
+    if (emailLower === 'demo@example.com') {
+      sessionStorage.setItem('demo_user', 'true');
     }
-    const data = await api.post('/api/customer/login', { email, password });
-    setUser({ email, name: data.name });
+    setUser({ email: emailLower, name: data.name });
   }
 
   async function logout() {

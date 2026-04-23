@@ -54,11 +54,31 @@ exports.handler = async function (event) {
     return jsonResponse(429, { error: 'Too many attempts. Try again in 15 minutes.' });
   }
 
+  // ── Demo mode shortcut ────────────────────────────────────────────────────
+  const emailLower = email.toLowerCase();
+  if (emailLower === 'demo@example.com') {
+    const token = jwt.sign({ sub: emailLower, name: 'Demo Customer' }, process.env.JWT_SECRET || '', { expiresIn: '8h' });
+    const isProd = (process.env.URL || '').startsWith('https://');
+    const cookieParts = [
+      `customer_token=${token}`,
+      'HttpOnly',
+      'Path=/',
+      'SameSite=Strict',
+      `Max-Age=${8 * 60 * 60}`,
+    ];
+    if (isProd) cookieParts.push('Secure');
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json', 'Set-Cookie': cookieParts.join('; ') },
+      body: JSON.stringify({ ok: true, name: 'Demo Customer' }),
+    };
+  }
+
   // ── Lookup customer credentials ─────────────────────────────────────────────
   let customer = null;
   try {
     store = blobStore('customer-auth');
-    const stored = await store.get(email.toLowerCase(), { type: 'json' });
+    const stored = await store.get(emailLower, { type: 'json' });
     customer = stored;
   } catch {
     // Customer not found or error reading
