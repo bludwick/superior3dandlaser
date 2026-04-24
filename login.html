@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Log In — Superior 3D and Laser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:       #ffffff;
+    --bg-light: #f1f1f1;
+    --border:   #e0e0e0;
+    --accent:   #b91c1c;
+    --text:     #111111;
+    --muted:    #555555;
+    --font:     'Inter', 'Segoe UI', system-ui, sans-serif;
+  }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--font);
+    background: var(--bg-light);
+    color: var(--text);
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 48px 48px; opacity: .18; pointer-events: none;
+  }
+  .card {
+    position: relative;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,.08);
+    padding: 44px 40px 40px; width: 100%; max-width: 420px; margin: 20px;
+  }
+  .logo-area { display: flex; flex-direction: column; gap: 4px; margin-bottom: 32px; }
+  .logo-tag { font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: .12em; text-transform: uppercase; }
+  .logo-name { font-size: 20px; font-weight: 900; line-height: 1.1; letter-spacing: -.02em; }
+  .logo-name span { color: var(--accent); }
+
+  .tabs {
+    display: flex; border-bottom: 1px solid var(--border); margin-bottom: 28px; gap: 0;
+  }
+  .tab-btn {
+    flex: 1; padding: 10px 0; font-size: 13px; font-weight: 600;
+    border: none; background: none; cursor: pointer;
+    color: var(--muted); border-bottom: 2px solid transparent;
+    margin-bottom: -1px; transition: color .15s, border-color .15s; font-family: var(--font);
+  }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-btn:hover:not(.active) { color: var(--text); }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .subtitle { font-size: 13px; color: var(--muted); margin-bottom: 22px; }
+  h2 { font-size: 22px; font-weight: 800; letter-spacing: -.01em; margin-bottom: 6px; }
+  .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+  label { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #777; }
+  .input-wrap { position: relative; display: flex; align-items: center; }
+  input {
+    width: 100%; padding: 10px 42px 10px 13px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: var(--font); font-size: 14px;
+    outline: none; transition: border-color .2s, box-shadow .2s;
+  }
+  input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(185,28,28,.10); }
+  .pw-toggle {
+    position: absolute; right: 10px; background: none; border: none; cursor: pointer;
+    color: var(--muted); font-size: 14px; padding: 2px 4px; line-height: 1; transition: color .15s;
+  }
+  .pw-toggle:hover { color: var(--text); }
+  .btn {
+    width: 100%; padding: 12px; background: var(--accent); color: #fff;
+    border: none; border-radius: 8px; font-family: var(--font); font-size: 14px;
+    font-weight: 700; cursor: pointer; letter-spacing: .02em; margin-top: 8px;
+    transition: background .2s, transform .15s, box-shadow .2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn:hover:not(:disabled) { background: #dc2626; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(185,28,28,.3); }
+  .btn:disabled { opacity: .6; cursor: not-allowed; }
+  .error-box {
+    display: none; background: rgba(220,38,38,.05); border: 1px solid rgba(220,38,38,.25);
+    border-radius: 8px; padding: 11px 14px; font-size: 13px; color: #dc2626;
+    font-weight: 600; margin-bottom: 16px;
+  }
+  .error-box.show { display: block; }
+  .demo-hint { font-size: 12px; color: #999; text-align: center; margin-top: 16px; }
+  .demo-hint button { color: var(--accent); background: none; border: none; cursor: pointer; text-decoration: underline; font-size: 12px; }
+  .back-link { display: block; text-align: center; margin-top: 22px; font-size: 12px; color: var(--muted); text-decoration: none; }
+  .back-link:hover { color: var(--accent); }
+  .spinner {
+    width: 16px; height: 16px; border: 2.5px solid rgba(255,255,255,.4);
+    border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; display: none;
+  }
+  .btn.loading .spinner { display: block; }
+  .btn.loading .btn-label { display: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo-area">
+    <span class="logo-tag">Superior 3D and Laser</span>
+    <div class="logo-name">Sign <span>In</span></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('account', event)">Sign In</button>
+    <button class="tab-btn" onclick="switchTab('guest', event)">Guest Access</button>
+  </div>
+
+  <!-- Account Login Tab -->
+  <div id="account" class="tab-content active">
+    <p class="subtitle">Access your account and view all your orders, quotes, and files.</p>
+    <div class="error-box" id="accountError"></div>
+    <form onsubmit="handleAccountLogin(event)" novalidate>
+      <div class="field">
+        <label for="email">Email Address</label>
+        <div class="input-wrap">
+          <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email" required>
+        </div>
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <div class="input-wrap">
+          <input type="password" id="password" name="password" placeholder="••••••••••" autocomplete="current-password" required>
+          <button type="button" class="pw-toggle" onclick="togglePw()" title="Show / hide password">👁</button>
+        </div>
+      </div>
+      <button type="submit" class="btn" id="submitBtn">
+        <span class="btn-label">Sign In →</span>
+        <span class="spinner"></span>
+      </button>
+    </form>
+    <div class="demo-hint">
+      Demo: <button onclick="setDemoAccount()">demo@example.com</button> to preview with sample data.
+    </div>
+  </div>
+
+  <!-- Guest Access Tab -->
+  <div id="guest" class="tab-content">
+    <p class="subtitle">Enter your project number from your receipt to view a specific order — no account needed.</p>
+    <div class="error-box" id="guestError"></div>
+    <form onsubmit="handleGuestLogin(event)" novalidate>
+      <div class="field">
+        <label for="projNum">Project Number</label>
+        <div class="input-wrap">
+          <input type="text" id="projNum" name="projNum" placeholder="e.g. P-1042" required>
+        </div>
+      </div>
+      <div class="field">
+        <label for="guestEmail">Email Address</label>
+        <div class="input-wrap">
+          <input type="email" id="guestEmail" name="guestEmail" placeholder="Email used when ordering" autocomplete="email" required>
+        </div>
+      </div>
+      <button type="submit" class="btn" id="guestSubmitBtn">
+        <span class="btn-label">Access Order →</span>
+        <span class="spinner"></span>
+      </button>
+    </form>
+    <div class="demo-hint">Your project number is on your order receipt or confirmation email.</div>
+  </div>
+
+  <a href="/" class="back-link">← Back to site</a>
+</div>
+
+<script>
+  function switchTab(tab, event) {
+    event.preventDefault();
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById(tab).classList.add('active');
+    event.target.classList.add('active');
+    document.getElementById('accountError').classList.remove('show');
+    document.getElementById('guestError').classList.remove('show');
+  }
+
+  function togglePw() {
+    const inp = document.getElementById('password');
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+  }
+
+  function setDemoAccount() {
+    document.getElementById('email').value = 'demo@example.com';
+    document.getElementById('password').value = 'demo';
+  }
+
+  async function handleAccountLogin(e) {
+    e.preventDefault();
+    const btn      = document.getElementById('submitBtn');
+    const errorBox = document.getElementById('accountError');
+    const email    = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+
+    if (!email || !password) {
+      errorBox.textContent = 'Please enter your email and password.';
+      errorBox.classList.add('show');
+      return;
+    }
+
+    btn.classList.add('loading');
+    btn.disabled = true;
+    errorBox.classList.remove('show');
+
+    try {
+      const res = await fetch('/api/login', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ email, password }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok) {
+        if (data.role === 'admin') {
+          window.location.href = '/admin/';
+        } else {
+          window.location.href = '/portal/';
+        }
+      } else if (res.status === 429) {
+        errorBox.textContent = 'Too many failed attempts. Please wait 15 minutes and try again.';
+        errorBox.classList.add('show');
+      } else {
+        errorBox.textContent = data.error || 'Invalid email or password.';
+        errorBox.classList.add('show');
+      }
+    } catch {
+      errorBox.textContent = 'Network error — check your connection and try again.';
+      errorBox.classList.add('show');
+    } finally {
+      btn.classList.remove('loading');
+      btn.disabled = false;
+    }
+  }
+
+  async function handleGuestLogin(e) {
+    e.preventDefault();
+    const btn      = document.getElementById('guestSubmitBtn');
+    const errorBox = document.getElementById('guestError');
+    const projNum  = document.getElementById('projNum').value.trim();
+    const email    = document.getElementById('guestEmail').value.trim();
+
+    if (!projNum || !email) {
+      errorBox.textContent = 'Please enter your project number and email.';
+      errorBox.classList.add('show');
+      return;
+    }
+
+    btn.classList.add('loading');
+    btn.disabled = true;
+    errorBox.classList.remove('show');
+
+    try {
+      const res = await fetch('/api/customer/guest', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ projectNumber: projNum, email }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok) {
+        sessionStorage.setItem('guest_token', data.token);
+        sessionStorage.setItem('guest_data', JSON.stringify(data.order));
+        window.location.href = '/portal/guest-order';
+      } else {
+        errorBox.textContent = data.error || 'Order not found. Please check your project number and email.';
+        errorBox.classList.add('show');
+      }
+    } catch {
+      errorBox.textContent = 'Network error — check your connection and try again.';
+      errorBox.classList.add('show');
+    } finally {
+      btn.classList.remove('loading');
+      btn.disabled = false;
+    }
+  }
+</script>
+</body>
+</html>
