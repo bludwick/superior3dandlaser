@@ -98,6 +98,10 @@ exports.handler = async function (event) {
     try { await bcrypt.compare(password, '$2b$12$invalidhashxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'); } catch { /* no-op */ }
   }
 
+  if (customerOk && !customer.verified) {
+    return jsonResponse(403, { error: 'Please verify your email before signing in. Check your inbox for the verification link.' });
+  }
+
   if (customerOk) {
     if (rlStore) try { await rlStore.delete(rlKey); } catch { /* best-effort */ }
 

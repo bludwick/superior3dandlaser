@@ -38,6 +38,7 @@
     background: var(--bg); border: 1px solid var(--border);
     border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,.08);
     padding: 44px 40px 40px; width: 100%; max-width: 420px; margin: 20px;
+    transition: min-height .2s;
   }
   .logo-area { display: flex; flex-direction: column; gap: 4px; margin-bottom: 32px; }
   .logo-tag { font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: .12em; text-transform: uppercase; }
@@ -59,10 +60,24 @@
   .tab-content { display: none; }
   .tab-content.active { display: block; }
 
+  /* Sub-views within a tab */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .back-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px; font-weight: 600; color: var(--muted);
+    background: none; border: none; cursor: pointer; padding: 0;
+    margin-bottom: 20px; font-family: var(--font);
+    transition: color .15s;
+  }
+  .back-btn:hover { color: var(--accent); }
+
   .subtitle { font-size: 13px; color: var(--muted); margin-bottom: 22px; }
   h2 { font-size: 22px; font-weight: 800; letter-spacing: -.01em; margin-bottom: 6px; }
   .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
   label { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #777; }
+  label .opt { font-weight: 500; color: #aaa; text-transform: none; letter-spacing: 0; font-size: 10px; }
   .input-wrap { position: relative; display: flex; align-items: center; }
   input {
     width: 100%; padding: 10px 42px 10px 13px;
@@ -71,11 +86,22 @@
     outline: none; transition: border-color .2s, box-shadow .2s;
   }
   input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(185,28,28,.10); }
+  input.no-icon { padding-right: 13px; }
   .pw-toggle {
     position: absolute; right: 10px; background: none; border: none; cursor: pointer;
     color: var(--muted); font-size: 14px; padding: 2px 4px; line-height: 1; transition: color .15s;
   }
   .pw-toggle:hover { color: var(--text); }
+
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .forgot-link {
+    display: inline-block; font-size: 11px; font-weight: 600; color: var(--muted);
+    background: none; border: none; cursor: pointer; padding: 0; margin-top: 2px;
+    font-family: var(--font); text-decoration: underline; transition: color .15s;
+  }
+  .forgot-link:hover { color: var(--accent); }
+
   .btn {
     width: 100%; padding: 12px; background: var(--accent); color: #fff;
     border: none; border-radius: 8px; font-family: var(--font); font-size: 14px;
@@ -85,16 +111,36 @@
   }
   .btn:hover:not(:disabled) { background: #dc2626; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(185,28,28,.3); }
   .btn:disabled { opacity: .6; cursor: not-allowed; }
+
+  .btn-outline {
+    width: 100%; padding: 11px; background: transparent; color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px; font-family: var(--font); font-size: 14px;
+    font-weight: 600; cursor: pointer; letter-spacing: .01em; margin-top: 10px;
+    transition: border-color .2s, background .2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-outline:hover { border-color: var(--accent); background: rgba(185,28,28,.03); }
+
+  .divider { display: flex; align-items: center; gap: 10px; margin: 14px 0 4px; color: #bbb; font-size: 11px; }
+  .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
   .error-box {
     display: none; background: rgba(220,38,38,.05); border: 1px solid rgba(220,38,38,.25);
     border-radius: 8px; padding: 11px 14px; font-size: 13px; color: #dc2626;
     font-weight: 600; margin-bottom: 16px;
   }
   .error-box.show { display: block; }
+  .success-box {
+    display: none; background: rgba(22,163,74,.05); border: 1px solid rgba(22,163,74,.25);
+    border-radius: 8px; padding: 11px 14px; font-size: 13px; color: #15803d;
+    font-weight: 600; margin-bottom: 16px;
+  }
+  .success-box.show { display: block; }
+
   .demo-hint { font-size: 12px; color: #999; text-align: center; margin-top: 16px; }
   .demo-hint button { color: var(--accent); background: none; border: none; cursor: pointer; text-decoration: underline; font-size: 12px; }
   .back-link { display: block; text-align: center; margin-top: 22px; font-size: 12px; color: var(--muted); text-decoration: none; }
   .back-link:hover { color: var(--accent); }
+  .terms-note { font-size: 11px; color: #aaa; text-align: center; margin-top: 12px; line-height: 1.5; }
   .spinner {
     width: 16px; height: 16px; border: 2.5px solid rgba(255,255,255,.4);
     border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; display: none;
@@ -102,6 +148,13 @@
   .btn.loading .spinner { display: block; }
   .btn.loading .btn-label { display: none; }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Password strength bar */
+  .pw-strength { display: none; margin-top: 6px; }
+  .pw-strength.show { display: block; }
+  .pw-strength-bar { height: 3px; border-radius: 3px; background: var(--border); overflow: hidden; }
+  .pw-strength-fill { height: 100%; border-radius: 3px; transition: width .2s, background .2s; }
+  .pw-strength-label { font-size: 10px; color: var(--muted); margin-top: 3px; }
 </style>
 </head>
 <body>
@@ -116,35 +169,120 @@
     <button class="tab-btn" onclick="switchTab('guest', event)">Guest Access</button>
   </div>
 
-  <!-- Account Login Tab -->
+  <!-- ── Account Tab ── -->
   <div id="account" class="tab-content active">
-    <p class="subtitle">Access your account and view all your orders, quotes, and files.</p>
-    <div class="error-box" id="accountError"></div>
-    <form onsubmit="handleAccountLogin(event)" novalidate>
-      <div class="field">
-        <label for="email">Email Address</label>
-        <div class="input-wrap">
-          <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email" required>
+
+    <!-- Sign-in view -->
+    <div id="view-signin" class="view active">
+      <p class="subtitle">Access your account and view all your orders, quotes, and files.</p>
+      <div class="error-box" id="signinError"></div>
+      <form onsubmit="handleAccountLogin(event)" novalidate>
+        <div class="field">
+          <label for="email">Email Address</label>
+          <div class="input-wrap">
+            <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email" required class="no-icon">
+          </div>
         </div>
-      </div>
-      <div class="field">
-        <label for="password">Password</label>
-        <div class="input-wrap">
-          <input type="password" id="password" name="password" placeholder="••••••••••" autocomplete="current-password" required>
-          <button type="button" class="pw-toggle" onclick="togglePw()" title="Show / hide password">👁</button>
+        <div class="field">
+          <label for="password" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>Password</span>
+            <button type="button" class="forgot-link" onclick="showView('forgot')">Forgot password?</button>
+          </label>
+          <div class="input-wrap">
+            <input type="password" id="password" name="password" placeholder="••••••••••" autocomplete="current-password" required>
+            <button type="button" class="pw-toggle" onclick="togglePw('password')" title="Show / hide password">👁</button>
+          </div>
         </div>
+        <button type="submit" class="btn" id="signinBtn">
+          <span class="btn-label">Sign In →</span>
+          <span class="spinner"></span>
+        </button>
+      </form>
+      <div class="divider">or</div>
+      <button class="btn-outline" onclick="showView('register')">Create an Account</button>
+      <div class="demo-hint">
+        Demo: <button onclick="setDemoAccount()">demo@example.com</button> to preview with sample data.
       </div>
-      <button type="submit" class="btn" id="submitBtn">
-        <span class="btn-label">Sign In →</span>
-        <span class="spinner"></span>
-      </button>
-    </form>
-    <div class="demo-hint">
-      Demo: <button onclick="setDemoAccount()">demo@example.com</button> to preview with sample data.
     </div>
+
+    <!-- Forgot password view -->
+    <div id="view-forgot" class="view">
+      <button class="back-btn" onclick="showView('signin')">← Back to sign in</button>
+      <h2>Reset Password</h2>
+      <p class="subtitle">Enter your email and we'll send you a link to reset your password.</p>
+      <div class="error-box" id="forgotError"></div>
+      <div class="success-box" id="forgotSuccess"></div>
+      <form id="forgotForm" onsubmit="handleForgotPassword(event)" novalidate>
+        <div class="field">
+          <label for="forgotEmail">Email Address</label>
+          <div class="input-wrap">
+            <input type="email" id="forgotEmail" name="forgotEmail" placeholder="you@example.com" autocomplete="email" required class="no-icon">
+          </div>
+        </div>
+        <button type="submit" class="btn" id="forgotBtn">
+          <span class="btn-label">Send Reset Link →</span>
+          <span class="spinner"></span>
+        </button>
+      </form>
+    </div>
+
+    <!-- Create account view -->
+    <div id="view-register" class="view">
+      <button class="back-btn" onclick="showView('signin')">← Back to sign in</button>
+      <h2>Create Account</h2>
+      <p class="subtitle">Set up your customer portal account to track orders and files.</p>
+      <div class="error-box" id="registerError"></div>
+      <div class="success-box" id="registerSuccess"></div>
+      <form id="registerForm" onsubmit="handleRegister(event)" novalidate>
+        <div class="field">
+          <label for="regName">Full Name</label>
+          <div class="input-wrap">
+            <input type="text" id="regName" name="regName" placeholder="Jane Smith" autocomplete="name" required class="no-icon">
+          </div>
+        </div>
+        <div class="field">
+          <label for="regEmail">Email Address</label>
+          <div class="input-wrap">
+            <input type="email" id="regEmail" name="regEmail" placeholder="you@example.com" autocomplete="email" required class="no-icon">
+          </div>
+        </div>
+        <div class="field">
+          <label for="regPassword">Password</label>
+          <div class="input-wrap">
+            <input type="password" id="regPassword" name="regPassword" placeholder="Min. 8 characters" autocomplete="new-password" required oninput="checkPwStrength(this.value)" minlength="8">
+            <button type="button" class="pw-toggle" onclick="togglePw('regPassword')" title="Show / hide password">👁</button>
+          </div>
+          <div class="pw-strength" id="pwStrength">
+            <div class="pw-strength-bar"><div class="pw-strength-fill" id="pwStrengthFill"></div></div>
+            <div class="pw-strength-label" id="pwStrengthLabel"></div>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field" style="margin-bottom:0">
+            <label for="regPhone">Phone <span class="opt">(optional)</span></label>
+            <div class="input-wrap">
+              <input type="tel" id="regPhone" name="regPhone" placeholder="(555) 000-0000" autocomplete="tel" class="no-icon">
+            </div>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label for="regCompany">Company <span class="opt">(optional)</span></label>
+            <div class="input-wrap">
+              <input type="text" id="regCompany" name="regCompany" placeholder="Acme Inc." autocomplete="organization" class="no-icon">
+            </div>
+          </div>
+        </div>
+        <div style="margin-bottom:0;height:16px;"></div>
+        <button type="submit" class="btn" id="registerBtn">
+          <span class="btn-label">Create Account →</span>
+          <span class="spinner"></span>
+        </button>
+      </form>
+      <p class="terms-note">By creating an account you'll receive a verification email before you can sign in.</p>
+    </div>
+
   </div>
 
-  <!-- Guest Access Tab -->
+  <!-- ── Guest Access Tab ── -->
   <div id="guest" class="tab-content">
     <p class="subtitle">Enter your project number from your receipt to view a specific order — no account needed.</p>
     <div class="error-box" id="guestError"></div>
@@ -152,13 +290,13 @@
       <div class="field">
         <label for="projNum">Project Number</label>
         <div class="input-wrap">
-          <input type="text" id="projNum" name="projNum" placeholder="e.g. P-1042" required>
+          <input type="text" id="projNum" name="projNum" placeholder="e.g. P-1042" required class="no-icon">
         </div>
       </div>
       <div class="field">
         <label for="guestEmail">Email Address</label>
         <div class="input-wrap">
-          <input type="email" id="guestEmail" name="guestEmail" placeholder="Email used when ordering" autocomplete="email" required>
+          <input type="email" id="guestEmail" name="guestEmail" placeholder="Email used when ordering" autocomplete="email" required class="no-icon">
         </div>
       </div>
       <button type="submit" class="btn" id="guestSubmitBtn">
@@ -173,30 +311,72 @@
 </div>
 
 <script>
+  // ── Tab switching ──────────────────────────────────────────────────────────
   function switchTab(tab, event) {
     event.preventDefault();
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById(tab).classList.add('active');
     event.target.classList.add('active');
-    document.getElementById('accountError').classList.remove('show');
-    document.getElementById('guestError').classList.remove('show');
+    clearErrors();
   }
 
-  function togglePw() {
-    const inp = document.getElementById('password');
+  // ── Sub-view switching within the Account tab ──────────────────────────────
+  function showView(name) {
+    document.querySelectorAll('#account .view').forEach(el => el.classList.remove('active'));
+    document.getElementById('view-' + name).classList.add('active');
+    clearErrors();
+  }
+
+  function clearErrors() {
+    document.querySelectorAll('.error-box').forEach(el => el.classList.remove('show'));
+    document.querySelectorAll('.success-box').forEach(el => el.classList.remove('show'));
+  }
+
+  // ── Toggle password visibility ─────────────────────────────────────────────
+  function togglePw(id) {
+    const inp = document.getElementById(id);
     inp.type = inp.type === 'password' ? 'text' : 'password';
   }
 
+  // ── Demo shortcut ──────────────────────────────────────────────────────────
   function setDemoAccount() {
     document.getElementById('email').value = 'demo@example.com';
     document.getElementById('password').value = 'demo';
   }
 
+  // ── Password strength indicator ────────────────────────────────────────────
+  function checkPwStrength(val) {
+    const el     = document.getElementById('pwStrength');
+    const fill   = document.getElementById('pwStrengthFill');
+    const label  = document.getElementById('pwStrengthLabel');
+    if (!val) { el.classList.remove('show'); return; }
+    el.classList.add('show');
+    let score = 0;
+    if (val.length >= 8)  score++;
+    if (val.length >= 12) score++;
+    if (/[A-Z]/.test(val)) score++;
+    if (/[0-9]/.test(val)) score++;
+    if (/[^A-Za-z0-9]/.test(val)) score++;
+    const levels = [
+      { pct: '20%', color: '#dc2626', text: 'Very weak' },
+      { pct: '40%', color: '#f97316', text: 'Weak' },
+      { pct: '60%', color: '#eab308', text: 'Fair' },
+      { pct: '80%', color: '#22c55e', text: 'Strong' },
+      { pct: '100%', color: '#16a34a', text: 'Very strong' },
+    ];
+    const lvl = levels[Math.max(0, score - 1)];
+    fill.style.width = lvl.pct;
+    fill.style.background = lvl.color;
+    label.textContent = lvl.text;
+    label.style.color = lvl.color;
+  }
+
+  // ── Sign In ────────────────────────────────────────────────────────────────
   async function handleAccountLogin(e) {
     e.preventDefault();
-    const btn      = document.getElementById('submitBtn');
-    const errorBox = document.getElementById('accountError');
+    const btn      = document.getElementById('signinBtn');
+    const errorBox = document.getElementById('signinError');
     const email    = document.getElementById('email').value.trim().toLowerCase();
     const password = document.getElementById('password').value;
 
@@ -247,6 +427,104 @@
     }
   }
 
+  // ── Forgot Password ────────────────────────────────────────────────────────
+  async function handleForgotPassword(e) {
+    e.preventDefault();
+    const btn        = document.getElementById('forgotBtn');
+    const errorBox   = document.getElementById('forgotError');
+    const successBox = document.getElementById('forgotSuccess');
+    const email      = document.getElementById('forgotEmail').value.trim().toLowerCase();
+
+    if (!email) {
+      errorBox.textContent = 'Please enter your email address.';
+      errorBox.classList.add('show');
+      return;
+    }
+
+    btn.classList.add('loading');
+    btn.disabled = true;
+    errorBox.classList.remove('show');
+    successBox.classList.remove('show');
+
+    try {
+      const res  = await fetch('/api/customer/forgot-password', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ email }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok) {
+        successBox.textContent = 'If an account exists for that email, a reset link has been sent. Check your inbox.';
+        successBox.classList.add('show');
+        document.getElementById('forgotForm').style.display = 'none';
+      } else {
+        errorBox.textContent = data.error || 'Something went wrong. Please try again.';
+        errorBox.classList.add('show');
+      }
+    } catch {
+      errorBox.textContent = 'Network error — check your connection and try again.';
+      errorBox.classList.add('show');
+    } finally {
+      btn.classList.remove('loading');
+      btn.disabled = false;
+    }
+  }
+
+  // ── Create Account ─────────────────────────────────────────────────────────
+  async function handleRegister(e) {
+    e.preventDefault();
+    const btn        = document.getElementById('registerBtn');
+    const errorBox   = document.getElementById('registerError');
+    const successBox = document.getElementById('registerSuccess');
+    const name       = document.getElementById('regName').value.trim();
+    const email      = document.getElementById('regEmail').value.trim().toLowerCase();
+    const password   = document.getElementById('regPassword').value;
+    const phone      = document.getElementById('regPhone').value.trim();
+    const company    = document.getElementById('regCompany').value.trim();
+
+    if (!name || !email || !password) {
+      errorBox.textContent = 'Please fill in your name, email, and password.';
+      errorBox.classList.add('show');
+      return;
+    }
+    if (password.length < 8) {
+      errorBox.textContent = 'Password must be at least 8 characters.';
+      errorBox.classList.add('show');
+      return;
+    }
+
+    btn.classList.add('loading');
+    btn.disabled = true;
+    errorBox.classList.remove('show');
+    successBox.classList.remove('show');
+
+    try {
+      const res  = await fetch('/api/customer/register', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ name, email, password, phone, company }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok || res.status === 201) {
+        successBox.textContent = 'Account created! Check your email for a verification link before signing in.';
+        successBox.classList.add('show');
+        document.getElementById('registerForm').style.display = 'none';
+      } else {
+        errorBox.textContent = data.error || 'Something went wrong. Please try again.';
+        errorBox.classList.add('show');
+      }
+    } catch {
+      errorBox.textContent = 'Network error — check your connection and try again.';
+      errorBox.classList.add('show');
+    } finally {
+      btn.classList.remove('loading');
+      btn.disabled = false;
+    }
+  }
+
+  // ── Guest Access ───────────────────────────────────────────────────────────
   async function handleGuestLogin(e) {
     e.preventDefault();
     const btn      = document.getElementById('guestSubmitBtn');
@@ -288,6 +566,20 @@
       btn.disabled = false;
     }
   }
+
+  // ── Handle verified=true query param (redirect from verify-email.html) ─────
+  (function () {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('verified') === 'true') {
+      const successBox = document.getElementById('registerSuccess');
+      // Show on the sign-in view
+      const successEl = document.createElement('div');
+      successEl.className = 'success-box show';
+      successEl.style.marginBottom = '16px';
+      successEl.textContent = 'Email verified! You can now sign in.';
+      document.getElementById('view-signin').insertBefore(successEl, document.getElementById('view-signin').querySelector('form'));
+    }
+  })();
 </script>
 </body>
 </html>

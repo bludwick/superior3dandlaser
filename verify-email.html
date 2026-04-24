@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verify Email — Superior 3D and Laser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg-light: #f1f1f1; --border: #e0e0e0;
+    --accent: #b91c1c; --text: #111111; --muted: #555555;
+    --font: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--font); background: var(--bg-light); color: var(--text);
+    display: flex; align-items: center; justify-content: center; min-height: 100vh;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image: linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 48px 48px; opacity: .18; pointer-events: none;
+  }
+  .card {
+    position: relative; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,.08);
+    padding: 44px 40px 40px; width: 100%; max-width: 420px; margin: 20px;
+    text-align: center;
+  }
+  .logo-tag { font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: .12em; text-transform: uppercase; display: block; margin-bottom: 4px; }
+  .logo-name { font-size: 20px; font-weight: 900; letter-spacing: -.02em; margin-bottom: 32px; }
+  .logo-name span { color: var(--accent); }
+  .icon { font-size: 48px; margin-bottom: 16px; display: block; }
+  h2 { font-size: 22px; font-weight: 800; margin-bottom: 10px; letter-spacing: -.01em; }
+  .message { font-size: 14px; color: var(--muted); line-height: 1.6; margin-bottom: 28px; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 12px 28px; background: var(--accent); color: #fff;
+    border: none; border-radius: 8px; font-family: var(--font); font-size: 14px;
+    font-weight: 700; cursor: pointer; letter-spacing: .02em; text-decoration: none;
+    transition: background .2s, transform .15s, box-shadow .2s; width: 100%;
+  }
+  .btn:hover { background: #dc2626; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(185,28,28,.3); }
+  .btn-outline {
+    display: inline-block; margin-top: 12px; padding: 11px 28px;
+    background: transparent; color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; font-family: var(--font); font-size: 14px; font-weight: 600;
+    text-decoration: none; text-align: center; width: 100%;
+    transition: border-color .2s, background .2s;
+  }
+  .btn-outline:hover { border-color: var(--accent); background: rgba(185,28,28,.03); }
+  .spinner-wrap { margin-bottom: 16px; }
+  .spinner {
+    display: inline-block; width: 36px; height: 36px;
+    border: 3px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error-icon { color: #dc2626; }
+</style>
+</head>
+<body>
+<div class="card">
+  <span class="logo-tag">Superior 3D and Laser</span>
+  <div class="logo-name">Customer <span>Portal</span></div>
+
+  <div id="stateLoading">
+    <div class="spinner-wrap"><span class="spinner"></span></div>
+    <h2>Verifying your email…</h2>
+    <p class="message">Please wait a moment.</p>
+  </div>
+
+  <div id="stateSuccess" style="display:none;">
+    <span class="icon">✅</span>
+    <h2>Email Verified!</h2>
+    <p class="message">Your account is now active. You can sign in to access your customer portal.</p>
+    <a href="/login.html" class="btn">Sign In →</a>
+  </div>
+
+  <div id="stateError" style="display:none;">
+    <span class="icon error-icon">⚠️</span>
+    <h2>Verification Failed</h2>
+    <p class="message" id="errorMessage">This link is invalid or has expired.</p>
+    <a href="/login.html?register=true" class="btn">Try Again →</a>
+    <a href="/login.html" class="btn-outline">Back to Sign In</a>
+  </div>
+</div>
+
+<script>
+  (async function () {
+    const token = new URLSearchParams(window.location.search).get('token') || '';
+
+    if (!token) {
+      showState('error', 'No verification token found. Please use the link from your email.');
+      return;
+    }
+
+    try {
+      const res  = await fetch('/api/customer/verify?token=' + encodeURIComponent(token));
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok) {
+        showState('success');
+        // Redirect to login page with verified param after a short delay
+        setTimeout(() => { window.location.href = '/login.html?verified=true'; }, 3000);
+      } else {
+        showState('error', data.error || 'Verification failed. Please try again.');
+      }
+    } catch {
+      showState('error', 'Network error — check your connection and try again.');
+    }
+  })();
+
+  function showState(state, message) {
+    document.getElementById('stateLoading').style.display = 'none';
+    document.getElementById('stateSuccess').style.display = 'none';
+    document.getElementById('stateError').style.display   = 'none';
+
+    if (state === 'success') {
+      document.getElementById('stateSuccess').style.display = 'block';
+    } else if (state === 'error') {
+      document.getElementById('errorMessage').textContent = message || 'Something went wrong.';
+      document.getElementById('stateError').style.display = 'block';
+    }
+  }
+</script>
+</body>
+</html>

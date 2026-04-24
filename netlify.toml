@@ -164,6 +164,26 @@
   status = 200
 
 [[redirects]]
+  from = "/api/customer/register"
+  to = "/.netlify/functions/customer-register"
+  status = 200
+
+[[redirects]]
+  from = "/api/customer/verify"
+  to = "/.netlify/functions/customer-verify"
+  status = 200
+
+[[redirects]]
+  from = "/api/customer/forgot-password"
+  to = "/.netlify/functions/customer-forgot-password"
+  status = 200
+
+[[redirects]]
+  from = "/api/customer/reset-password"
+  to = "/.netlify/functions/customer-reset-password"
+  status = 200
+
+[[redirects]]
   from = "/contact"
   to = "/customquote"
   status = 301
