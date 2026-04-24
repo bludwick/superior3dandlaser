@@ -2,31 +2,37 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import { api } from '../utils/api';
 import { SAMPLE_PROFILE } from '../utils/sampleData';
 
+const DEMO_USER = { email: SAMPLE_PROFILE.email, name: SAMPLE_PROFILE.name };
+
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser]       = useState(null);   // { email, name }
+  const [user, setUser]       = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Try to restore session from cookie by fetching profile
+    // Restore demo session instantly — no API call needed
+    if (sessionStorage.getItem('demo_user') === 'true') {
+      setUser(DEMO_USER);
+      setLoading(false);
+      return;
+    }
+    // Try to restore a real session from the JWT cookie
     api.get('/api/customer/profile')
       .then(profile => setUser({ email: profile.email, name: profile.name }))
-      .catch(() => {
-        // Not logged in via cookie — check sample mode
-        const demo = sessionStorage.getItem('demo_user');
-        if (demo) setUser(JSON.parse(demo));
-      })
+      .catch(() => { /* not logged in */ })
       .finally(() => setLoading(false));
   }, []);
 
   async function login(email, password) {
     const emailLower = email.toLowerCase();
-    const data = await api.post('/api/customer/login', { email: emailLower, password });
-    // Mark demo mode if logged in as demo@example.com
+    // Demo shortcut — bypass API entirely
     if (emailLower === 'demo@example.com') {
       sessionStorage.setItem('demo_user', 'true');
+      setUser(DEMO_USER);
+      return;
     }
+    const data = await api.post('/api/customer/login', { email: emailLower, password });
     setUser({ email: emailLower, name: data.name });
   }
 
