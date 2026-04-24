@@ -3226,8 +3226,10 @@ function isCartDebugUrl() {
 function showCartDebugBeforeStripe(clientSnap, serverSnap, checkoutUrl, onCancel) {
   var existing = document.getElementById('cartDebugModal');
   if (existing) existing.remove();
+  var hasUrl = typeof checkoutUrl === 'string' && checkoutUrl.length > 0;
   var report = {
-    help: 'Cart debug — compare client total with server totalCentsParsed/100 and Stripe. checkoutBranch colors_only = themed checkout; base = default Stripe look.',
+    help: 'Cart debug — compare client total with server totalCentsParsed÷100. checkoutBranch colors_only = themed Stripe page; base = default Stripe look.',
+    checkoutUrlPresent: hasUrl,
     client: clientSnap,
     server: serverSnap || '(no server block — deploy latest calculator + submit-quote, or retry)',
   };
@@ -3237,34 +3239,54 @@ function showCartDebugBeforeStripe(clientSnap, serverSnap, checkoutUrl, onCancel
   wrap.style.cssText = 'position:fixed;inset:0;z-index:100003;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px;';
   var box = document.createElement('div');
   box.style.cssText = 'background:#fff;max-width:560px;width:100%;border-radius:12px;padding:20px;box-shadow:0 12px 40px rgba(0,0,0,.25);font:13px/1.45 Inter,system-ui,sans-serif;max-height:85vh;display:flex;flex-direction:column;gap:12px;';
+  var intro = hasUrl
+    ? '<p style="color:#b91c1c;margin:0;font-size:13px;font-weight:700;">The next step is not automatic: tap <strong>Continue to Stripe</strong> below to open payment.</p>' +
+      '<p style="color:#555;margin:0;font-size:12px;">Shown because the URL includes <code style="background:#f1f1f1;padding:2px 6px;border-radius:4px;">?cartDebug=1</code>. Copy the report if needed, then continue.</p>'
+    : '<p style="color:#b91c1c;margin:0;font-size:13px;font-weight:700;">No Stripe checkout URL — nothing to redirect to yet.</p>' +
+      '<p style="color:#555;margin:0;font-size:12px;">Deploy previews often omit <code style="background:#f1f1f1;padding:2px 6px;border-radius:4px;">STRIPE_SECRET_KEY</code>. In Netlify: <strong>Site → Environment variables</strong> → enable the same secrets for <strong>Deploy Previews</strong>, or test checkout on production. Check <code style="background:#f1f1f1;padding:2px 6px;border-radius:4px;">server.hadStripeKey</code> in the report below.</p>';
   box.innerHTML =
     '<div style="font-weight:800;font-size:15px;color:#111;">Payment debug</div>' +
-    '<p style="color:#555;margin:0;font-size:12px;">This only appears because the page URL has <code style="background:#f1f1f1;padding:2px 6px;border-radius:4px;">?cartDebug=1</code>. Copy the text below and share it, or tap Continue to open Stripe.</p>' +
+    intro +
     '<pre id="cartDebugPre" style="margin:0;padding:12px;background:#f8f8f8;border:1px solid #e0e0e0;border-radius:8px;font-size:11px;overflow:auto;max-height:45vh;white-space:pre-wrap;word-break:break-word;"></pre>' +
-    '<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
-    '<button type="button" id="cartDebugCopy" style="padding:10px 16px;border-radius:8px;border:1px solid #e0e0e0;background:#fff;cursor:pointer;font-weight:600;">Copy report</button>' +
-    '<button type="button" id="cartDebugCancel" style="padding:10px 16px;border-radius:8px;border:1px solid #e0e0e0;background:#fff;cursor:pointer;">Cancel</button>' +
-    '<button type="button" id="cartDebugGo" style="padding:10px 18px;border-radius:8px;border:none;background:#b91c1c;color:#fff;cursor:pointer;font-weight:700;">Continue to Stripe</button>' +
-    '</div>';
+    '<div id="cartDebugActions" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;"></div>';
   wrap.appendChild(box);
   document.body.appendChild(wrap);
   var pre = box.querySelector('#cartDebugPre');
   if (pre) pre.textContent = text;
-  box.querySelector('#cartDebugCopy').onclick = function () {
+  var actions = box.querySelector('#cartDebugActions');
+  function btn(html, bg, color) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.innerHTML = html;
+    b.style.cssText = 'padding:10px 16px;border-radius:8px;border:1px solid #e0e0e0;background:' + (bg || '#fff') + ';cursor:pointer;font-weight:600;color:' + (color || '#111') + ';';
+    return b;
+  }
+  var copyB = btn('Copy report', '#fff', '#111');
+  copyB.onclick = function () {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(function () { showToast('Copied'); }).catch(function () { showToast('Copy failed'); });
     } else {
       showToast('Copy not supported in this browser');
     }
   };
-  box.querySelector('#cartDebugCancel').onclick = function () {
+  actions.appendChild(copyB);
+  var cancelB = btn('Close', '#fff', '#111');
+  cancelB.onclick = function () {
     wrap.remove();
     if (typeof onCancel === 'function') onCancel();
   };
-  box.querySelector('#cartDebugGo').onclick = function () {
-    wrap.remove();
-    window.location.href = checkoutUrl;
-  };
+  actions.appendChild(cancelB);
+  if (hasUrl) {
+    var goB = document.createElement('button');
+    goB.type = 'button';
+    goB.textContent = 'Continue to Stripe';
+    goB.style.cssText = 'padding:10px 18px;border-radius:8px;border:none;background:#b91c1c;color:#fff;cursor:pointer;font-weight:700;';
+    goB.onclick = function () {
+      wrap.remove();
+      window.location.href = checkoutUrl;
+    };
+    actions.appendChild(goB);
+  }
   wrap.onclick = function (ev) {
     if (ev.target === wrap) {
       wrap.remove();
@@ -3783,6 +3805,15 @@ async function submitOrder() {
     var checkoutUrl = payPack && payPack.checkoutUrl;
     var srvDbg = payPack && payPack.debugCb1f49;
 
+    var clientSnap = {
+      subtotal: t.subtotal,
+      tax: t.tax,
+      total: t.total,
+      ltSurcharge: t.ltSurcharge,
+      leadTimeLabel: t.leadTimeLabel,
+      orderTotalRawSent: t.total.toFixed(2),
+    };
+
     if (checkoutUrl) {
       // Store for display on success return from Stripe
       sessionStorage.setItem('pendingOrderEmail', email);
@@ -3792,21 +3823,23 @@ async function submitOrder() {
       // Cart cleared after payment confirmed (on ?payment=success), not here —
       // so it survives if the customer cancels and comes back.
       if (isCartDebugUrl()) {
-        var clientSnap = {
-          subtotal: t.subtotal,
-          tax: t.tax,
-          total: t.total,
-          ltSurcharge: t.ltSurcharge,
-          leadTimeLabel: t.leadTimeLabel,
-          orderTotalRawSent: t.total.toFixed(2),
-        };
         showCartDebugBeforeStripe(clientSnap, srvDbg, checkoutUrl, function () {
+          sessionStorage.removeItem(STRIPE_RETURN_SESSION_KEY);
+          sessionStorage.removeItem('pendingOrderEmail');
+          sessionStorage.removeItem('pendingOrderName');
           btn.disabled = false;
           btn.innerHTML = '💳 Proceed to Payment';
         });
         return;
       }
       window.location.href = checkoutUrl;
+    } else if (isCartDebugUrl() && srvDbg) {
+      // Deploy previews often omit STRIPE_SECRET_KEY — show why there is no redirect, keep cart for retry
+      showCartDebugBeforeStripe(clientSnap, srvDbg, null, function () {
+        btn.disabled = false;
+        btn.innerHTML = '💳 Proceed to Payment';
+      });
+      return;
     } else {
       // Stripe not configured — fall back to confirmation overlay
       document.getElementById('ocEmail').textContent = email;
@@ -3914,7 +3947,7 @@ async function submitOrderToBackend(orderData, paymentId) {
   }
 
   // #region agent log
-  if (isCartDebugUrl()) {
+  if (isCartDebugUrl() && (location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
     (function () {
       var _t = getCheckoutTotals();
       fetch('http://127.0.0.1:7491/ingest/295b3c28-d93c-479c-9242-adf8186cfce4', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'cb1f49' }, body: JSON.stringify({ sessionId: 'cb1f49', runId: 'pre-fix', hypothesisId: 'P2', location: '3dprintingquotecalculator.html:submitOrderToBackend', message: 'client cart totals before POST', data: { subtotal: subtotal, tax: tax, total: total, ltSurcharge: ltSurcharge, orderTotalRawSent: total.toFixed(2), verifySubtotal: _t.subtotal, verifyTotal: _t.total, verifyTax: _t.tax, cartSubtotal: cartSubtotal(), itemCount: items.length, coLeadTime: document.getElementById('coLeadTime') ? document.getElementById('coLeadTime').value : null }, timestamp: Date.now() }) }).catch(function () {});
@@ -3930,7 +3963,16 @@ async function submitOrderToBackend(orderData, paymentId) {
   const res = await fetch('/.netlify/functions/submit-quote', { method: 'POST', body });
   const resText = await res.text();
 
-  if (!res.ok) throw new Error('HTTP ' + res.status);
+  if (!res.ok) {
+    var errDetail = '';
+    try {
+      var ej = JSON.parse(resText);
+      if (ej && ej.detail) errDetail = ' — ' + String(ej.detail);
+      if (ej && ej.stage && isCartDebugUrl()) errDetail += ' [stage: ' + String(ej.stage) + ']';
+    } catch (e) { /* ignore */ }
+    console.error('[Cart] submit-quote error', res.status, resText.slice(0, 500));
+    throw new Error('HTTP ' + res.status + errDetail);
+  }
   var data = {};
   try {
     data = JSON.parse(resText);
@@ -3943,7 +3985,9 @@ async function submitOrderToBackend(orderData, paymentId) {
   // #region agent log
   if (data.debugCb1f49 && isCartDebugUrl()) {
     console.info('[debugCb1f49]', data.debugCb1f49);
-    fetch('http://127.0.0.1:7491/ingest/295b3c28-d93c-479c-9242-adf8186cfce4', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'cb1f49' }, body: JSON.stringify({ sessionId: 'cb1f49', runId: 'pre-fix', hypothesisId: 'P3', location: '3dprintingquotecalculator.html:submitOrderToBackend:response', message: 'server debugCb1f49', data: data.debugCb1f49, timestamp: Date.now() }) }).catch(function () {});
+    if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+      fetch('http://127.0.0.1:7491/ingest/295b3c28-d93c-479c-9242-adf8186cfce4', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'cb1f49' }, body: JSON.stringify({ sessionId: 'cb1f49', runId: 'pre-fix', hypothesisId: 'P3', location: '3dprintingquotecalculator.html:submitOrderToBackend:response', message: 'server debugCb1f49', data: data.debugCb1f49, timestamp: Date.now() }) }).catch(function () {});
+    }
   }
   // #endregion
   return {

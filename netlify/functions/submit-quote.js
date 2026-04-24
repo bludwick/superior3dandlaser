@@ -58,14 +58,19 @@ function maskEmail(email) {
   return `${local[0]}***${local[local.length - 1]}${domain}`;
 }
 
+/** Stripe / runtime values may be BigInt — plain JSON.stringify throws and becomes HTTP 500. */
+function safeJsonStringify(obj) {
+  return JSON.stringify(obj, (_, v) => (typeof v === 'bigint' ? Number(v) : v));
+}
+
 /** Debug NDJSON ingest — never throw (fetch may be missing in some Lambda runtimes). */
-function agentDebugIngest(payload) {
+function agentDebugIngest(payload, sessionId = 'cb1f49') {
   try {
     if (typeof globalThis.fetch !== 'function') return;
     globalThis.fetch('http://127.0.0.1:7491/ingest/295b3c28-d93c-479c-9242-adf8186cfce4', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'cb1f49' },
-      body: JSON.stringify({ sessionId: 'cb1f49', ...payload, timestamp: Date.now() }),
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': sessionId },
+      body: safeJsonStringify({ sessionId, ...payload, timestamp: Date.now() }),
     }).catch(() => {});
   } catch (_) { /* ignore */ }
 }
@@ -578,7 +583,7 @@ exports.handler = async (event) => {
                 orderTotalRawLen: String(fields.orderTotalRaw || '').length,
               };
               // #region agent log
-              agentDebugIngest({ runId: 'pre-fix', hypothesisId: 'H5', location: 'submit-quote.js:stripe:below_min', message: 'stripe skipped below min', data: { totalCents: totalCents } });
+              agentDebugIngest({ runId: 'pre-fix', hypothesisId: 'H5', location: 'submit-quote.js:stripe:below_min', message: 'stripe skipped below min', data: { totalCents: totalCents } }, '85749a');
               // #endregion
             }
           } else {
@@ -654,7 +659,9 @@ exports.handler = async (event) => {
             checkoutUrl = session && session.url ? session.url : checkoutUrl;
             if (session) {
               stripeCheckoutBranchForDebug = checkoutBranch;
-              stripeSessionAmountTotalForDebug = session.amount_total != null ? session.amount_total : null;
+              const amt = session.amount_total;
+              stripeSessionAmountTotalForDebug =
+                amt != null ? Number(amt) : null;
             }
 
             if (fields.debugStripe === '85749a') {
@@ -668,7 +675,7 @@ exports.handler = async (event) => {
                 brandingStrategy: 'colors_first_then_logo',
               };
               // #region agent log
-              agentDebugIngest({ runId: 'pre-fix', hypothesisId: 'H2', location: 'submit-quote.js:stripe:success', message: 'cart checkout session created', data: { totalCents: totalCents, checkoutBranch: checkoutBranch, apiVersion: STRIPE_API_VERSION } });
+              agentDebugIngest({ runId: 'pre-fix', hypothesisId: 'H2', location: 'submit-quote.js:stripe:success', message: 'cart checkout session created', data: { totalCents: totalCents, checkoutBranch: checkoutBranch, apiVersion: STRIPE_API_VERSION } }, '85749a');
               // #endregion
             }
 
@@ -694,39 +701,44 @@ exports.handler = async (event) => {
               errType: stripeErr.type || null,
             };
             // #region agent log
-            agentDebugIngest({ runId: 'pre-fix', hypothesisId: 'H5', location: 'submit-quote.js:stripe:catch', message: 'stripe outer catch', data: { code: stripeErr.code || null, type: stripeErr.type || null } });
+            agentDebugIngest({ runId: 'pre-fix', hypothesisId: 'H5', location: 'submit-quote.js:stripe:catch', message: 'stripe outer catch', data: { code: stripeErr.code || null, type: stripeErr.type || null } }, '85749a');
             // #endregion
           }
         }
       }
 
       if (fields.debugSession === 'cb1f49' && isCartOrder) {
-        const { STRIPE_API_VERSION } = require('./stripe-client');
-        const centsDbg =
-          stripeTotalCentsForDebug != null
-            ? stripeTotalCentsForDebug
-            : usdStringToCents(fields.orderTotalRaw);
-        cartDebugCb1f49 = {
-          hypothesisIds: ['P1', 'P3', 'T1', 'T2'],
-          orderTotalRaw: String(fields.orderTotalRaw || ''),
-          subtotalRaw: String(fields.subtotalRaw || ''),
-          taxRaw: String(fields.taxRaw || ''),
-          totalCentsParsed: centsDbg,
-          checkoutBranch: stripeCheckoutBranchForDebug,
-          stripeSessionAmountTotal: stripeSessionAmountTotalForDebug,
-          colorsBrandError: stripeColorsBrandErrForDebug,
-          hadStripeKey: !!process.env.STRIPE_SECRET_KEY,
-          apiVersion: STRIPE_API_VERSION,
-        };
-        // #region agent log
-        agentDebugIngest({
-          runId: 'pre-fix',
-          hypothesisId: 'P1',
-          location: 'submit-quote.js:cart:debugCb1f49',
-          message: 'cart checkout debug snapshot',
-          data: cartDebugCb1f49,
-        });
-        // #endregion
+        try {
+          const { STRIPE_API_VERSION } = require('./stripe-client');
+          const centsDbg =
+            stripeTotalCentsForDebug != null
+              ? Number(stripeTotalCentsForDebug)
+              : usdStringToCents(fields.orderTotalRaw);
+          cartDebugCb1f49 = {
+            hypothesisIds: ['P1', 'P3', 'T1', 'T2'],
+            orderTotalRaw: String(fields.orderTotalRaw || ''),
+            subtotalRaw: String(fields.subtotalRaw || ''),
+            taxRaw: String(fields.taxRaw || ''),
+            totalCentsParsed: centsDbg,
+            checkoutBranch: stripeCheckoutBranchForDebug,
+            stripeSessionAmountTotal: stripeSessionAmountTotalForDebug,
+            colorsBrandError: stripeColorsBrandErrForDebug,
+            hadStripeKey: !!process.env.STRIPE_SECRET_KEY,
+            apiVersion: STRIPE_API_VERSION,
+          };
+          // #region agent log
+          agentDebugIngest({
+            runId: 'pre-fix',
+            hypothesisId: 'P1',
+            location: 'submit-quote.js:cart:debugCb1f49',
+            message: 'cart checkout debug snapshot',
+            data: cartDebugCb1f49,
+          });
+          // #endregion
+        } catch (dbgErr) {
+          console.error('[submit-quote] cartDebugCb1f49:', dbgErr?.message || dbgErr);
+          cartDebugCb1f49 = { buildError: String(dbgErr?.message || dbgErr) };
+        }
       }
 
     } else {
@@ -794,9 +806,13 @@ exports.handler = async (event) => {
     };
     if (isCartOrder) {
       // Admin notification is best-effort — SMTP failures must not block customer flow
-      sendEmail(emailOpts).catch(emailErr =>
-        console.error('[submit-quote] Cart email error (non-blocking):', emailErr.message)
-      );
+      (async () => {
+        try {
+          await sendEmail(emailOpts);
+        } catch (emailErr) {
+          console.error('[submit-quote] Cart email error (non-blocking):', emailErr.message);
+        }
+      })();
     } else {
       await sendEmail(emailOpts);
     }
@@ -804,7 +820,7 @@ exports.handler = async (event) => {
     const okBody = { success: true, checkoutUrl, runtime };
     if (responseDebugStripe) okBody.debugStripe = responseDebugStripe;
     if (cartDebugCb1f49) okBody.debugCb1f49 = cartDebugCb1f49;
-    return { statusCode: 200, body: JSON.stringify(okBody) };
+    return { statusCode: 200, body: safeJsonStringify(okBody) };
 
   } catch (err) {
     console.error('submit-quote error:', {
