@@ -32,7 +32,11 @@ export function AuthProvider({ children }) {
       setUser(DEMO_USER);
       return;
     }
-    const data = await api.post('/api/customer/login', { email: emailLower, password });
+    const data = await api.post('/api/login', { email: emailLower, password });
+    if (data.role === 'admin') {
+      window.location.href = '/admin/';
+      return;
+    }
     setUser({ email: emailLower, name: data.name });
   }
 
