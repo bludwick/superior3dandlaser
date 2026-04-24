@@ -197,12 +197,19 @@
     e.preventDefault();
     const btn      = document.getElementById('submitBtn');
     const errorBox = document.getElementById('accountError');
-    const email    = document.getElementById('email').value.trim();
+    const email    = document.getElementById('email').value.trim().toLowerCase();
     const password = document.getElementById('password').value;
 
     if (!email || !password) {
       errorBox.textContent = 'Please enter your email and password.';
       errorBox.classList.add('show');
+      return;
+    }
+
+    // Demo mode shortcut — no API call needed
+    if (email === 'demo@example.com') {
+      sessionStorage.setItem('demo_user', 'true');
+      window.location.href = '/portal/';
       return;
     }
 
