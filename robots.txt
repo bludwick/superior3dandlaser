@@ -1,0 +1,7 @@
+User-agent: *
+Disallow: /admin/
+Disallow: /.netlify/
+Disallow: /portal/
+Disallow: /invoice.html
+
+Sitemap: https://superior3dandlaser.com/sitemap.xml
