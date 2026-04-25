@@ -28,6 +28,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/admin/verify-otp"
+  to = "/.netlify/functions/admin-verify-otp"
+  status = 200
+
+[[redirects]]
   from = "/api/admin/orders"
   to = "/.netlify/functions/list-orders"
   status = 200

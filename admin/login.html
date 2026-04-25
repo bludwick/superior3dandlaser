@@ -91,6 +91,34 @@
   .btn.loading .spinner { display: block; }
   .btn.loading .btn-label { display: none; }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── OTP step ── */
+  #otpStep { display: none; }
+  .otp-sent {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 11px 14px; margin-bottom: 22px;
+    font-size: 13px; color: var(--muted);
+  }
+  .otp-sent-icon { font-size: 18px; flex-shrink: 0; }
+  #otpInput {
+    font-size: 28px; font-weight: 800; letter-spacing: 14px; text-align: center;
+    padding: 14px 13px; font-variant-numeric: tabular-nums;
+  }
+  .otp-actions {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 16px; font-size: 12px;
+  }
+  .otp-back { color: var(--muted); cursor: pointer; background: none; border: none; font-family: var(--font); font-size: 12px; padding: 0; }
+  .otp-back:hover { color: var(--accent); }
+  .otp-resend { color: var(--accent); cursor: pointer; background: none; border: none; font-family: var(--font); font-size: 12px; font-weight: 600; padding: 0; }
+  .otp-resend:disabled { color: var(--muted); cursor: default; }
+  .success-box {
+    display: none; background: rgba(21,128,61,.05); border: 1px solid rgba(21,128,61,.25);
+    border-radius: 8px; padding: 11px 14px; font-size: 13px; color: #15803d;
+    font-weight: 600; margin-top: 16px;
+  }
+  .success-box.show { display: block; }
 </style>
 </head>
 <body>
@@ -101,80 +129,237 @@
     <span class="admin-badge">🔐 Restricted Access</span>
   </div>
 
-  <h2>Sign In</h2>
-  <p class="subtitle">Enter your admin credentials to continue.</p>
+  <!-- ── Step 1: Password ── -->
+  <div id="step1">
+    <h2>Sign In</h2>
+    <p class="subtitle">Enter your admin credentials to continue.</p>
 
-  <form id="loginForm" onsubmit="handleLogin(event)" novalidate>
-    <div class="field">
-      <label for="email">Email Address</label>
-      <div class="input-wrap">
-        <input type="email" id="email" name="email" placeholder="admin@example.com" autocomplete="email" required>
+    <form id="loginForm" onsubmit="handleLogin(event)" novalidate>
+      <div class="field">
+        <label for="email">Email Address</label>
+        <div class="input-wrap">
+          <input type="email" id="email" name="email" placeholder="admin@example.com" autocomplete="email" required>
+        </div>
       </div>
-    </div>
-    <div class="field">
-      <label for="password">Password</label>
-      <div class="input-wrap">
-        <input type="password" id="password" name="password" placeholder="••••••••••" autocomplete="current-password" required>
-        <button type="button" class="pw-toggle" onclick="togglePw()" title="Show / hide password">👁</button>
+      <div class="field">
+        <label for="password">Password</label>
+        <div class="input-wrap">
+          <input type="password" id="password" name="password" placeholder="••••••••••" autocomplete="current-password" required>
+          <button type="button" class="pw-toggle" onclick="togglePw()" title="Show / hide password">👁</button>
+        </div>
       </div>
-    </div>
-    <button type="submit" class="btn" id="submitBtn">
-      <span class="btn-label">Sign In →</span>
-      <span class="spinner"></span>
-    </button>
-  </form>
+      <button type="submit" class="btn" id="submitBtn">
+        <span class="btn-label">Sign In →</span>
+        <span class="spinner"></span>
+      </button>
+    </form>
 
-  <div class="error-box" id="errorBox"></div>
+    <div class="error-box" id="errorBox1"></div>
+  </div>
+
+  <!-- ── Step 2: OTP ── -->
+  <div id="otpStep">
+    <h2>Verify</h2>
+    <p class="subtitle">Two-step verification</p>
+
+    <div class="otp-sent">
+      <span class="otp-sent-icon">📧</span>
+      <span>Code sent to <strong id="otpEmailDisplay"></strong>. Check your inbox.</span>
+    </div>
+
+    <form id="otpForm" onsubmit="handleVerify(event)" novalidate>
+      <div class="field">
+        <label for="otpInput">6-Digit Code</label>
+        <div class="input-wrap">
+          <input type="text" id="otpInput" name="otp" inputmode="numeric" pattern="\d{6}"
+                 maxlength="6" placeholder="000000" autocomplete="one-time-code" required>
+        </div>
+      </div>
+      <button type="submit" class="btn" id="verifyBtn">
+        <span class="btn-label">Verify →</span>
+        <span class="spinner"></span>
+      </button>
+    </form>
+
+    <div class="otp-actions">
+      <button type="button" class="otp-back" onclick="backToPassword()">← Back</button>
+      <button type="button" class="otp-resend" id="resendBtn" onclick="handleResend()">Resend code</button>
+    </div>
+
+    <div class="error-box" id="errorBox2"></div>
+    <div class="success-box" id="successBox2"></div>
+  </div>
+
   <a href="/" class="back-link">← Back to site</a>
 </div>
 
 <script>
+  var _pendingToken = null;
+  var _resendTimer  = null;
+
+  function maskEmail(email) {
+    var parts = email.split('@');
+    return parts[0].slice(0, 2) + '***@' + parts[1];
+  }
+
   function togglePw() {
-    const inp = document.getElementById('password');
+    var inp = document.getElementById('password');
     inp.type = inp.type === 'password' ? 'text' : 'password';
   }
 
+  function showError(boxId, msg) {
+    var el = document.getElementById(boxId);
+    el.textContent = msg;
+    el.classList.add('show');
+  }
+  function clearMessages() {
+    ['errorBox1','errorBox2','successBox2'].forEach(function(id) {
+      var el = document.getElementById(id);
+      el.textContent = '';
+      el.classList.remove('show');
+    });
+  }
+
+  function setLoading(btnId, on) {
+    var btn = document.getElementById(btnId);
+    btn.disabled = on;
+    btn.classList.toggle('loading', on);
+  }
+
+  // ── Step 1: password submission ────────────────────────────────────────────
   async function handleLogin(e) {
     e.preventDefault();
-    const btn      = document.getElementById('submitBtn');
-    const errorBox = document.getElementById('errorBox');
-    const email    = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
+    clearMessages();
+    var email    = document.getElementById('email').value.trim();
+    var password = document.getElementById('password').value;
 
     if (!email || !password) {
-      errorBox.textContent = 'Please enter your email and password.';
-      errorBox.classList.add('show');
+      showError('errorBox1', 'Please enter your email and password.');
       return;
     }
 
-    btn.classList.add('loading');
-    btn.disabled = true;
-    errorBox.classList.remove('show');
-
+    setLoading('submitBtn', true);
     try {
-      const res  = await fetch('/api/admin/login', {
+      var res  = await fetch('/api/admin/login', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ email, password }),
       });
-      const data = await res.json().catch(() => ({}));
+      var data = await res.json().catch(function() { return {}; });
 
-      if (res.ok) {
-        window.location.href = '/admin/';
+      if (res.ok && data.step === 'otp') {
+        _pendingToken = data.pendingToken;
+        document.getElementById('otpEmailDisplay').textContent = maskEmail(email);
+        document.getElementById('step1').style.display  = 'none';
+        document.getElementById('otpStep').style.display = 'block';
+        document.getElementById('otpInput').focus();
+        startResendCooldown(30);
       } else if (res.status === 429) {
-        errorBox.textContent = 'Too many failed attempts. Please wait 15 minutes and try again.';
-        errorBox.classList.add('show');
+        showError('errorBox1', 'Too many failed attempts. Please wait 15 minutes and try again.');
       } else {
-        errorBox.textContent = data.error || 'Invalid email or password.';
-        errorBox.classList.add('show');
+        showError('errorBox1', data.error || 'Invalid email or password.');
       }
     } catch {
-      errorBox.textContent = 'Network error — check your connection and try again.';
-      errorBox.classList.add('show');
+      showError('errorBox1', 'Network error — check your connection and try again.');
     } finally {
-      btn.classList.remove('loading');
-      btn.disabled = false;
+      setLoading('submitBtn', false);
     }
+  }
+
+  // ── Step 2: OTP verification ───────────────────────────────────────────────
+  async function handleVerify(e) {
+    e.preventDefault();
+    clearMessages();
+    var otp = document.getElementById('otpInput').value.trim();
+
+    if (!/^\d{6}$/.test(otp)) {
+      showError('errorBox2', 'Please enter the 6-digit code from your email.');
+      return;
+    }
+
+    setLoading('verifyBtn', true);
+    try {
+      var res  = await fetch('/api/admin/verify-otp', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ otp, pendingToken: _pendingToken }),
+      });
+      var data = await res.json().catch(function() { return {}; });
+
+      if (res.ok && data.ok) {
+        window.location.href = '/admin/';
+      } else if (res.status === 401 && (data.error || '').includes('sign in again')) {
+        // Session expired or too many attempts — force back to password step
+        showError('errorBox2', data.error);
+        setTimeout(backToPassword, 2500);
+      } else {
+        showError('errorBox2', data.error || 'Incorrect code. Please try again.');
+      }
+    } catch {
+      showError('errorBox2', 'Network error — check your connection and try again.');
+    } finally {
+      setLoading('verifyBtn', false);
+    }
+  }
+
+  // ── Resend code ────────────────────────────────────────────────────────────
+  async function handleResend() {
+    clearMessages();
+    var resendBtn = document.getElementById('resendBtn');
+    resendBtn.disabled = true;
+
+    try {
+      var res  = await fetch('/api/admin/verify-otp', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ resend: true, pendingToken: _pendingToken }),
+      });
+      var data = await res.json().catch(function() { return {}; });
+
+      if (res.ok && data.pendingToken) {
+        _pendingToken = data.pendingToken;
+        document.getElementById('otpInput').value = '';
+        document.getElementById('successBox2').textContent = 'New code sent. Check your inbox.';
+        document.getElementById('successBox2').classList.add('show');
+        startResendCooldown(60);
+      } else {
+        showError('errorBox2', data.error || 'Failed to resend. Please try again.');
+        resendBtn.disabled = false;
+      }
+    } catch {
+      showError('errorBox2', 'Network error — could not resend code.');
+      resendBtn.disabled = false;
+    }
+  }
+
+  function startResendCooldown(seconds) {
+    var resendBtn = document.getElementById('resendBtn');
+    resendBtn.disabled = true;
+    var remaining = seconds;
+    resendBtn.textContent = 'Resend in ' + remaining + 's';
+    clearInterval(_resendTimer);
+    _resendTimer = setInterval(function() {
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearInterval(_resendTimer);
+        resendBtn.disabled = false;
+        resendBtn.textContent = 'Resend code';
+      } else {
+        resendBtn.textContent = 'Resend in ' + remaining + 's';
+      }
+    }, 1000);
+  }
+
+  // ── Back to password step ──────────────────────────────────────────────────
+  function backToPassword() {
+    clearMessages();
+    clearInterval(_resendTimer);
+    _pendingToken = null;
+    document.getElementById('otpInput').value   = '';
+    document.getElementById('otpStep').style.display = 'none';
+    document.getElementById('step1').style.display   = 'block';
+    document.getElementById('password').value   = '';
+    document.getElementById('email').focus();
   }
 </script>
 </body>
