@@ -3007,7 +3007,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <script>
 // ── STL 3D Viewer ─────────────────────────────────────────────────────────────
 (function () {
-  var _renderer = null, _raf = null, _ro = null;
+  var _renderer = null, _raf = null, _ro = null, _initialSnapshot = null;
 
   function dispose() {
     if (_raf) { cancelAnimationFrame(_raf); _raf = null; }
@@ -3019,11 +3019,13 @@ document.addEventListener('DOMContentLoaded', () => {
       _renderer = null;
     }
     _currentMaterial = null;
+    _initialSnapshot = null;
   }
 
   window.disposeSTLViewer = dispose;
 
   window.captureSTLViewerSnapshot = function () {
+    if (_initialSnapshot) return _initialSnapshot;
     if (!_renderer) return null;
     try { return _renderer.domElement.toDataURL('image/png'); }
     catch (e) { return null; }
@@ -3087,6 +3089,11 @@ document.addEventListener('DOMContentLoaded', () => {
     var size   = bbox.getSize(new THREE.Vector3());
     var center = bbox.getCenter(new THREE.Vector3());
     geometry.translate(-center.x, -center.y, -center.z);
+    // Rotate to print orientation: STL files use Z-up, Three.js uses Y-up
+    geometry.rotateX(-Math.PI / 2);
+    geometry.computeBoundingBox();
+    var bboxR = geometry.boundingBox;
+    var sizeR = bboxR.getSize(new THREE.Vector3());
 
     // ── Scene ─────────────────────────────────────────────────────────────────
     var scene = new THREE.Scene();
@@ -3101,10 +3108,10 @@ document.addEventListener('DOMContentLoaded', () => {
     container.appendChild(_renderer.domElement);
 
     // ── Camera ────────────────────────────────────────────────────────────────
-    var maxDim = Math.max(size.x, size.y, size.z) || 1;
-    var dist   = (maxDim / (2 * Math.tan((45 * Math.PI / 180) / 2))) * 2.2;
+    var maxDim = Math.max(sizeR.x, sizeR.y, sizeR.z) || 1;
+    var dist   = (maxDim / (2 * Math.tan((45 * Math.PI / 180) / 2))) * 1.5;
     var camera = new THREE.PerspectiveCamera(45, W / H, dist * 0.001, dist * 100);
-    camera.position.set(dist * 0.6, dist * 0.35, dist * 0.75);
+    camera.position.set(dist * 0.4, dist * 0.3, dist * 0.9);
     camera.lookAt(0, 0, 0);
 
     // ── Lights ────────────────────────────────────────────────────────────────
@@ -3129,6 +3136,11 @@ document.addEventListener('DOMContentLoaded', () => {
     controls.enableDamping  = true;
     controls.dampingFactor  = 0.06;
     controls.mouseButtons   = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+
+    // ── Initial snapshot (print orientation view, used for cart/invoice thumbnails) ──
+    _renderer.render(scene, camera);
+    try { _initialSnapshot = _renderer.domElement.toDataURL('image/png'); }
+    catch (e) { _initialSnapshot = null; }
 
     // ── Render loop ───────────────────────────────────────────────────────────
     (function loop() {
