@@ -18,6 +18,11 @@
   function = "admin-auth"
 
 [[redirects]]
+  from = "/api/login"
+  to = "/.netlify/functions/smart-login"
+  status = 200
+
+[[redirects]]
   from = "/api/admin/login"
   to = "/.netlify/functions/admin-login"
   status = 200
@@ -112,7 +117,12 @@
   to = "/.netlify/functions/address-suggest"
   status = 200
 
-# Customer portal SPA — serve index.html for all /portal/* routes
+# Customer portal SPA — catch both /portal and /portal/* routes
+[[redirects]]
+  from = "/portal"
+  to   = "/customer-dist/index.html"
+  status = 200
+
 [[redirects]]
   from = "/portal/*"
   to   = "/customer-dist/index.html"
@@ -151,6 +161,26 @@
 [[redirects]]
   from = "/api/customer/invoice"
   to = "/.netlify/functions/customer-invoice"
+  status = 200
+
+[[redirects]]
+  from = "/api/customer/register"
+  to = "/.netlify/functions/customer-register"
+  status = 200
+
+[[redirects]]
+  from = "/api/customer/verify"
+  to = "/.netlify/functions/customer-verify"
+  status = 200
+
+[[redirects]]
+  from = "/api/customer/forgot-password"
+  to = "/.netlify/functions/customer-forgot-password"
+  status = 200
+
+[[redirects]]
+  from = "/api/customer/reset-password"
+  to = "/.netlify/functions/customer-reset-password"
   status = 200
 
 [[redirects]]

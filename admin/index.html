@@ -975,7 +975,7 @@ function showToast(msg) {
 // ── Logout ────────────────────────────────────────────────────────────────────
 async function logout() {
   await fetch('/api/admin/logout', { method: 'POST' }).catch(() => {});
-  window.location.href = '/admin/login.html';
+  window.location.href = '/login.html';
 }
 
 // ── Calculator deep-links ─────────────────────────────────────────────────────
@@ -997,7 +997,7 @@ async function loadOrders() {
 
   try {
     const res = await fetch('/api/admin/orders');
-    if (res.status === 401 || res.status === 403) { window.location.href = '/admin/login.html'; return; }
+    if (res.status === 401 || res.status === 403) { window.location.href = '/login.html'; return; }
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const orders = await res.json();
     renderOrders(orders);
@@ -1644,7 +1644,7 @@ async function loadJobs() {
   if (container) container.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div>Loading…</div></div>';
   try {
     const res = await fetch('/api/admin/jobs', { cache: 'no-store', credentials: 'include' });
-    if (res.status === 401 || res.status === 403) { window.location.href = '/admin/login.html'; return; }
+    if (res.status === 401 || res.status === 403) { window.location.href = '/login.html'; return; }
     if (!res.ok) {
       const e = await res.json().catch(() => ({}));
       throw new Error(e.error || 'HTTP ' + res.status);
@@ -1792,7 +1792,7 @@ async function deleteJob(jobId, btn) {
     const res = await fetch(`/api/admin/jobs/${encodeURIComponent(jobId)}`, {
       method: 'DELETE', credentials: 'include', cache: 'no-store',
     });
-    if (res.status === 401 || res.status === 403) { window.location.href = '/admin/login.html'; return; }
+    if (res.status === 401 || res.status === 403) { window.location.href = '/login.html'; return; }
     if (!res.ok) throw new Error('HTTP ' + res.status);
     showToast('Job deleted');
     loadJobs();
@@ -2113,7 +2113,7 @@ async function submitNewJob() {
       method, headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload), credentials: 'include', cache: 'no-store',
     });
-    if (res.status === 401 || res.status === 403) { window.location.href = '/admin/login.html'; return; }
+    if (res.status === 401 || res.status === 403) { window.location.href = '/login.html'; return; }
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
       throw new Error(errData.error || 'HTTP ' + res.status);
@@ -2136,7 +2136,7 @@ async function loadQuickBooksTab() {
 async function loadQbSettings() {
   try {
     const res = await fetch('/api/admin/qb/settings');
-    if (res.status === 401) { window.location.href = '/admin/login.html'; return; }
+    if (res.status === 401) { window.location.href = '/login.html'; return; }
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const s = await res.json();
     document.getElementById('qb-username').value     = s.qbwcUsername    || '';
@@ -2206,7 +2206,7 @@ async function loadQbQueue() {
   tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted);">Loading…</td></tr>';
   try {
     const res = await fetch('/api/admin/qb/queue');
-    if (res.status === 401) { window.location.href = '/admin/login.html'; return; }
+    if (res.status === 401) { window.location.href = '/login.html'; return; }
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     const tasks = data.tasks || [];
@@ -2285,7 +2285,7 @@ async function loadQbRevenue() {
     if (from) params.set('from', from);
     if (to)   params.set('to', to);
     const res = await fetch('/api/admin/qb/revenue' + (params.toString() ? '?' + params.toString() : ''));
-    if (res.status === 401) { window.location.href = '/admin/login.html'; return; }
+    if (res.status === 401) { window.location.href = '/login.html'; return; }
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
 
@@ -2380,7 +2380,7 @@ async function refreshQbStatus() {
 
   try {
     const res = await fetch('/api/admin/qb/status');
-    if (res.status === 401) { window.location.href = '/admin/login.html'; return; }
+    if (res.status === 401) { window.location.href = '/login.html'; return; }
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const s = await res.json();
 
