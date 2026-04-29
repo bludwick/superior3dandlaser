@@ -25,24 +25,24 @@ export default async function adminAuth(request, context) {
 
     if (!secret) {
       // JWT_SECRET not configured — block access
-      return Response.redirect(new URL('/admin/login.html', request.url), 302);
+      return Response.redirect(new URL('/login#admin', request.url), 302);
     }
 
     const token = getCookie(request.headers.get('cookie') || '', 'admin_token');
     if (!token) {
-      return Response.redirect(new URL('/admin/login.html', request.url), 302);
+      return Response.redirect(new URL('/login#admin', request.url), 302);
     }
 
     const valid = await verifyJWT(token, secret);
     if (!valid) {
-      return Response.redirect(new URL('/admin/login.html', request.url), 302);
+      return Response.redirect(new URL('/login#admin', request.url), 302);
     }
 
     // Valid token — allow request to continue
   } catch (err) {
     // Unexpected runtime error — fail safe by redirecting to login
     console.error('admin-auth edge function error:', err);
-    return Response.redirect(new URL('/admin/login.html', request.url), 302);
+    return Response.redirect(new URL('/login#admin', request.url), 302);
   }
 }
 
