@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useGuest } from '../hooks/useGuest';
 
@@ -134,6 +134,15 @@ export default function Login() {
                   </button>{' '}
                   to preview with sample data.
                 </p>
+
+                <div className="mt-5 pt-5 border-t border-[#e0e0e0] text-center">
+                  <p className="text-sm text-[#555]">
+                    New customer?{' '}
+                    <Link to="/register" className="text-[#b91c1c] font-medium hover:underline">
+                      Create an account
+                    </Link>
+                  </p>
+                </div>
               </>
             ) : (
               <>
