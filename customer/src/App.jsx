@@ -10,6 +10,7 @@ import Quotes from './pages/Quotes';
 import CADModels from './pages/CADModels';
 import Account from './pages/Account';
 import GuestOrder from './pages/GuestOrder';
+import Register from './pages/Register';
 import { api } from './utils/api';
 import { SAMPLE_ORDERS, SAMPLE_PROFILE } from './utils/sampleData';
 
@@ -56,6 +57,7 @@ function AppContent() {
   return (
     <Routes>
       <Route path="/login"       element={<Login />} />
+      <Route path="/register"    element={<Register />} />
       <Route path="/guest-order" element={
         <GuestRoute>
           <GuestOrder />

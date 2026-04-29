@@ -154,6 +154,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/customer/register"
+  to = "/.netlify/functions/customer-register"
+  status = 200
+
+[[redirects]]
   from = "/contact"
   to = "/customquote"
   status = 301
