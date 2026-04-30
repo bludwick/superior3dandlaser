@@ -61,12 +61,9 @@
   }
   .tab:hover { color: var(--text); background: var(--bg-card); }
   .tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--bg); }
-  .tab.tab-admin { font-size: 12px; color: #999; }
-  .tab.tab-admin:hover { color: var(--muted); }
-  .tab.tab-admin.active { color: var(--accent); }
 
   /* Form panels */
-  .panel { display: none; padding: 28px 40px 36px; }
+  .panel { display: none; padding: 28px 40px 0; }
   .panel.active { display: block; }
 
   .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
@@ -111,14 +108,25 @@
   .btn.loading .btn-label { display: none; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  .admin-badge {
-    display: inline-flex; align-items: center; gap: 5px; margin-bottom: 18px;
-    font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
-    color: var(--accent); background: rgba(185,28,28,.08); border: 1px solid rgba(185,28,28,.18);
-    border-radius: 5px; padding: 3px 8px;
+  .card-footer {
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    padding: 20px 40px 28px;
   }
-
-  .back-link { display: block; text-align: center; padding: 0 40px 24px; font-size: 12px; color: var(--muted); text-decoration: none; }
+  .forgot-link {
+    font-size: 12px; color: var(--muted); text-decoration: none; background: none;
+    border: none; cursor: pointer; font-family: var(--font); padding: 0;
+    transition: color .15s;
+  }
+  .forgot-link:hover { color: var(--accent); }
+  .forgot-msg {
+    display: none; font-size: 12px; color: var(--muted); text-align: center;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px; line-height: 1.5;
+  }
+  .forgot-msg.show { display: block; }
+  .forgot-msg a { color: var(--accent); text-decoration: none; }
+  .forgot-msg a:hover { text-decoration: underline; }
+  .back-link { font-size: 12px; color: var(--muted); text-decoration: none; }
   .back-link:hover { color: var(--accent); }
 </style>
 </head>
@@ -130,9 +138,8 @@
   </div>
 
   <div class="tabs">
-    <button class="tab active" id="tab-signin"  onclick="switchTab('signin')">Sign In</button>
-    <button class="tab"        id="tab-create"  onclick="switchTab('create')">Create Account</button>
-    <button class="tab tab-admin" id="tab-admin" onclick="switchTab('admin')">Admin</button>
+    <button class="tab active" id="tab-signin" onclick="switchTab('signin')">Sign In</button>
+    <button class="tab"        id="tab-create" onclick="switchTab('create')">Create Account</button>
   </div>
 
   <!-- Sign In panel -->
@@ -190,49 +197,33 @@
     <div class="error-box" id="ca-error"></div>
   </div>
 
-  <!-- Admin panel -->
-  <div class="panel" id="panel-admin">
-    <div class="admin-badge">🔐 Restricted Access</div>
-    <form id="adminForm" onsubmit="handleAdmin(event)" novalidate>
-      <div class="field">
-        <label for="ad-email">Email Address</label>
-        <input type="email" id="ad-email" placeholder="admin@example.com" autocomplete="email" required>
-      </div>
-      <div class="field">
-        <label for="ad-password">Password</label>
-        <div class="input-wrap">
-          <input type="password" id="ad-password" class="pw-input" placeholder="••••••••••" autocomplete="current-password" required>
-          <button type="button" class="pw-toggle" onclick="togglePw('ad-password')" title="Show / hide password">👁</button>
-        </div>
-      </div>
-      <button type="submit" class="btn" id="adBtn">
-        <span class="btn-label">Sign In →</span>
-        <span class="spinner"></span>
-      </button>
-    </form>
-    <div class="error-box" id="ad-error"></div>
+  <div class="card-footer">
+    <button class="forgot-link" onclick="toggleForgot()">Forgot password?</button>
+    <div class="forgot-msg" id="forgotMsg">
+      Contact us at <a href="mailto:sales@superior3dandlaser.com">sales@superior3dandlaser.com</a>
+      and we'll help reset your password.
+    </div>
+    <a href="/" class="back-link">← Back to site</a>
   </div>
-
-  <a href="/" class="back-link">← Back to site</a>
 </div>
 
 <script>
-  // Switch active tab and panel
   function switchTab(tab) {
-    ['signin', 'create', 'admin'].forEach(t => {
+    ['signin', 'create'].forEach(t => {
       document.getElementById('tab-' + t).classList.toggle('active', t === tab);
       document.getElementById('panel-' + t).classList.toggle('active', t === tab);
-      const errEl = document.getElementById(t === 'signin' ? 'si-error' : t === 'create' ? 'ca-error' : 'ad-error');
-      if (errEl) errEl.classList.remove('show');
     });
+    document.getElementById('si-error').classList.remove('show');
+    document.getElementById('ca-error').classList.remove('show');
   }
-
-  // Check URL hash to open admin tab directly (e.g. /login#admin)
-  if (window.location.hash === '#admin') switchTab('admin');
 
   function togglePw(id) {
     const inp = document.getElementById(id);
     inp.type = inp.type === 'password' ? 'text' : 'password';
+  }
+
+  function toggleForgot() {
+    document.getElementById('forgotMsg').classList.toggle('show');
   }
 
   async function handleSignIn(e) {
@@ -246,21 +237,46 @@
     btn.classList.add('loading'); btn.disabled = true;
 
     try {
-      const res  = await fetch('/api/customer/login', {
+      // Try customer login first
+      const custRes  = await fetch('/api/customer/login', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
+
+      if (custRes.ok) {
         window.location.href = '/portal/';
-      } else if (res.status === 429) {
-        errEl.textContent = 'Too many attempts. Please wait 15 minutes and try again.';
-        errEl.classList.add('show');
-      } else {
-        errEl.textContent = data.error || 'Invalid email or password.';
-        errEl.classList.add('show');
+        return;
       }
+
+      if (custRes.status === 429) {
+        const d = await custRes.json().catch(() => ({}));
+        errEl.textContent = d.error || 'Too many attempts. Please wait 15 minutes and try again.';
+        errEl.classList.add('show');
+        return;
+      }
+
+      // Customer login failed — try admin login
+      const adminRes = await fetch('/api/admin/login', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (adminRes.ok) {
+        window.location.href = '/admin/';
+        return;
+      }
+
+      if (adminRes.status === 429) {
+        const d = await adminRes.json().catch(() => ({}));
+        errEl.textContent = d.error || 'Too many attempts. Please wait 15 minutes and try again.';
+        errEl.classList.add('show');
+        return;
+      }
+
+      errEl.textContent = 'Invalid email or password.';
+      errEl.classList.add('show');
     } catch {
       errEl.textContent = 'Network error — check your connection and try again.';
       errEl.classList.add('show');
@@ -304,40 +320,6 @@
         window.location.href = '/portal/';
       } else {
         errEl.textContent = data.error || 'Registration failed. Please try again.';
-        errEl.classList.add('show');
-      }
-    } catch {
-      errEl.textContent = 'Network error — check your connection and try again.';
-      errEl.classList.add('show');
-    } finally {
-      btn.classList.remove('loading'); btn.disabled = false;
-    }
-  }
-
-  async function handleAdmin(e) {
-    e.preventDefault();
-    const btn   = document.getElementById('adBtn');
-    const errEl = document.getElementById('ad-error');
-    const email    = document.getElementById('ad-email').value.trim();
-    const password = document.getElementById('ad-password').value;
-
-    errEl.classList.remove('show');
-    btn.classList.add('loading'); btn.disabled = true;
-
-    try {
-      const res  = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        window.location.href = '/admin/';
-      } else if (res.status === 429) {
-        errEl.textContent = 'Too many failed attempts. Please wait 15 minutes and try again.';
-        errEl.classList.add('show');
-      } else {
-        errEl.textContent = data.error || 'Invalid email or password.';
         errEl.classList.add('show');
       }
     } catch {
